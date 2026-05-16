@@ -20,11 +20,11 @@ const nextConfig: NextConfig = {
       },
       {
         source: '/admin/:path*',
-        destination: 'http://127.0.0.1:3001/:path*',
+        destination: 'http://127.0.0.1:3001/admin/:path*',
       },
       {
         source: '/admin',
-        destination: 'http://127.0.0.1:3001/',
+        destination: 'http://127.0.0.1:3001/admin',
       },
     ];
   },
