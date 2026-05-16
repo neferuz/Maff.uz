@@ -1,0 +1,43 @@
+{
+  "name": "maff.uz",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "translate": "node scripts/translate.mjs"
+  },
+  "dependencies": {
+    "@sanity/assist": "^6.0.5",
+    "@sanity/document-internationalization": "^6.1.1",
+    "@tolgee/format-icu": "^7.0.0",
+    "@tolgee/react": "^7.0.0",
+    "clsx": "^2.1.1",
+    "dotenv": "^17.4.2",
+    "firebase": "^12.13.0",
+    "framer-motion": "^12.38.0",
+    "lucide-react": "^1.8.0",
+    "next": "15.2.0",
+    "next-sanity": "^12.4.5",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "sanity": "^5.25.1",
+    "sanity-plugin-internationalized-array": "^5.1.1",
+    "tailwind-merge": "^3.5.0"
+  },
+  "devDependencies": {
+    "@netlify/plugin-nextjs": "latest",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "15.2.0",
+    "prettier": "^3.8.3",
+    "prettier-plugin-tailwindcss": "^0.7.2",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}

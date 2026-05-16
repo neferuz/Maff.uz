@@ -1,0 +1,43 @@
+{
+  "hero": {
+    "badge": "MAFF.UZ — ПРЕМИАЛЬНЫЕ ПОЛЫ",
+    "title": "Инновационные решения для вашего пола",
+    "highlightWord": "Инновационные",
+    "subtitle": "Официальный дистрибьютор мировых брендов ламината и паркета в Узбекистане. Качество, проверенное десятилетиями.",
+    "primaryButton": {
+      "text": "Смотреть каталог",
+      "link": "/catalog"
+    },
+    "secondaryButton": {
+      "text": "О компании",
+      "link": "/about"
+    },
+    "images": [
+      "/kam-idris-U39FPHKfDu0-unsplash.jpg",
+      "/spacejoy-9M66C_w_ToM-unsplash.jpg"
+    ],
+    "features": [
+      {
+        "text": "Гарантия 25 лет",
+        "icon": "ShieldCheck"
+      },
+      {
+        "text": "Быстрая доставка",
+        "icon": "Truck"
+      }
+    ]
+  },
+  "about": {
+    "title": "MAFF — мультибрендовая дистрибьюция материалов в Узбекистане",
+    "description": "МАFF предоставляет профессиональные решения для отделки на рынке Узбекистана уже более 20 лет. Мы стали ведущими поставщиками ламината, дверей и комплектующих, являясь официальными представителями 17 международных заводов.",
+    "stats": [
+      { "label": "Лет опыта", "value": "20+" },
+      { "label": "Заводов", "value": "17" },
+      { "label": "Моделей", "value": "500+" }
+    ]
+  },
+  "brands": [
+    "COSWICK", "QUICK-STEP", "BARLINEK", "KRONOPOL", "EGGER", "TARKETT",
+    "CLASSEN", "HARO", "PERGO", "BERRYALLOC", "KAINDL", "MEISTER"
+  ]
+}
