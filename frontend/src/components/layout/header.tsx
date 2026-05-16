@@ -241,7 +241,7 @@ export function Header() {
           <div className="max-w-7xl mx-auto px-4 lg:px-6 h-full flex items-center justify-between gap-4">
             <button onClick={() => setIsMobileMenuOpen(true)} className="lg:hidden p-2 -ml-2"><CustomBurgerIcon /></button>
             <Link href="/" className="flex-shrink-0 group lg:relative absolute left-1/2 -translate-x-1/2 lg:left-0 lg:translate-x-0">
-               <Image src="/logo.png" alt="MAFF" width={180} height={80} className="w-auto h-12 lg:h-14 object-contain dark:invert" priority />
+               <img src="/logo.png" alt="MAFF" className="w-auto h-12 lg:h-14 object-contain" />
             </Link>
             
             <div className="hidden lg:flex flex-grow items-center gap-4 max-w-3xl relative" ref={searchRef}>
@@ -402,7 +402,7 @@ export function Header() {
       <div className={cn("fixed inset-0 z-[10000] lg:hidden transition-all duration-300", isMobileMenuOpen ? "pointer-events-auto" : "pointer-events-none shadow-none")}>
          <div className={cn("absolute top-0 left-0 bottom-0 w-full bg-white dark:bg-[#0f172a] transition-transform duration-300 flex flex-col overflow-y-auto shadow-none", isMobileMenuOpen ? "translate-x-0" : "-translate-x-full")}>
             <div className="flex items-center justify-between p-4 border-b border-slate-50 dark:border-slate-800 sticky top-0 bg-white dark:bg-[#0f172a] z-10 shadow-none">
-                <div className="flex items-center"><Image src="/logo.png" alt="MAFF" width={120} height={50} className="w-auto h-9 object-contain shadow-none dark:invert" /></div>
+            <div className="flex items-center"><img src="/logo.png" alt="MAFF" className="w-auto h-9 object-contain shadow-none" /></div>
                 <button onClick={() => setIsMobileMenuOpen(false)} className="w-10 h-10 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-900 dark:text-white shadow-none"><X className="w-5 h-5 shadow-none" strokeWidth={1.5} /></button>
             </div>
 
