@@ -26,6 +26,10 @@ const nextConfig: NextConfig = {
         source: '/admin',
         destination: 'http://127.0.0.1:3001/admin',
       },
+      {
+        source: '/static/:path*',
+        destination: 'http://127.0.0.1:8000/static/:path*',
+      },
     ];
   },
 };
