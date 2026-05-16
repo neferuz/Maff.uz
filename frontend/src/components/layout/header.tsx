@@ -240,8 +240,8 @@ export function Header() {
         <div className="w-full bg-white dark:bg-[#0f172a] border-b border-[#f3f4f6] dark:border-slate-800 shadow-none relative h-16 lg:h-20">
           <div className="max-w-7xl mx-auto px-4 lg:px-6 h-full flex items-center justify-between gap-4">
             <button onClick={() => setIsMobileMenuOpen(true)} className="lg:hidden p-2 -ml-2"><CustomBurgerIcon /></button>
-            <Link href="/" className="flex-shrink-0 group lg:relative absolute left-1/2 -translate-x-1/2 lg:left-0 lg:translate-x-0 bg-slate-900 p-2 rounded-lg">
-               <img src="/logo.png" alt="MAFF" className="w-auto h-12 lg:h-14 object-contain" />
+            <Link href="/" className="flex-shrink-0 group lg:relative absolute left-1/2 -translate-x-1/2 lg:left-0 lg:translate-x-0 bg-slate-900 p-2 rounded-lg border-2 border-white">
+               <img src="https://maff.uz/logo.png" alt="MAFF" className="w-auto h-12 lg:h-14 object-contain block" />
             </Link>
             
             <div className="hidden lg:flex flex-grow items-center gap-4 max-w-3xl relative" ref={searchRef}>
