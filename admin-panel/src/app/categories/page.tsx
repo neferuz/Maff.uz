@@ -35,6 +35,8 @@ export default function CategoriesPage() {
   const [categoryToDelete, setCategoryToDelete] = useState<number | null>(null);
   const [categoryToArchive, setCategoryToArchive] = useState<any | null>(null);
   const [statusFilter, setStatusFilter] = useState<'active' | 'archived'>('active');
+  const [editName, setEditName] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
   const fetchCategories = async () => {
     try {
@@ -123,6 +125,7 @@ export default function CategoriesPage() {
   useEffect(() => {
     if (selectedCategory) {
       document.body.style.overflow = 'hidden';
+      setEditName(selectedCategory.name);
     } else {
       document.body.style.overflow = 'unset';
     }
@@ -130,6 +133,34 @@ export default function CategoriesPage() {
       document.body.style.overflow = 'unset';
     };
   }, [selectedCategory]);
+
+  const handleSaveCategory = async () => {
+    if (!selectedCategory || !editName.trim()) return;
+    
+    try {
+      setIsSaving(true);
+      const res = await fetch(`/api/v1/categories/${selectedCategory.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: editName,
+        }),
+      });
+      if (res.ok) {
+        setSelectedCategory(null);
+        await fetchCategories();
+      } else {
+        alert("Не удалось сохранить изменения");
+      }
+    } catch (error) {
+      console.error("Failed to save category:", error);
+      alert("Ошибка при подключении к серверу");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   // Build a tree from flat categories
   const buildTree = (cats: any[]) => {
@@ -396,7 +427,8 @@ export default function CategoriesPage() {
                     <label className="text-[11px] font-bold text-[#4f566b] uppercase tracking-widest">Название категории</label>
                     <input 
                       type="text" 
-                      defaultValue={selectedCategory.name}
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
                       className="w-full px-4 py-3 bg-[#f7f8f9] border border-[#e3e8ee] rounded-xl text-[14px] font-bold text-[#1a1f36] outline-none focus:border-[#2c3b6e]/30"
                     />
                  </div>
@@ -423,27 +455,34 @@ export default function CategoriesPage() {
               <div className="px-6 py-5 border-t border-[#e3e8ee] bg-[#f7f8f9]/50 sticky bottom-0 grid grid-cols-3 gap-3">
                  <button 
                    onClick={() => handleDeleteCategory(selectedCategory.id)}
-                   disabled={isDeleting}
+                   disabled={isDeleting || isSaving}
                    className={cn(
                      "flex items-center justify-center gap-2 px-4 py-3 border border-[#e3e8ee] bg-white rounded-xl text-[13px] font-bold text-[#cd5c5c] hover:bg-white transition-all no-shadow",
-                     isDeleting && "opacity-50 cursor-not-allowed"
+                     (isDeleting || isSaving) && "opacity-50 cursor-not-allowed"
                    )}
                  >
                     <Trash2 className="w-4 h-4" />
                  </button>
                  <button 
                    onClick={() => handleToggleArchiveCategory(selectedCategory)}
-                   disabled={isDeleting}
+                   disabled={isDeleting || isSaving}
                    className={cn(
                      "flex items-center justify-center gap-2 px-4 py-3 border border-[#e3e8ee] bg-white rounded-xl text-[13px] font-bold text-[#f59e0b] hover:bg-[#f7f8f9] transition-all no-shadow",
-                     isDeleting && "opacity-50 cursor-not-allowed"
+                     (isDeleting || isSaving) && "opacity-50 cursor-not-allowed"
                    )}
                  >
                     <Archive className="w-4 h-4" />
                     {selectedCategory.is_active !== false ? "В архив" : "Восст."}
                  </button>
-                 <button className="flex items-center justify-center gap-2 px-4 py-3 bg-[#2c3b6e] rounded-xl text-[13px] font-bold text-white hover:bg-[#232f58] transition-all">
-                    Сохранить
+                 <button 
+                   onClick={handleSaveCategory}
+                   disabled={isSaving || isDeleting || !editName.trim()}
+                   className={cn(
+                     "flex items-center justify-center gap-2 px-4 py-3 bg-[#2c3b6e] rounded-xl text-[13px] font-bold text-white hover:bg-[#232f58] transition-all",
+                     (isSaving || isDeleting || !editName.trim()) && "opacity-50 cursor-not-allowed"
+                   )}
+                 >
+                    {isSaving ? "Сохранение..." : "Сохранить"}
                  </button>
               </div>
             </motion.div>

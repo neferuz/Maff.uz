@@ -296,3 +296,17 @@ async def restore_category(
         "restored_category_ids": ids_to_restore, 
         "restored_products_count": len(products_to_activate)
     }
+
+@router.put("/{id}")
+async def update_category(
+    id: int,
+    obj_in: CategoryUpdate,
+    db: AsyncSession = Depends(deps.get_db),
+) -> Any:
+    """
+    Update a category.
+    """
+    category = await category_crud.get(db, id=id)
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
+    return await category_crud.update(db, db_obj=category, obj_in=obj_in)

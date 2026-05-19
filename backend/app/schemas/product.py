@@ -13,8 +13,13 @@ class CategoryBase(BaseModel):
 class CategoryCreate(CategoryBase):
     pass
 
-class CategoryUpdate(CategoryBase):
-    pass
+class CategoryUpdate(BaseModel):
+    name: Optional[str] = None
+    ref_key: Optional[str] = None
+    parent_id: Optional[int] = None
+    description: Optional[str] = None
+    image_url: Optional[str] = None
+    is_active: Optional[bool] = None
 
 class Category(CategoryBase):
     id: int
