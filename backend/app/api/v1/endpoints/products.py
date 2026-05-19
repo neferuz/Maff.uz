@@ -15,17 +15,41 @@ async def read_products(
     limit: int = 10000,
     category_id: int = None,
     q: str = None,
+    include_inactive: bool = False,
 ) -> Any:
     """
     Retrieve products.
     """
+    from sqlalchemy.future import select
+    from app.models.product import Product as ProductModel
+    
+    query = select(ProductModel)
+    
     if q:
-        products = await product_crud.search(db, query=q, skip=skip, limit=limit)
+        query = query.filter(
+            (ProductModel.name.ilike(f"%{q}%")) | 
+            (ProductModel.brand.ilike(f"%{q}%"))
+        )
     elif category_id:
-        products = await product_crud.get_multi_by_category(db, category_id=category_id, skip=skip, limit=limit)
-    else:
-        products = await product_crud.get_multi(db, skip=skip, limit=limit)
-    return products
+        from app.models.product import Category as CategoryModel
+        cat_result = await db.execute(select(CategoryModel))
+        all_cats = cat_result.scalars().all()
+        
+        def get_all_child_ids(cat_id: int) -> list:
+            ids = [cat_id]
+            children = [c.id for c in all_cats if c.parent_id == cat_id]
+            for child in children:
+                ids.extend(get_all_child_ids(child))
+            return ids
+            
+        category_ids = get_all_child_ids(category_id)
+        query = query.filter(ProductModel.category_id.in_(category_ids))
+        
+    if not include_inactive:
+        query = query.filter(ProductModel.is_active != False)
+        
+    result = await db.execute(query.offset(skip).limit(limit))
+    return result.scalars().all()
 
 @router.get("/{id}", response_model=Product)
 async def read_product(
@@ -83,6 +107,13 @@ async def perform_sync(db: AsyncSession):
     db_categories = await category_crud.get_multi(db, limit=1000)
     cat_map = {c.ref_key: c.id for c in db_categories}
     
+    # 4. Fetch all existing products from the database for in-memory mapping
+    from sqlalchemy.future import select
+    from app.models.product import Product as ProductModel
+    db_products_res = await db.execute(select(ProductModel))
+    db_products = db_products_res.scalars().all()
+    product_map = {p.ref_key: p for p in db_products if p.ref_key}
+    
     synced_count = 0
     for item in all_one_c_items:
         ref_key = item.get("Ref_Key")
@@ -101,27 +132,30 @@ async def perform_sync(db: AsyncSession):
             image_url = f"https://images.unsplash.com/photo-1581094794329-c8112a89af12?q=80&w=200&auto=format&fit=crop"
         
         # Check if exists
-        db_obj = await product_crud.get_by_ref_key(db, ref_key)
+        db_obj = product_map.get(ref_key)
         if db_obj:
-            # Update
-            # Protect name and image if they were enriched by CSV (we assume enriched if description exists)
-            update_data = ProductUpdate(
-                name=name if not db_obj.description else db_obj.name, 
-                sku=sku, 
-                price=price, 
-                stock=stock, 
-                category_id=category_id, 
-                image_url=image_url if not db_obj.image_url else db_obj.image_url
-            )
-            await product_crud.update(db, db_obj=db_obj, obj_in=update_data)
+            # Update fields directly
+            db_obj.sku = sku
+            db_obj.price = price
+            db_obj.stock = stock
+            db_obj.category_id = category_id
+            if not db_obj.description:
+                db_obj.name = name
+            if not db_obj.image_url:
+                db_obj.image_url = image_url
+            db.add(db_obj)
         else:
-            # Create
-            await product_crud.create(db, obj_in=ProductCreate(
+            # Create a new product object and add to session
+            new_obj = ProductModel(
                 name=name, sku=sku, ref_key=ref_key, price=price, stock=stock,
                 category_id=category_id, image_url=image_url
-            ))
+            )
+            db.add(new_obj)
+            product_map[ref_key] = new_obj
         
         synced_count += 1
+        
+    await db.commit()
     
     return {"status": "success", "synced_count": synced_count}
 

@@ -50,6 +50,14 @@ class CRUDProduct:
         await db.refresh(db_obj)
         return db_obj
 
+    async def remove(self, db: AsyncSession, *, id: int) -> Optional[Product]:
+        result = await db.execute(select(Product).filter(Product.id == id))
+        db_obj = result.scalars().first()
+        if db_obj:
+            await db.delete(db_obj)
+            await db.commit()
+        return db_obj
+
 class CRUDCategory:
     async def get(self, db: AsyncSession, id: int) -> Optional[Category]:
         result = await db.execute(select(Category).filter(Category.id == id))
@@ -77,6 +85,14 @@ class CRUDCategory:
         db.add(db_obj)
         await db.commit()
         await db.refresh(db_obj)
+        return db_obj
+
+    async def remove(self, db: AsyncSession, *, id: int) -> Optional[Category]:
+        result = await db.execute(select(Category).filter(Category.id == id))
+        db_obj = result.scalars().first()
+        if db_obj:
+            await db.delete(db_obj)
+            await db.commit()
         return db_obj
 
 product_crud = CRUDProduct()

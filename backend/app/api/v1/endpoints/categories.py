@@ -14,15 +14,20 @@ async def read_categories(
     db: AsyncSession = Depends(deps.get_db),
     skip: int = 0,
     limit: int = 1000,
+    include_inactive: bool = False,
 ) -> Any:
     """
     Retrieve categories with product counts.
     """
     from sqlalchemy import func
-    from app.models.product import Product
+    from app.models.product import Product, Category as CategoryModel
     
     # 1. Fetch categories
-    categories = await category_crud.get_multi(db, skip=skip, limit=limit)
+    query = select(CategoryModel)
+    if not include_inactive:
+        query = query.filter(CategoryModel.is_active != False)
+    categories_result = await db.execute(query.offset(skip).limit(limit))
+    categories = categories_result.scalars().all()
     
     # 2. Fetch product counts per category
     product_counts_result = await db.execute(
@@ -59,7 +64,8 @@ async def read_categories(
             "parent_id": c.parent_id,
             "description": c.description,
             "image_url": c.image_url,
-            "product_count": get_total_count(c.id)
+            "product_count": get_total_count(c.id),
+            "is_active": c.is_active
         }
         result.append(c_dict)
         
@@ -105,3 +111,188 @@ async def sync_categories(
         synced_count += 1
         
     return {"status": "success", "synced_count": synced_count}
+
+@router.delete("/{id}")
+async def delete_category(
+    id: int,
+    db: AsyncSession = Depends(deps.get_db),
+) -> Any:
+    """
+    Delete a category and recursively delete all its subcategories and associated products.
+    """
+    from app.models.product import Product, Category
+    from app.crud.crud_product import product_crud
+    
+    # 1. Fetch target category
+    category = await category_crud.get(db, id=id)
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
+    
+    # 2. Retrieve all categories to build the subcategory tree
+    all_cats_result = await db.execute(select(Category))
+    all_categories = all_cats_result.scalars().all()
+    
+    # Build map of parent_id -> list of child categories
+    children_map = {}
+    for c in all_categories:
+        if c.parent_id:
+            if c.parent_id not in children_map:
+                children_map[c.parent_id] = []
+            children_map[c.parent_id].append(c)
+            
+    # 3. Find all subcategories recursively
+    ids_to_delete = [id]
+    def collect_subcategory_ids(parent_id: int):
+        children = children_map.get(parent_id, [])
+        for child in children:
+            ids_to_delete.append(child.id)
+            collect_subcategory_ids(child.id)
+            
+    collect_subcategory_ids(id)
+    
+    # 4. Delete all products belonging to these categories
+    products_to_delete_result = await db.execute(
+        select(Product).filter(Product.category_id.in_(ids_to_delete))
+    )
+    products_to_delete = products_to_delete_result.scalars().all()
+    for p in products_to_delete:
+        await db.delete(p)
+        
+    # 5. Delete all subcategories and the category itself
+    for cat_id in reversed(ids_to_delete):
+        cat_obj_result = await db.execute(select(Category).filter(Category.id == cat_id))
+        cat_obj = cat_obj_result.scalars().first()
+        if cat_obj:
+            await db.delete(cat_obj)
+            
+    await db.commit()
+    
+    return {
+        "status": "success", 
+        "deleted_category_ids": ids_to_delete, 
+        "deleted_products_count": len(products_to_delete)
+    }
+
+@router.post("/{id}/archive")
+async def archive_category(
+    id: int,
+    db: AsyncSession = Depends(deps.get_db),
+) -> Any:
+    """
+    Archive a category, its subcategories and all associated products.
+    """
+    from app.models.product import Product, Category
+    
+    # 1. Fetch target category
+    category = await category_crud.get(db, id=id)
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
+        
+    # 2. Retrieve all categories to build the subcategory tree
+    all_cats_result = await db.execute(select(Category))
+    all_categories = all_cats_result.scalars().all()
+    
+    # Build map of parent_id -> list of child categories
+    children_map = {}
+    for c in all_categories:
+        if c.parent_id:
+            if c.parent_id not in children_map:
+                children_map[c.parent_id] = []
+            children_map[c.parent_id].append(c)
+            
+    # 3. Find all subcategories recursively
+    ids_to_archive = [id]
+    def collect_subcategory_ids(parent_id: int):
+        children = children_map.get(parent_id, [])
+        for child in children:
+            ids_to_archive.append(child.id)
+            collect_subcategory_ids(child.id)
+            
+    collect_subcategory_ids(id)
+    
+    # 4. Deactivate all products belonging to these categories
+    products_to_deactivate_result = await db.execute(
+        select(Product).filter(Product.category_id.in_(ids_to_archive))
+    )
+    products_to_deactivate = products_to_deactivate_result.scalars().all()
+    for p in products_to_deactivate:
+        p.is_active = False
+        db.add(p)
+        
+    # 5. Deactivate all subcategories and the category itself
+    for cat_id in ids_to_archive:
+        cat_obj_result = await db.execute(select(Category).filter(Category.id == cat_id))
+        cat_obj = cat_obj_result.scalars().first()
+        if cat_obj:
+            cat_obj.is_active = False
+            db.add(cat_obj)
+            
+    await db.commit()
+    
+    return {
+        "status": "success", 
+        "archived_category_ids": ids_to_archive, 
+        "archived_products_count": len(products_to_deactivate)
+    }
+
+@router.post("/{id}/restore")
+async def restore_category(
+    id: int,
+    db: AsyncSession = Depends(deps.get_db),
+) -> Any:
+    """
+    Restore a category, its subcategories and all associated products.
+    """
+    from app.models.product import Product, Category
+    
+    # 1. Fetch target category
+    category = await category_crud.get(db, id=id)
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
+        
+    # 2. Retrieve all categories to build the subcategory tree
+    all_cats_result = await db.execute(select(Category))
+    all_categories = all_cats_result.scalars().all()
+    
+    # Build map of parent_id -> list of child categories
+    children_map = {}
+    for c in all_categories:
+        if c.parent_id:
+            if c.parent_id not in children_map:
+                children_map[c.parent_id] = []
+            children_map[c.parent_id].append(c)
+            
+    # 3. Find all subcategories recursively
+    ids_to_restore = [id]
+    def collect_subcategory_ids(parent_id: int):
+        children = children_map.get(parent_id, [])
+        for child in children:
+            ids_to_restore.append(child.id)
+            collect_subcategory_ids(child.id)
+            
+    collect_subcategory_ids(id)
+    
+    # 4. Activate all products belonging to these categories
+    products_to_activate_result = await db.execute(
+        select(Product).filter(Product.category_id.in_(ids_to_restore))
+    )
+    products_to_activate = products_to_activate_result.scalars().all()
+    for p in products_to_activate:
+        p.is_active = True
+        db.add(p)
+        
+    # 5. Activate all subcategories and the category itself
+    for cat_id in ids_to_restore:
+        cat_obj_result = await db.execute(select(Category).filter(Category.id == cat_id))
+        cat_obj = cat_obj_result.scalars().first()
+        if cat_obj:
+            cat_obj.is_active = True
+            db.add(cat_obj)
+            
+    await db.commit()
+    
+    return {
+        "status": "success", 
+        "restored_category_ids": ids_to_restore, 
+        "restored_products_count": len(products_to_activate)
+    }

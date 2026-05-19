@@ -37,7 +37,12 @@ async def seed_home():
                     {"label": "Товаров в наличии", "value": "1000+"}
                 ]
             },
-            "brands": ["Maff", "Kronopol", "Tarkett", "Classen"]
+            "brands": [
+                {"name": "Maff", "link": "/catalog?brand=Maff"},
+                {"name": "Kronopol", "link": "/catalog?brand=Kronopol"},
+                {"name": "Tarkett", "link": "/catalog?brand=Tarkett"},
+                {"name": "Classen", "link": "/catalog?brand=Classen"}
+            ]
         }
         
         if home_page:

@@ -173,13 +173,24 @@ export default function HomePageEditor() {
   };
 
   // --- Brands Handlers ---
-  const updateBrand = (index: number, value: string) => {
+  const updateBrandField = (index: number, field: "name" | "link", value: string) => {
     const newBrands = [...data.brands];
-    newBrands[index] = value;
+    const currentBrand = newBrands[index];
+    if (typeof currentBrand === "string") {
+      newBrands[index] = {
+        name: field === "name" ? value : currentBrand,
+        link: field === "link" ? value : ""
+      };
+    } else {
+      newBrands[index] = {
+        ...currentBrand,
+        [field]: value
+      };
+    }
     setData({ ...data, brands: newBrands });
   };
   const addBrand = () => {
-    setData({ ...data, brands: [...data.brands, "НОВЫЙ БРЕНД"] });
+    setData({ ...data, brands: [...data.brands, { name: "НОВЫЙ БРЕНД", link: "" }] });
   };
   const removeBrand = (index: number) => {
     const newBrands = data.brands.filter((_: any, i: number) => i !== index);
@@ -416,20 +427,43 @@ export default function HomePageEditor() {
                  </button>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
-                 {data.brands?.map((brand: string, idx: number) => (
-                    <div key={idx} className="group relative flex items-center bg-[#f7f8f9] border border-[#e3e8ee] rounded-lg px-3 py-2 transition-all hover:border-[#2c3b6e]">
-                       <input 
-                         type="text" 
-                         value={brand} 
-                         onChange={(e) => updateBrand(idx, e.target.value)} 
-                         className="w-full bg-transparent text-[12px] font-bold text-[#1a1f36] outline-none" 
-                       />
-                       <button onClick={() => removeBrand(idx)} className="opacity-0 group-hover:opacity-100 p-1 text-[#cd5c5c] transition-opacity">
-                          <Trash2 className="w-3.5 h-3.5" />
-                       </button>
-                    </div>
-                 ))}
+              <div className="grid grid-cols-2 gap-4">
+                 {data.brands?.map((brand: any, idx: number) => {
+                    const name = typeof brand === 'string' ? brand : (brand?.name || "");
+                    const link = typeof brand === 'string' ? "" : (brand?.link || "");
+                    return (
+                      <div key={idx} className="group relative bg-[#f7f8f9] border border-[#e3e8ee] rounded-xl p-4 transition-all hover:border-[#2c3b6e] space-y-3">
+                         <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-bold text-[#2c3b6e] uppercase tracking-wider">Бренд #{idx + 1}</span>
+                            <button onClick={() => removeBrand(idx)} className="p-1 text-[#cd5c5c] hover:bg-[#cd5c5c]/10 rounded transition-colors shadow-none">
+                               <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                         </div>
+                         <div className="space-y-2">
+                            <div className="space-y-1">
+                               <label className="text-[9px] font-bold text-[#4f566b] uppercase tracking-wider">Название</label>
+                               <input 
+                                 type="text" 
+                                 value={name} 
+                                 onChange={(e) => updateBrandField(idx, "name", e.target.value)} 
+                                 className="w-full px-2.5 py-1.5 bg-white border border-[#e3e8ee] rounded-lg text-[12px] font-bold text-[#1a1f36] outline-none" 
+                                 placeholder="COSWICK"
+                               />
+                            </div>
+                            <div className="space-y-1">
+                               <label className="text-[9px] font-bold text-[#4f566b] uppercase tracking-wider">Ссылка</label>
+                               <input 
+                                 type="text" 
+                                 value={link} 
+                                 onChange={(e) => updateBrandField(idx, "link", e.target.value)} 
+                                 className="w-full px-2.5 py-1.5 bg-white border border-[#e3e8ee] rounded-lg text-[12px] font-medium text-slate-500 outline-none" 
+                                 placeholder="/catalog?brand=COSWICK"
+                               />
+                            </div>
+                         </div>
+                      </div>
+                    );
+                 })}
               </div>
            </div>
         </div>

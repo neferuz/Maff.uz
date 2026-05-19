@@ -1,6 +1,6 @@
 import CategoryPageClient from "./category-page-client";
 
-export const dynamicParams = false;
+export const dynamicParams = true;
 
 export function generateStaticParams() {
   const categories = [
@@ -9,7 +9,7 @@ export function generateStaticParams() {
     "osb-плиты", "spc-ламинат", "ручки-и-фурнитура", "экопробка"
   ];
   return categories.map((slug) => ({
-    slug: encodeURIComponent(slug),
+    slug: slug,
   }));
 }
 

@@ -17,7 +17,8 @@ import {
   FolderOpen,
   Folder,
   RefreshCw,
-  ChevronDown
+  ChevronDown,
+  Archive
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -30,11 +31,15 @@ export default function CategoriesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [expandedFolders, setExpandedFolders] = useState<Set<number>>(new Set());
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [categoryToDelete, setCategoryToDelete] = useState<number | null>(null);
+  const [categoryToArchive, setCategoryToArchive] = useState<any | null>(null);
+  const [statusFilter, setStatusFilter] = useState<'active' | 'archived'>('active');
 
   const fetchCategories = async () => {
     try {
       setIsLoading(true);
-      const res = await fetch("/api/v1/categories/");
+      const res = await fetch("/api/v1/categories/?include_inactive=true");
       const data = await res.json();
       setCategories(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -53,6 +58,61 @@ export default function CategoriesPage() {
       console.error("Sync failed:", error);
     } finally {
       setIsSyncing(false);
+    }
+  };
+
+  const handleDeleteCategory = (id: number) => {
+    setCategoryToDelete(id);
+  };
+
+  const confirmDeleteCategory = async () => {
+    if (categoryToDelete === null) return;
+    
+    try {
+      setIsDeleting(true);
+      const res = await fetch(`/api/v1/categories/${categoryToDelete}`, {
+        method: "DELETE"
+      });
+      if (res.ok) {
+        setCategoryToDelete(null);
+        setSelectedCategory(null);
+        await fetchCategories();
+      } else {
+        alert("Не удалось удалить категорию");
+      }
+    } catch (error) {
+      console.error("Failed to delete category:", error);
+      alert("Ошибка при подключении к серверу");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleToggleArchiveCategory = (cat: any) => {
+    setCategoryToArchive(cat);
+  };
+
+  const confirmArchiveCategory = async () => {
+    if (categoryToArchive === null) return;
+    
+    const action = categoryToArchive.is_active !== false ? 'archive' : 'restore';
+    try {
+      setIsDeleting(true);
+      const res = await fetch(`/api/v1/categories/${categoryToArchive.id}/${action}`, {
+        method: "POST"
+      });
+      if (res.ok) {
+        setCategoryToArchive(null);
+        setSelectedCategory(null);
+        await fetchCategories();
+      } else {
+        alert("Не удалось изменить статус категории");
+      }
+    } catch (error) {
+      console.error("Failed to archive/restore category:", error);
+      alert("Ошибка при подключении к серверу");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -116,13 +176,17 @@ export default function CategoriesPage() {
     });
   };
 
+  const filteredByStatus = categories.filter(cat => 
+    statusFilter === 'active' ? cat.is_active !== false : cat.is_active === false
+  );
+
   const searchedCategories = searchQuery 
-    ? categories.filter(cat => cat.name.toLowerCase().includes(searchQuery.toLowerCase()))
-    : categories;
+    ? filteredByStatus.filter(cat => cat.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    : filteredByStatus;
 
   const displayCategories = searchQuery 
     ? searchedCategories.map(cat => ({...cat, depth: 0})) 
-    : flattenTree(buildTree(categories));
+    : flattenTree(buildTree(filteredByStatus));
 
   return (
     <>
@@ -154,7 +218,27 @@ export default function CategoriesPage() {
 
         {/* Filters */}
         <div className="flex items-center justify-between gap-4 border-b border-[#e3e8ee] pb-4">
-          <div className="relative group flex-1 max-w-md">
+          <div className="flex items-center bg-[#f7f8f9] p-1 rounded-lg border border-[#e3e8ee]">
+            <button 
+              onClick={() => setStatusFilter('active')}
+              className={cn(
+                "px-4 py-1.5 text-[13px] font-bold rounded-md transition-all",
+                statusFilter === 'active' ? "bg-white text-[#1a1f36] shadow-sm" : "text-[#4f566b] hover:text-[#1a1f36]"
+              )}
+            >
+              Активные
+            </button>
+            <button 
+              onClick={() => setStatusFilter('archived')}
+              className={cn(
+                "px-4 py-1.5 text-[13px] font-bold rounded-md transition-all flex items-center gap-1.5",
+                statusFilter === 'archived' ? "bg-white text-[#1a1f36] shadow-sm" : "text-[#4f566b] hover:text-[#1a1f36]"
+              )}
+            >
+              Архив
+            </button>
+          </div>
+          <div className="relative group flex-1 max-w-md ml-auto">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#4f566b] group-focus-within:text-[#2c3b6e] transition-colors" />
             <input 
               type="text" 
@@ -180,57 +264,100 @@ export default function CategoriesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e3e8ee]">
-                {displayCategories.map((cat, idx) => (
-                  <motion.tr 
-                    key={cat.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: Math.min(idx * 0.02, 0.5) }}
-                    onClick={() => setSelectedCategory(cat)}
-                    className="group cursor-pointer hover:bg-[#2c3b6e]/[0.02] transition-colors"
-                  >
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-4" style={{ paddingLeft: `${cat.depth * 28}px` }}>
-                         <div 
-                           className={cn(
-                             "w-6 h-6 flex items-center justify-center rounded-md transition-colors",
-                             cat.children && cat.children.length > 0 ? "hover:bg-[#e3e8ee] cursor-pointer" : "opacity-0"
-                           )}
-                           onClick={(e) => cat.children && cat.children.length > 0 ? toggleFolder(e, cat.id) : undefined}
-                         >
-                           {cat.children && cat.children.length > 0 && (
-                             <ChevronRight className={cn("w-4 h-4 text-[#4f566b] transition-transform", expandedFolders.has(cat.id) && "rotate-90")} />
-                           )}
-                         </div>
-                         <div className="w-10 h-10 bg-[#f7f8f9] group-hover:bg-white border border-transparent group-hover:border-[#e3e8ee] rounded-xl flex items-center justify-center text-[#2c3b6e] transition-all flex-shrink-0">
-                            {cat.children && cat.children.length > 0 ? (
-                              <Folder className="w-5 h-5 fill-[#2c3b6e]/10" />
-                            ) : (
-                              <FolderOpen className="w-5 h-5" />
-                            )}
-                         </div>
-                         <span className="text-[14px] font-bold text-[#1a1f36] group-hover:text-[#2c3b6e] transition-colors">{cat.name}</span>
+                {displayCategories.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-12 text-center">
+                      <div className="flex flex-col items-center justify-center gap-2 max-w-[280px] mx-auto text-center">
+                        <div className="w-10 h-10 rounded-xl bg-[#f7f8f9] border border-[#e3e8ee] flex items-center justify-center text-[#4f566b] mb-1">
+                          <Layers className="w-5 h-5 opacity-60" />
+                        </div>
+                        <p className="text-[14px] font-bold text-[#1a1f36]">Ничего не найдено</p>
+                        <p className="text-[11px] text-[#4f566b] leading-normal">
+                          {searchQuery 
+                            ? "По вашему запросу категорий не найдено. Попробуйте изменить текст поиска." 
+                            : "В данном разделе отсутствуют категории."}
+                        </p>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className={cn(
-                        "inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider",
-                        "bg-[#10b981]/10 text-[#10b981]"
-                      )}>
-                        Активна
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <span className="text-[13px] font-bold text-[#1a1f36]">{cat.product_count || 0}</span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <span className="text-[12px] font-medium text-[#4f566b]">—</span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <ChevronRight className="w-4 h-4 text-[#e3e8ee] group-hover:text-[#2c3b6e] transition-colors ml-auto" />
-                    </td>
-                  </motion.tr>
-                ))}
+                  </tr>
+                ) : (
+                  displayCategories.map((cat, idx) => (
+                    <motion.tr 
+                      key={cat.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: Math.min(idx * 0.02, 0.5) }}
+                      onClick={() => setSelectedCategory(cat)}
+                      className="group cursor-pointer hover:bg-[#2c3b6e]/[0.02] transition-colors"
+                    >
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-4" style={{ paddingLeft: `${cat.depth * 28}px` }}>
+                           <div 
+                             className={cn(
+                               "w-6 h-6 flex items-center justify-center rounded-md transition-colors",
+                               cat.children && cat.children.length > 0 ? "hover:bg-[#e3e8ee] cursor-pointer" : "opacity-0"
+                             )}
+                             onClick={(e) => cat.children && cat.children.length > 0 ? toggleFolder(e, cat.id) : undefined}
+                           >
+                             {cat.children && cat.children.length > 0 && (
+                               <ChevronRight className={cn("w-4 h-4 text-[#4f566b] transition-transform", expandedFolders.has(cat.id) && "rotate-90")} />
+                             )}
+                           </div>
+                           <div className="w-10 h-10 bg-[#f7f8f9] group-hover:bg-white border border-transparent group-hover:border-[#e3e8ee] rounded-xl flex items-center justify-center text-[#2c3b6e] transition-all flex-shrink-0">
+                              {cat.children && cat.children.length > 0 ? (
+                                <Folder className="w-5 h-5 fill-[#2c3b6e]/10" />
+                              ) : (
+                                <FolderOpen className="w-5 h-5" />
+                              )}
+                           </div>
+                           <span className="text-[14px] font-bold text-[#1a1f36] group-hover:text-[#2c3b6e] transition-colors">{cat.name}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className={cn(
+                          "inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider",
+                          cat.is_active !== false ? "bg-[#10b981]/10 text-[#10b981]" : "bg-[#f59e0b]/10 text-[#f59e0b]"
+                        )}>
+                          {cat.is_active !== false ? "Активна" : "В архиве"}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <span className="text-[13px] font-bold text-[#1a1f36]">{cat.product_count || 0}</span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <span className="text-[12px] font-medium text-[#4f566b]">—</span>
+                      </td>
+                      <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-end gap-2">
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity mr-2">
+                            <button 
+                              onClick={() => setSelectedCategory(cat)}
+                              className="p-1.5 hover:bg-[#f7f8f9] rounded-lg text-[#4f566b] hover:text-[#2c3b6e] transition-colors"
+                              title="Редактировать"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                            </button>
+                            <button 
+                              onClick={() => handleToggleArchiveCategory(cat)}
+                              className="p-1.5 hover:bg-[#f7f8f9] rounded-lg text-[#f59e0b] hover:bg-[#f59e0b]/10 transition-colors"
+                              title={cat.is_active !== false ? "В архив" : "Восстановить"}
+                            >
+                              <Archive className="w-3.5 h-3.5" />
+                            </button>
+                            <button 
+                              onClick={() => handleDeleteCategory(cat.id)}
+                              className="p-1.5 hover:bg-[#cd5c5c]/10 rounded-lg text-[#cd5c5c] transition-colors"
+                              title="Удалить"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                          <ChevronRight className="w-4 h-4 text-[#e3e8ee] group-hover:text-[#2c3b6e] transition-colors ml-auto flex-shrink-0" />
+                        </div>
+                      </td>
+                    </motion.tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -280,7 +407,12 @@ export default function CategoriesPage() {
                     </div>
                     <div className="p-4 bg-[#f7f8f9] rounded-xl border border-[#e3e8ee]">
                        <p className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest mb-1">Статус</p>
-                       <p className="text-[13px] font-bold text-[#10b981]">Активна</p>
+                       <p className={cn(
+                         "text-[13px] font-bold",
+                         selectedCategory.is_active !== false ? "text-[#10b981]" : "text-[#f59e0b]"
+                       )}>
+                         {selectedCategory.is_active !== false ? "Активна" : "В архиве"}
+                       </p>
                     </div>
                  </div>
                  <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100">
@@ -288,14 +420,135 @@ export default function CategoriesPage() {
                     <p className="text-[10px] text-emerald-600 mt-1">Все изменения будут автоматически обновлены в основном каталоге.</p>
                  </div>
               </div>
-              <div className="px-6 py-5 border-t border-[#e3e8ee] bg-[#f7f8f9]/50 sticky bottom-0 grid grid-cols-2 gap-3">
-                 <button className="flex items-center justify-center gap-2 px-4 py-3 border border-[#e3e8ee] bg-white rounded-xl text-[13px] font-bold text-[#cd5c5c] hover:bg-white transition-all no-shadow">
+              <div className="px-6 py-5 border-t border-[#e3e8ee] bg-[#f7f8f9]/50 sticky bottom-0 grid grid-cols-3 gap-3">
+                 <button 
+                   onClick={() => handleDeleteCategory(selectedCategory.id)}
+                   disabled={isDeleting}
+                   className={cn(
+                     "flex items-center justify-center gap-2 px-4 py-3 border border-[#e3e8ee] bg-white rounded-xl text-[13px] font-bold text-[#cd5c5c] hover:bg-white transition-all no-shadow",
+                     isDeleting && "opacity-50 cursor-not-allowed"
+                   )}
+                 >
                     <Trash2 className="w-4 h-4" />
-                    Удалить
+                 </button>
+                 <button 
+                   onClick={() => handleToggleArchiveCategory(selectedCategory)}
+                   disabled={isDeleting}
+                   className={cn(
+                     "flex items-center justify-center gap-2 px-4 py-3 border border-[#e3e8ee] bg-white rounded-xl text-[13px] font-bold text-[#f59e0b] hover:bg-[#f7f8f9] transition-all no-shadow",
+                     isDeleting && "opacity-50 cursor-not-allowed"
+                   )}
+                 >
+                    <Archive className="w-4 h-4" />
+                    {selectedCategory.is_active !== false ? "В архив" : "Восст."}
                  </button>
                  <button className="flex items-center justify-center gap-2 px-4 py-3 bg-[#2c3b6e] rounded-xl text-[13px] font-bold text-white hover:bg-[#232f58] transition-all">
                     Сохранить
                  </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Custom Confirmation Modal */}
+      <AnimatePresence>
+        {categoryToDelete !== null && (
+          <>
+            <motion.div 
+              key="confirm-backdrop" 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }} 
+              onClick={() => setCategoryToDelete(null)} 
+              className="fixed inset-0 w-screen h-screen bg-slate-900/40 backdrop-blur-sm z-[20000]" 
+            />
+            <motion.div 
+              key="confirm-modal" 
+              initial={{ opacity: 0, scale: 0.95, y: 10 }} 
+              animate={{ opacity: 1, scale: 1, y: 0 }} 
+              exit={{ opacity: 0, scale: 0.95, y: 10 }} 
+              transition={{ type: "spring", damping: 25, stiffness: 200 }} 
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm bg-white border border-[#e3e8ee] z-[20001] rounded-2xl shadow-2xl p-6 text-left flex flex-col gap-4"
+            >
+              <div>
+                <h3 className="text-[16px] font-bold text-[#1a1f36] mb-1">Удалить категорию?</h3>
+                <p className="text-[12px] text-[#4f566b] leading-relaxed">
+                  Это действие безвозвратно удалит категорию, все подкатегории и привязанные к ним товары с витрины сайта.
+                </p>
+              </div>
+              <div className="flex items-center justify-end gap-2 mt-2">
+                <button 
+                  onClick={() => setCategoryToDelete(null)}
+                  disabled={isDeleting}
+                  className="px-4 py-2 border border-[#e3e8ee] hover:bg-[#f7f8f9] rounded-lg text-[13px] font-bold text-[#4f566b] transition-all no-shadow"
+                >
+                  Отмена
+                </button>
+                <button 
+                  onClick={() => confirmDeleteCategory()}
+                  disabled={isDeleting}
+                  className={cn(
+                    "px-4 py-2 bg-[#cd5c5c] hover:bg-[#b04b4b] rounded-lg text-[13px] font-bold text-white transition-all flex items-center gap-1.5",
+                    isDeleting && "opacity-50 cursor-not-allowed"
+                  )}
+                >
+                  {isDeleting ? "Удаление..." : "Да, удалить"}
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Custom Archive/Restore Confirmation Modal */}
+      <AnimatePresence>
+        {categoryToArchive !== null && (
+          <>
+            <motion.div 
+              key="archive-backdrop" 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }} 
+              onClick={() => setCategoryToArchive(null)} 
+              className="fixed inset-0 w-screen h-screen bg-slate-900/40 backdrop-blur-sm z-[20000]" 
+            />
+            <motion.div 
+              key="archive-modal" 
+              initial={{ opacity: 0, scale: 0.95, y: 10 }} 
+              animate={{ opacity: 1, scale: 1, y: 0 }} 
+              exit={{ opacity: 0, scale: 0.95, y: 10 }} 
+              transition={{ type: "spring", damping: 25, stiffness: 200 }} 
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm bg-white border border-[#e3e8ee] z-[20001] rounded-2xl shadow-2xl p-6 text-left flex flex-col gap-4"
+            >
+              <div>
+                <h3 className="text-[16px] font-bold text-[#1a1f36] mb-1">
+                  {categoryToArchive.is_active !== false ? "Архивировать категорию?" : "Восстановить категорию?"}
+                </h3>
+                <p className="text-[12px] text-[#4f566b] leading-relaxed">
+                  {categoryToArchive.is_active !== false 
+                    ? "Все подкатегории и связанные товары также будут скрыты с сайта!"
+                    : "Все подкатегории и связанные товары снова появятся на витрине сайта."}
+                </p>
+              </div>
+              <div className="flex items-center justify-end gap-2 mt-2">
+                <button 
+                  onClick={() => setCategoryToArchive(null)}
+                  disabled={isDeleting}
+                  className="px-4 py-2 border border-[#e3e8ee] hover:bg-[#f7f8f9] rounded-lg text-[13px] font-bold text-[#4f566b] transition-all no-shadow"
+                >
+                  Отмена
+                </button>
+                <button 
+                  onClick={() => confirmArchiveCategory()}
+                  disabled={isDeleting}
+                  className={cn(
+                    "px-4 py-2 bg-[#f59e0b] hover:bg-[#d97706] rounded-lg text-[13px] font-bold text-white transition-all flex items-center gap-1.5",
+                    isDeleting && "opacity-50 cursor-not-allowed"
+                  )}
+                >
+                  {isDeleting ? "Сохранение..." : (categoryToArchive.is_active !== false ? "В архив" : "Восстановить")}
+                </button>
               </div>
             </motion.div>
           </>

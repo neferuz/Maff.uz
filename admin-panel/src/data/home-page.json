@@ -37,7 +37,17 @@
     ]
   },
   "brands": [
-    "COSWICK", "QUICK-STEP", "BARLINEK", "KRONOPOL", "EGGER", "TARKETT",
-    "CLASSEN", "HARO", "PERGO", "BERRYALLOC", "KAINDL", "MEISTER"
+    { "name": "COSWICK", "link": "/catalog?brand=COSWICK" },
+    { "name": "QUICK-STEP", "link": "/catalog?brand=QUICK-STEP" },
+    { "name": "BARLINEK", "link": "/catalog?brand=BARLINEK" },
+    { "name": "KRONOPOL", "link": "/catalog?brand=KRONOPOL" },
+    { "name": "EGGER", "link": "/catalog?brand=EGGER" },
+    { "name": "TARKETT", "link": "/catalog?brand=TARKETT" },
+    { "name": "CLASSEN", "link": "/catalog?brand=CLASSEN" },
+    { "name": "HARO", "link": "/catalog?brand=HARO" },
+    { "name": "PERGO", "link": "/catalog?brand=PERGO" },
+    { "name": "BERRYALLOC", "link": "/catalog?brand=BERRYALLOC" },
+    { "name": "KAINDL", "link": "/catalog?brand=KAINDL" },
+    { "name": "MEISTER", "link": "/catalog?brand=MEISTER" }
   ]
 }

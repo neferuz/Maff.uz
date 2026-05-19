@@ -376,11 +376,22 @@ export default function Home() {
            <div className="absolute left-0 top-0 bottom-0 w-32 bg-gradient-to-r from-white dark:from-[oklch(0.27_0.06_267.62)] to-transparent z-10" />
            <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-white dark:from-[oklch(0.27_0.06_267.62)] to-transparent z-10" />
            <div className="flex w-fit animate-marquee pause-hover gap-16 lg:gap-24 items-center py-2">
-              {[...brands, ...brands].map((brand, idx) => (brand && (
-                 <span key={idx} className="text-xl lg:text-3xl font-black tracking-tighter text-slate-900/10 dark:text-white/5 hover:text-[#2c3b6e]/40 dark:hover:text-blue-400/30 transition-colors cursor-default whitespace-nowrap uppercase">
-                    {brand}
-                 </span>
-              )))}
+              {[...brands, ...brands].map((brand, idx) => {
+                 if (!brand) return null;
+                 const name = typeof brand === 'string' ? brand : brand.name;
+                 const link = typeof brand === 'string' ? `/catalog?brand=${brand}` : brand.link;
+                 if (!name) return null;
+
+                 return link ? (
+                    <Link key={idx} href={link} className="text-xl lg:text-3xl font-black tracking-tighter text-slate-900/10 dark:text-white/5 hover:text-[#2c3b6e]/40 dark:hover:text-blue-400/30 transition-colors cursor-pointer whitespace-nowrap uppercase">
+                       {name}
+                    </Link>
+                 ) : (
+                    <span key={idx} className="text-xl lg:text-3xl font-black tracking-tighter text-slate-900/10 dark:text-white/5 hover:text-[#2c3b6e]/40 dark:hover:text-blue-400/30 transition-colors cursor-default whitespace-nowrap uppercase">
+                       {name}
+                    </span>
+                 );
+              })}
            </div>
         </div>
 

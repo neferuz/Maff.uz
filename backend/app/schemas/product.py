@@ -8,6 +8,7 @@ class CategoryBase(BaseModel):
     parent_id: Optional[int] = None
     description: Optional[str] = None
     image_url: Optional[str] = None
+    is_active: Optional[bool] = True
 
 class CategoryCreate(CategoryBase):
     pass
@@ -18,6 +19,7 @@ class CategoryUpdate(CategoryBase):
 class Category(CategoryBase):
     id: int
     product_count: Optional[int] = 0
+    is_active: bool = True
 
     class Config:
         from_attributes = True

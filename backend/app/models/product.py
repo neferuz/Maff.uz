@@ -9,6 +9,7 @@ class Category(Base):
     image_url = Column(String, nullable=True)
     ref_key = Column(String, unique=True, index=True, nullable=True)  # 1C UUID
     parent_id = Column(Integer, ForeignKey("category.id"), nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
     
     products = relationship("Product", back_populates="category")
     children = relationship("Category", backref="parent", remote_side=[id])

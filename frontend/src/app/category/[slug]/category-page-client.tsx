@@ -11,7 +11,8 @@ import {
   X,
   Search,
   Filter,
-  ArrowUpDown
+  ArrowUpDown,
+  RefreshCw
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -105,43 +106,126 @@ export default function CategoryPageClient() {
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
 
+  const [products, setProducts] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState("Популярные");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
 
-  // Apply sorting and simulation
-  const allProducts = useMemo(() => {
-    let products = Array(4).fill(MOCK_PRODUCTS).flat().map((p, i) => ({ ...p, id: p.id + i * 1000 }));
-    
-    // Parse price for sorting (remove spaces and convert to number)
-    const getPrice = (p: any) => parseInt(p.price.replace(/\s/g, ""));
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        setLoading(true);
+        const [prodRes, catRes] = await Promise.all([
+          fetch("/api/v1/products/"),
+          fetch("/api/v1/categories/")
+        ]);
+        if (prodRes.ok && catRes.ok) {
+          const prodData = await prodRes.json();
+          const catData = await catRes.json();
+          setProducts(Array.isArray(prodData) ? prodData : []);
+          setCategories(Array.isArray(catData) ? catData : []);
+        }
+      } catch (err) {
+        console.error("Failed to fetch data", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, []);
 
+  const currentCategory = useMemo(() => {
+    if (!categories.length) return null;
+    const cleanSlug = decodeURIComponent(slug).toLowerCase().replace(/-/g, " ");
+    return categories.find(c => c && c.name.toLowerCase().replace(/-/g, " ") === cleanSlug) || null;
+  }, [categories, slug]);
+
+  const getAllChildIds = (catId: number, cats: any[], depth = 0): number[] => {
+    if (depth > 10) return [catId];
+    const children = cats.filter(c => c && c.parent_id === catId);
+    let ids = [catId];
+    children.forEach(child => {
+      ids = [...ids, ...getAllChildIds(child.id, cats, depth + 1)];
+    });
+    return ids;
+  };
+
+  const categoryProducts = useMemo(() => {
+    if (!currentCategory) return [];
+    const allRelatedIds = getAllChildIds(currentCategory.id, categories);
+    return products.filter(p => p.category_id && allRelatedIds.includes(p.category_id));
+  }, [currentCategory, categories, products]);
+
+  const filteredProducts = useMemo(() => {
+    let result = categoryProducts;
+    if (activeFilters.length > 0) {
+      result = result.filter(p => {
+        const selectedBrands = activeFilters.filter(f => FILTERS.brands.includes(f));
+        const selectedGrades = activeFilters.filter(f => FILTERS.grades.includes(f));
+        const selectedThickness = activeFilters.filter(f => FILTERS.thickness.includes(f));
+        
+        if (selectedBrands.length > 0 && !selectedBrands.includes(p.brand)) return false;
+        if (selectedGrades.length > 0 && !selectedGrades.includes(p.grade)) return false;
+        if (selectedThickness.length > 0 && !selectedThickness.includes(p.thickness)) return false;
+        
+        return true;
+      });
+    }
+    return result;
+  }, [categoryProducts, activeFilters]);
+
+  const mappedProducts = useMemo(() => {
+    return filteredProducts.map(p => {
+      const name = p.name || "Безымянный товар";
+      const nameParts = name.split(' ');
+      return {
+        id: p.id,
+        title: name,
+        country: p.country || (name.toLowerCase().includes('турц') ? "Турция" : name.toLowerCase().includes('росс') ? "Россия" : "Европа"),
+        brand: p.brand || nameParts[0] || "MAFF",
+        grade: p.grade || (name.includes('33') ? "33 класс" : name.includes('32') ? "32 класс" : "Premium"),
+        thickness: p.thickness || name.match(/\d+мм/)?.[0] || "8мм",
+        price: Number(p.price || 0),
+        inStock: p.stock > 0,
+        image: (p.image_url && typeof p.image_url === 'string')
+          ? (p.image_url.startsWith('http') 
+              ? p.image_url 
+              : `https://maff.uz${p.image_url.startsWith('/') ? '' : '/'}${p.image_url}`)
+          : "/placeholder.png"
+      };
+    });
+  }, [filteredProducts]);
+
+  const sortedProducts = useMemo(() => {
+    let productsList = [...mappedProducts];
+    
     switch (sortBy) {
       case "Сначала дешевле":
-        products.sort((a, b) => getPrice(a) - getPrice(b));
+        productsList.sort((a, b) => a.price - b.price);
         break;
       case "Сначала дороже":
-        products.sort((a, b) => getPrice(b) - getPrice(a));
+        productsList.sort((a, b) => b.price - a.price);
         break;
       case "По названию":
-        products.sort((a, b) => a.title.localeCompare(b.title));
+        productsList.sort((a, b) => a.title.localeCompare(b.title));
         break;
       default:
-        // "Популярные" - keep original order
         break;
     }
     
-    return products;
-  }, [sortBy]);
+    return productsList;
+  }, [mappedProducts, sortBy]);
 
-  const totalPages = Math.ceil(allProducts.length / itemsPerPage);
+  const totalPages = Math.ceil(sortedProducts.length / itemsPerPage);
   
   const currentProducts = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
-    return allProducts.slice(start, start + itemsPerPage);
-  }, [currentPage, allProducts]);
+    return sortedProducts.slice(start, start + itemsPerPage);
+  }, [currentPage, sortedProducts]);
 
   const handlePageChange = (page: number | string) => {
     if (typeof page === "number") {
@@ -167,6 +251,14 @@ export default function CategoryPageClient() {
     );
     setCurrentPage(1); // Reset to first page when filtering
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white dark:bg-slate-900 flex items-center justify-center">
+        <RefreshCw className="w-8 h-8 animate-spin text-[#2c3b6e]" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white">
@@ -337,29 +429,40 @@ export default function CategoryPageClient() {
             )}
 
             {/* Product Grid - 2 columns on mobile */}
-            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4">
-               {currentProducts.map((product) => (
-                 <ProductCard key={product.id} {...product} />
-               ))}
-            </div>
+            {currentProducts.length > 0 ? (
+              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4">
+                 {currentProducts.map((product) => (
+                   <ProductCard key={product.id} {...product} />
+                 ))}
+              </div>
+            ) : (
+              <div className="py-16 text-center bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                <SlidersHorizontal className="w-8 h-8 mx-auto text-slate-300 mb-3 animate-pulse" />
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                  Товары в данной категории не найдены
+                </p>
+              </div>
+            )}
 
             {/* Pagination Placeholder */}
-            <div className="mt-16 flex justify-center pb-20 lg:pb-0">
-               <div className="flex items-center gap-2">
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                    <button 
-                      key={p}
-                      onClick={() => handlePageChange(p)}
-                      className={cn(
-                        "w-10 h-10 rounded-xl font-bold text-[11px] transition-all",
-                        p === currentPage ? "bg-[#1a1a1a] text-white shadow-lg shadow-black/10" : "bg-white border border-slate-100 text-slate-400 hover:border-[#2c3b6e] hover:text-[#2c3b6e]"
-                      )}
-                    >
-                       {p}
-                    </button>
-                  ))}
-               </div>
-            </div>
+            {totalPages > 1 && (
+              <div className="mt-16 flex justify-center pb-20 lg:pb-0">
+                 <div className="flex items-center gap-2">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                      <button 
+                        key={p}
+                        onClick={() => handlePageChange(p)}
+                        className={cn(
+                          "w-10 h-10 rounded-xl font-bold text-[11px] transition-all",
+                          p === currentPage ? "bg-[#1a1a1a] text-white shadow-lg shadow-black/10" : "bg-white border border-slate-100 text-slate-400 hover:border-[#2c3b6e] hover:text-[#2c3b6e]"
+                        )}
+                      >
+                         {p}
+                      </button>
+                    ))}
+                 </div>
+              </div>
+            )}
           </main>
         </div>
       </div>
