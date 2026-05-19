@@ -38,8 +38,7 @@ async def upload_file(file: UploadFile = File(...)):
             shutil.copyfileobj(file.file, buffer)
         
         # Return the URL for the frontend
-        # Using absolute URL for local development to bypass Next.js rewrite issues
-        url = f"http://localhost:8000/static/uploads/{unique_filename}"
+        url = f"/static/uploads/{unique_filename}"
         print(f"UPLOAD SUCCESS: Saved to {file_path}")
         print(f"UPLOAD SUCCESS: Created URL {url}")
         return {"url": url}
