@@ -11,10 +11,8 @@ import {
   X,
   ShoppingBag, 
   CreditCard, 
-  Truck, 
   MapPin,
   ArrowRight,
-  ShieldCheck,
   Zap,
   Award,
   Loader2,
@@ -35,11 +33,54 @@ export default function ProductPageClient({ params }: { params: { slug: string }
   const [installmentMonths, setInstallmentMonths] = useState(24);
   const [activeTab, setActiveTab] = useState("description");
   const [activeImage, setActiveImage] = useState<string | null>(null);
+  const [installmentData, setInstallmentData] = useState<any>({
+    partners: [
+      { name: "alif", logo: "https://s3.fortifai.uz/shop/rand/ce/b1/c5/ceb1c58c-7454-4d16-ad6a-c1f11cea9965.jpg" },
+      { name: "uzum", logo: "https://api.logobank.uz/media/logos_png/Uzum_Nasiya-01.png" },
+      { name: "anor", logo: "https://pultop.uz/wp-content/uploads/2024/07/anor-320.png" },
+    ],
+    months: [3, 6, 12, 24]
+  });
 
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
 
+  // Door Calculator States
+  const [accessories, setAccessories] = useState<{ color: string; boxes: any[]; trims: any[] }>({ color: "", boxes: [], trims: [] });
+  const [selectedBox, setSelectedBox] = useState<any>(null);
+  const [selectedTrim, setSelectedTrim] = useState<any>(null);
+  const [includeBox, setIncludeBox] = useState(false);
+  const [includeTrim, setIncludeTrim] = useState(false);
+  const [doorQuantity, setDoorQuantity] = useState(1);
+  const [isBoxSelectOpen, setIsBoxSelectOpen] = useState(false);
+  const [isTrimSelectOpen, setIsTrimSelectOpen] = useState(false);
+
   // ── Fetch Data ──
   useEffect(() => {
+    const fetchInstallment = async () => {
+      try {
+        const res = await fetch("/api/v1/pages/installment?t=" + Date.now() + "");
+        if (res.ok) {
+          const result = await res.json();
+          if (result.content) {
+            const c = result.content;
+            if (!c.months || !Array.isArray(c.months)) {
+              c.months = [3, 6, 12, 24];
+            }
+            if (!c.partners || !Array.isArray(c.partners)) {
+              c.partners = [];
+            }
+            setInstallmentData(c);
+            if (c.months.length > 0) {
+              setInstallmentMonths(c.months[0]);
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Failed to fetch installment configuration", e);
+      }
+    };
+    fetchInstallment();
+
     const fetchData = async () => {
       try {
         setIsLoading(true);
@@ -54,7 +95,7 @@ export default function ProductPageClient({ params }: { params: { slug: string }
         const enrichedProduct = {
           ...data,
           packSize: data.pack_size || 1.0,
-          pricePerM2: data.price || 0,
+          pricePerM2: data.price_outlet || data.price || 0,
         };
         
         setProduct(enrichedProduct);
@@ -62,9 +103,89 @@ export default function ProductPageClient({ params }: { params: { slug: string }
 
         // Fetch similar products in the same category
         if (data.category_id) {
-          const simRes = await fetch(`/api/v1/products/?category_id=${data.category_id}&limit=5`);
-          const simData = await simRes.json();
-          setSimilarProducts(simData.filter((p: any) => p.id !== data.id).slice(0, 4));
+          try {
+            const [simRes, catRes] = await Promise.all([
+              fetch(`/api/v1/products/?category_id=${data.category_id}&limit=5`),
+              fetch(`/api/v1/categories`)
+            ]);
+            
+            if (simRes.ok) {
+              const simData = await simRes.json();
+              setSimilarProducts(simData.filter((p: any) => p.id !== data.id).slice(0, 4));
+            }
+            
+            if (catRes.ok) {
+              const categories = await catRes.json();
+              const cat = categories.find((c: any) => c.id === data.category_id);
+              if (cat) {
+                let currentCat = cat;
+                let isOrderOnly = cat.is_order_only || false;
+                let isPreorder = cat.is_preorder || false;
+                let pricePrefix = cat.price_prefix || "";
+                let orderLink = cat.order_link || "";
+                
+                const visited = new Set();
+                while (currentCat && currentCat.parent_id && !visited.has(currentCat.id)) {
+                  visited.add(currentCat.id);
+                  const parent = categories.find((c: any) => c.id === currentCat.parent_id);
+                  if (parent) {
+                    if (parent.is_order_only) {
+                      isOrderOnly = true;
+                    }
+                    if (parent.is_preorder) {
+                      isPreorder = true;
+                    }
+                    if (!pricePrefix && parent.price_prefix) {
+                      pricePrefix = parent.price_prefix;
+                    }
+                    if (!orderLink && parent.order_link) {
+                      orderLink = parent.order_link;
+                    }
+                    currentCat = parent;
+                  } else {
+                    break;
+                  }
+                }
+                
+                const enrichedCat = {
+                  ...cat,
+                  is_order_only: isOrderOnly,
+                  is_preorder: isPreorder,
+                  price_prefix: pricePrefix,
+                  order_link: orderLink
+                };
+                setProduct((prev: any) => ({ ...prev, category: enrichedCat }));
+              }
+            }
+          } catch (e) {
+            console.error("Failed to fetch category/similar", e);
+          }
+        }
+
+        // If it is a door, fetch matching accessories by color
+        const productNameLower = data.name.toLowerCase();
+        const productBrandLower = (data.brand || "").toLowerCase();
+        const doorBrands = ['portika', 'zadoor', 'profildoors', 'волховец', 'volkhovets', 'filomuro'];
+        const doorKeywords = ['двер', 'door', 'классико', 'порта', 'centro', 'неоклассико'];
+        const isProductDoor = doorKeywords.some(k => productNameLower.includes(k)) ||
+                              doorBrands.some(b => productBrandLower.includes(b));
+                              
+        if (isProductDoor) {
+          try {
+            const accRes = await fetch(`/api/v1/products/${data.id}/accessories`);
+            if (accRes.ok) {
+              const accData = await accRes.json();
+              setAccessories(accData);
+              if (accData.boxes && accData.boxes.length > 0) {
+                setSelectedBox(accData.boxes[0]);
+              }
+              if (accData.trims && accData.trims.length > 0) {
+                setSelectedTrim(accData.trims[0]);
+              }
+            }
+          } catch (err) {
+            console.error("Failed to fetch door accessories", err);
+          }
         }
       } catch (err) {
         console.error("Fetch failed", err);
@@ -86,8 +207,19 @@ export default function ProductPageClient({ params }: { params: { slug: string }
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <Loader2 className="w-8 h-8 text-[#2c3b6e] animate-spin" />
+      <div className="bg-white dark:bg-[#0f172a] min-h-screen pb-16">
+        <div className="max-w-7xl mx-auto px-4 lg:px-6 pt-12">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
+             <div className="lg:col-span-6 w-full aspect-square bg-slate-100 dark:bg-slate-900 animate-pulse rounded-[2rem]" />
+             <div className="lg:col-span-6 space-y-6 animate-pulse">
+                <div className="w-32 h-4 bg-slate-200 dark:bg-slate-800 rounded" />
+                <div className="w-full h-10 bg-slate-200 dark:bg-slate-800 rounded" />
+                <div className="w-1/2 h-8 bg-slate-200 dark:bg-slate-800 rounded" />
+                <div className="w-full h-24 bg-slate-200 dark:bg-slate-800 rounded-xl" />
+                <div className="w-full h-12 bg-slate-200 dark:bg-slate-800 rounded-full" />
+             </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -101,27 +233,37 @@ export default function ProductPageClient({ params }: { params: { slug: string }
     );
   }
 
+  const productName = product.name || "Товар без названия";
+  const productBrand = (product.brand || "").toLowerCase();
+  const doorBrands = ['portika', 'zadoor', 'profildoors', 'волховец', 'volkhovets', 'filomuro'];
+  const doorKeywords = ['двер', 'door', 'классико', 'порта', 'centro', 'неоклассико'];
+  const isDoor = doorKeywords.some(k => productName.toLowerCase().includes(k)) ||
+                 doorBrands.some(b => productBrand.includes(b));
+
+  const doorLeafPrice = product.price_outlet || product.price || 0;
+  const boxPrice = (includeBox && selectedBox) ? (selectedBox.price || 234000) : (accessories.boxes && accessories.boxes.length > 0 ? accessories.boxes[0].price : 234000);
+  const trimPrice = (includeTrim && selectedTrim) ? (selectedTrim.price || 143000) : (accessories.trims && accessories.trims.length > 0 ? accessories.trims[0].price : 143000);
+
   const packSize = product.packSize;
   const pricePerM2 = product.pricePerM2;
   const totalArea = packs * packSize;
-  const totalPrice = totalArea * pricePerM2;
+  const totalPrice = isDoor 
+    ? (doorLeafPrice + (includeBox ? boxPrice * 3 : 0) + (includeTrim ? trimPrice * 3 : 0)) * doorQuantity
+    : totalArea * pricePerM2;
   const monthlyPayment = totalPrice / installmentMonths;
+
+  
 
   const formatPrice = (num: any) => {
     const val = Number(num || 0);
     return Math.round(val).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
   };
 
-  const installmentPartners = [
-    { name: "alif", logo: "https://s3.fortifai.uz/shop/rand/ce/b1/c5/ceb1c58c-7454-4d16-ad6a-c1f11cea9965.jpg" },
-    { name: "uzum", logo: "https://api.logobank.uz/media/logos_png/Uzum_Nasiya-01.png" },
-    { name: "anor", logo: "https://pultop.uz/wp-content/uploads/2024/07/anor-320.png" },
-  ];
+  // installmentPartners loaded dynamically from installmentData.partners
 
   const tabs = [
     { id: "description", label: "Описание" },
     { id: "specs", label: "Характеристики" },
-    { id: "delivery", label: "Доставка" },
   ];
 
   const formatDescription = (text: string) => {
@@ -160,30 +302,19 @@ export default function ProductPageClient({ params }: { params: { slug: string }
     );
   };
 
-  const productName = product.name || "Товар без названия";
-  const productBrand = (product.brand || "").toLowerCase();
-  const doorBrands = ['portika', 'zadoor', 'profildoors', 'волховец', 'volkhovets', 'filomuro'];
-  const doorKeywords = ['двер', 'door', 'классико', 'порта', 'centro', 'неоклассико'];
-  const isDoor = doorKeywords.some(k => productName.toLowerCase().includes(k)) ||
-                 doorBrands.some(b => productBrand.includes(b));
+  const isOrderOnly = product.category?.is_order_only || false;
+  const isPreorder = product.category?.is_preorder || false;
+  const pricePrefix = product.category?.price_prefix || "";
+  const orderLink = product.category?.order_link || "https://t.me/maff_uz";
 
   return (
     <div className="bg-white dark:bg-slate-900 min-h-screen transition-colors duration-300">
-      {/* ── Breadcrumbs ── */}
-      <nav className="max-w-7xl mx-auto px-6 py-4 flex items-center gap-2 text-[8px] font-black uppercase tracking-widest text-slate-400">
-        <Link href="/" className="hover:text-slate-900 dark:hover:text-white transition-colors">Главная</Link>
-        <ChevronRight className="w-2.5 h-2.5 opacity-40" />
-        <Link href="/outlet" className="hover:text-slate-900 dark:hover:text-white transition-colors">Аутлет</Link>
-        <ChevronRight className="w-2.5 h-2.5 opacity-40" />
-        <span className="text-slate-900 dark:text-slate-200 truncate max-w-[200px]">{productName}</span>
-      </nav>
-
       {/* ── Main Section ── */}
-      <section className="max-w-7xl mx-auto px-4 lg:px-6 py-2 lg:py-6">
+      <section className="max-w-7xl mx-auto px-4 lg:px-6 py-4 lg:py-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-14 items-start">
           
           {/* Visuals */}
-          <div className="lg:col-span-6 space-y-3">
+          <div className="lg:col-span-6 space-y-3 lg:sticky lg:top-[180px]">
              <div className={cn(
                 "relative aspect-square bg-slate-50 dark:bg-slate-800/50 rounded-2xl lg:rounded-[2rem] overflow-hidden group border border-slate-100 dark:border-slate-800 flex items-center justify-center",
                 isDoor ? "p-6 lg:p-10" : ""
@@ -227,11 +358,60 @@ export default function ProductPageClient({ params }: { params: { slug: string }
 
           {/* Info Zone */}
           <div className="lg:col-span-6 flex flex-col pt-0 lg:pt-1">
+             {/* ── Breadcrumbs ── */}
+             <nav className="flex items-center gap-2 text-[8px] font-black uppercase tracking-widest text-slate-400 mb-4 flex-wrap">
+               <Link href="/" className="hover:text-slate-900 dark:hover:text-white transition-colors">Главная</Link>
+               <ChevronRight className="w-2.5 h-2.5 opacity-40" />
+               <Link href="/catalog" className="hover:text-slate-900 dark:hover:text-white transition-colors">Каталог</Link>
+               {product.category && (
+                 <>
+                   <ChevronRight className="w-2.5 h-2.5 opacity-40" />
+                   <Link href={`/catalog?category=${product.category.id}`} className="hover:text-slate-900 dark:hover:text-white transition-colors truncate max-w-[150px]">{product.category.name}</Link>
+                 </>
+               )}
+               <ChevronRight className="w-2.5 h-2.5 opacity-40" />
+               <span className="text-slate-900 dark:text-slate-200 truncate max-w-[200px]">{productName}</span>
+             </nav>
+
              <div className="mb-4 lg:mb-6">
-               <div className="inline-flex items-center gap-2 mb-2 lg:mb-3">
+               <div className="inline-flex items-center gap-2 mb-2 lg:mb-3 flex-wrap">
                   <span className="text-[8px] lg:text-[9px] font-black text-[#2c3b6e] dark:text-blue-400 uppercase tracking-widest">{product.brand || "MAFF"}</span>
                   <div className="w-1 h-1 bg-slate-300 dark:bg-slate-700 rounded-full" />
                   <span className="text-[8px] lg:text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">{product.country || "Европа"}</span>
+                  <div className="w-1 h-1 bg-slate-300 dark:bg-slate-700 rounded-full" />
+                  
+                  {/* Dynamic 1C Stock Status */}
+                  {(product.stock && product.stock > 0) ? (
+                    <span className="inline-flex items-center gap-1.5 text-[8px] lg:text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 dark:bg-emerald-400" />
+                      В наличии
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 text-[8px] lg:text-[9px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-widest">
+                      <span className="w-1.5 h-1.5 rounded-full bg-rose-600 dark:bg-rose-400" />
+                      Нет в наличии
+                    </span>
+                  )}
+
+                  {/* Mode indicators (Preorder/OrderOnly) */}
+                  {isPreorder && (
+                    <>
+                      <div className="w-1 h-1 bg-slate-300 dark:bg-slate-700 rounded-full" />
+                      <span className="inline-flex items-center gap-1.5 text-[8px] lg:text-[9px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest">
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-blue-400 animate-pulse" />
+                        Под заказ
+                      </span>
+                    </>
+                  )}
+                  {isOrderOnly && (
+                    <>
+                      <div className="w-1 h-1 bg-slate-300 dark:bg-slate-700 rounded-full" />
+                      <span className="inline-flex items-center gap-1.5 text-[8px] lg:text-[9px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-600 dark:bg-amber-400 animate-pulse" />
+                        Заказать
+                      </span>
+                    </>
+                  )}
                </div>
                <h1 className="text-xl lg:text-3xl font-black text-slate-900 dark:text-white leading-tight uppercase tracking-tighter mb-3 lg:mb-4">
                  {productName}
@@ -267,51 +447,299 @@ export default function ProductPageClient({ params }: { params: { slug: string }
                   <div className="flex flex-col">
                      <span className="text-[7px] font-black text-slate-500 dark:text-slate-500 uppercase tracking-widest mb-0.5 lg:mb-1">Цена за м.кв.</span>
                      <span className="text-xl lg:text-2xl font-black text-slate-900 dark:text-white tabular-nums leading-none">
-                        {formatPrice(product.price)} <span className="text-xs lg:text-sm font-bold text-slate-400 dark:text-slate-600">сум</span>
+                        {isOrderOnly && pricePrefix && <span className="text-sm lg:text-base mr-1 opacity-80">{pricePrefix}</span>}
+                        {product.price_outlet ? (
+                          <span className="inline-flex items-center gap-2 flex-wrap">
+                            <span className="text-[#e11d48] dark:text-rose-400">
+                              {formatPrice(product.price_outlet)}
+                            </span>
+                            <span className="text-xs lg:text-sm font-bold text-slate-400 line-through">{formatPrice(product.price)}</span>
+                            <span className="bg-rose-500 text-white text-[7px] lg:text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full shadow-sm">
+                              -{Math.round(((product.price - product.price_outlet) / product.price) * 100)}%
+                            </span>
+                          </span>
+                        ) : (
+                          <>{formatPrice(product.price)}</>
+                        )}{" "}
+                        <span className="text-xs lg:text-sm font-bold text-slate-400 dark:text-slate-600">сум</span>
                      </span>
                   </div>
-                  <div className="bg-blue-50 dark:bg-blue-900/20 px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg lg:rounded-xl border border-blue-100 dark:border-blue-900/30">
-                     <p className="text-[7px] lg:text-[8px] font-black text-blue-700 dark:text-blue-400 uppercase tracking-widest leading-none">
-                        Рассрочка без переплат
-                     </p>
-                  </div>
+                  {(isOrderOnly || isPreorder) && (
+                    <div className="bg-[#2c3b6e]/10 dark:bg-blue-900/30 px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg lg:rounded-xl border border-[#2c3b6e]/20 dark:border-blue-800/40">
+                       <p className="text-[7px] lg:text-[8px] font-black text-[#2c3b6e] dark:text-blue-400 uppercase tracking-widest leading-none">
+                          {isPreorder ? "Под заказ" : "Заказать"}
+                       </p>
+                    </div>
+                  )}
+                    <div className="bg-blue-50 dark:bg-blue-900/20 px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg lg:rounded-xl border border-blue-100 dark:border-blue-900/30">
+                       <p className="text-[7px] lg:text-[8px] font-black text-blue-700 dark:text-blue-400 uppercase tracking-widest leading-none">
+                          Рассрочка без переплат
+                       </p>
+                    </div>
                </div>
 
                {/* Calculator */}
-               <div className="grid grid-cols-2 gap-2 lg:gap-3">
-                  <div className="bg-slate-50 dark:bg-slate-800/40 rounded-xl p-3 lg:p-4 border border-slate-100 dark:border-slate-800">
-                     <label className="text-[8px] lg:text-[9px] font-black text-slate-900 dark:text-slate-300 uppercase tracking-widest block mb-2 lg:mb-3">Площадь, м2</label>
-                     <div className="flex items-center gap-2 bg-white dark:bg-slate-900 rounded-lg lg:rounded-xl p-0.5 lg:p-1 border border-slate-100 dark:border-slate-700">
-                        <button onClick={() => setArea(Math.max(1, area - 1))} className="w-7 h-7 lg:w-8 lg:h-8 flex items-center justify-center text-slate-400 hover:text-slate-900 dark:hover:text-white"><Minus className="w-3 h-3" /></button>
-                        <input type="number" value={area} onChange={(e) => setArea(Number(e.target.value))} className="flex-grow bg-transparent text-center font-black text-xs lg:text-sm text-slate-900 dark:text-white outline-none" />
-                        <button onClick={() => setArea(area + 1)} className="w-7 h-7 lg:w-8 lg:h-8 flex items-center justify-center text-slate-400 hover:text-slate-900 dark:hover:text-white"><Plus className="w-3 h-3" /></button>
-                     </div>
-                  </div>
-                  <div className="bg-slate-50 dark:bg-slate-800/40 rounded-xl p-3 lg:p-4 border border-slate-100 dark:border-slate-800 flex flex-col justify-between">
-                     <label className="text-[8px] lg:text-[9px] font-black text-slate-900 dark:text-slate-300 uppercase tracking-widest block mb-1">Итого упаковок</label>
-                     <div className="text-sm lg:text-base font-black text-slate-900 dark:text-white tabular-nums">{packs} <span className="text-[9px] lg:text-[10px] text-slate-400 dark:text-slate-500 uppercase ml-0.5">уп</span></div>
-                  </div>
-               </div>
+               {isDoor ? (
+                 <div className="bg-slate-50 dark:bg-slate-800/40 rounded-2xl p-4 lg:p-5 border border-slate-100 dark:border-slate-800 space-y-4">
+                    <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                       <span className="text-[10px] lg:text-[11px] font-black text-slate-900 dark:text-white uppercase tracking-wider">Калькулятор комплекта</span>
+                       <span className="text-[8px] font-black text-[#2c3b6e] dark:text-blue-400 uppercase tracking-widest bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded-full">Двери</span>
+                    </div>
+
+                    {/* Door Quantity Selector */}
+                    <div className="flex items-center justify-between bg-white dark:bg-slate-900 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
+                       <div className="flex flex-col">
+                          <span className="text-[8px] lg:text-[9px] font-black text-slate-900 dark:text-slate-300 uppercase tracking-widest leading-none">Количество дверей</span>
+                          <span className="text-[8px] font-bold text-slate-400 mt-1">Полотно: {doorQuantity} шт.</span>
+                       </div>
+                       <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 rounded-lg p-0.5 border border-slate-100 dark:border-slate-700">
+                          <button onClick={() => setDoorQuantity(Math.max(1, doorQuantity - 1))} className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-slate-900 dark:hover:text-white"><Minus className="w-3 h-3" /></button>
+                          <input type="number" value={doorQuantity} onChange={(e) => setDoorQuantity(Math.max(1, Number(e.target.value)))} className="w-8 bg-transparent text-center font-black text-xs text-slate-900 dark:text-white outline-none" />
+                          <button onClick={() => setDoorQuantity(doorQuantity + 1)} className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-slate-900 dark:hover:text-white"><Plus className="w-3 h-3" /></button>
+                       </div>
+                    </div>
+
+                    {/* Accessories Checkboxes & Selectors */}
+                    <div className="space-y-2.5">
+                       {/* 1. Box / Коробка */}
+                       <div className={cn(
+                          "p-3 rounded-xl border transition-all flex flex-col gap-2 bg-white dark:bg-slate-900",
+                          includeBox ? "border-slate-300 dark:border-slate-700" : "border-slate-100 dark:border-slate-800 opacity-80"
+                       )}>
+                          <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                             <input 
+                               type="checkbox" 
+                               checked={includeBox} 
+                               onChange={(e) => setIncludeBox(e.target.checked)}
+                               className="rounded border-slate-300 text-[#2c3b6e] focus:ring-[#2c3b6e] w-3.5 h-3.5"
+                             />
+                             <div className="flex-grow flex justify-between items-center">
+                                <span className="text-[10px] lg:text-[11px] font-black uppercase tracking-wider text-slate-900 dark:text-white">Дверной короб (3 шт.)</span>
+                                <span className="text-[9px] font-bold text-slate-500 tabular-nums">
+                                   +{formatPrice(boxPrice * 3)} сум
+                                </span>
+                             </div>
+                          </label>
+                          
+                          {includeBox && accessories.boxes && accessories.boxes.length > 0 && (
+                             <div className="relative mt-1">
+                                <button 
+                                   type="button"
+                                   onClick={() => setIsBoxSelectOpen(!isBoxSelectOpen)}
+                                   className="w-full bg-slate-50 dark:bg-slate-800/80 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/60 rounded-xl p-3 flex items-center justify-between text-left transition-all duration-300"
+                                >
+                                   <div className="flex flex-col gap-1 pr-4">
+                                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-850 dark:text-slate-200 leading-tight">
+                                         {selectedBox?.name || "Выберите короб"}
+                                      </span>
+                                      {selectedBox?.sku && (
+                                         <span className="text-[7px] font-black tracking-widest uppercase text-slate-400 dark:text-slate-500">
+                                            Артикул: {selectedBox.sku}
+                                         </span>
+                                      )}
+                                   </div>
+                                   <div className="flex items-center gap-2.5 shrink-0">
+                                      <span className="text-[10px] font-black text-slate-900 dark:text-white tabular-nums">
+                                         {formatPrice(selectedBox?.price || 0)} сум/шт
+                                      </span>
+                                      <ChevronDown className={cn("w-3.5 h-3.5 text-slate-400 transition-transform duration-300", isBoxSelectOpen ? "rotate-180" : "")} />
+                                   </div>
+                                </button>
+                                
+                                {isBoxSelectOpen && (
+                                   <div className="absolute left-0 right-0 mt-1.5 bg-white dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl z-[100] max-h-60 overflow-y-auto no-scrollbar py-2">
+                                      {accessories.boxes.map((b: any) => (
+                                         <button
+                                            key={b.id}
+                                            type="button"
+                                            onClick={() => {
+                                               setSelectedBox(b);
+                                               setIsBoxSelectOpen(false);
+                                            }}
+                                            className={cn(
+                                               "w-full text-left px-4 py-2.5 flex items-center justify-between transition-all duration-200 border-b border-slate-50 dark:border-slate-900/40 last:border-0",
+                                               selectedBox?.id === b.id 
+                                                  ? "bg-slate-50 dark:bg-slate-900/60 text-[#2c3b6e] dark:text-blue-400 font-bold" 
+                                                  : "hover:bg-slate-50 dark:hover:bg-slate-900/40 text-slate-700 dark:text-slate-300"
+                                            )}
+                                         >
+                                            <div className="flex flex-col gap-0.5 max-w-[70%]">
+                                               <span className="text-[9px] font-black uppercase tracking-wider leading-tight">
+                                                  {b.name}
+                                               </span>
+                                               {b.sku && (
+                                                  <span className="text-[6.5px] font-black tracking-widest text-slate-400 dark:text-slate-500 uppercase">
+                                                     Артикул: {b.sku}
+                                                  </span>
+                                               )}
+                                            </div>
+                                            <span className="text-[9px] font-black tabular-nums">
+                                               {formatPrice(b.price)} сум
+                                            </span>
+                                         </button>
+                                      ))}
+                                   </div>
+                                )}
+                             </div>
+                          )}
+                          
+                          {includeBox && (!accessories.boxes || accessories.boxes.length === 0) && (
+                             <div className="text-[8px] font-bold text-slate-400 dark:text-slate-500 italic">
+                                Стандартный короб для {accessories.color || "этого цвета"} (234 000 сум/шт)
+                             </div>
+                          )}
+                       </div>
+
+                       {/* 2. Trim / Наличники */}
+                       <div className={cn(
+                          "p-3 rounded-xl border transition-all flex flex-col gap-2 bg-white dark:bg-slate-900",
+                          includeTrim ? "border-slate-300 dark:border-slate-700" : "border-slate-100 dark:border-slate-800 opacity-80"
+                       )}>
+                          <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                             <input 
+                               type="checkbox" 
+                               checked={includeTrim} 
+                               onChange={(e) => setIncludeTrim(e.target.checked)}
+                               className="rounded border-slate-300 text-[#2c3b6e] focus:ring-[#2c3b6e] w-3.5 h-3.5"
+                             />
+                             <div className="flex-grow flex justify-between items-center">
+                                <span className="text-[10px] lg:text-[11px] font-black uppercase tracking-wider text-slate-900 dark:text-white">Наличники (3 шт.)</span>
+                                <span className="text-[9px] font-bold text-slate-500 tabular-nums">
+                                   +{formatPrice(trimPrice * 3)} сум
+                                </span>
+                             </div>
+                          </label>
+                          
+                          {includeTrim && accessories.trims && accessories.trims.length > 0 && (
+                             <div className="relative mt-1">
+                                <button 
+                                   type="button"
+                                   onClick={() => setIsTrimSelectOpen(!isTrimSelectOpen)}
+                                   className="w-full bg-slate-50 dark:bg-slate-800/80 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/60 rounded-xl p-3 flex items-center justify-between text-left transition-all duration-300"
+                                >
+                                   <div className="flex flex-col gap-1 pr-4">
+                                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-855 dark:text-slate-200 leading-tight">
+                                         {selectedTrim?.name || "Выберите наличник"}
+                                      </span>
+                                      {selectedTrim?.sku && (
+                                         <span className="text-[7px] font-black tracking-widest uppercase text-slate-400 dark:text-slate-500">
+                                            Артикул: {selectedTrim.sku}
+                                         </span>
+                                      )}
+                                   </div>
+                                   <div className="flex items-center gap-2.5 shrink-0">
+                                      <span className="text-[10px] font-black text-slate-900 dark:text-white tabular-nums">
+                                         {formatPrice(selectedTrim?.price || 0)} сум/шт
+                                      </span>
+                                      <ChevronDown className={cn("w-3.5 h-3.5 text-slate-400 transition-transform duration-300", isTrimSelectOpen ? "rotate-180" : "")} />
+                                   </div>
+                                </button>
+                                
+                                {isTrimSelectOpen && (
+                                   <div className="absolute left-0 right-0 mt-1.5 bg-white dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl z-[100] max-h-60 overflow-y-auto no-scrollbar py-2">
+                                      {accessories.trims.map((t: any) => (
+                                         <button
+                                            key={t.id}
+                                            type="button"
+                                            onClick={() => {
+                                               setSelectedTrim(t);
+                                               setIsTrimSelectOpen(false);
+                                            }}
+                                            className={cn(
+                                               "w-full text-left px-4 py-2.5 flex items-center justify-between transition-all duration-200 border-b border-slate-50 dark:border-slate-900/40 last:border-0",
+                                               selectedTrim?.id === t.id 
+                                                  ? "bg-slate-50 dark:bg-slate-900/60 text-[#2c3b6e] dark:text-blue-400 font-bold" 
+                                                  : "hover:bg-slate-50 dark:hover:bg-slate-900/40 text-slate-700 dark:text-slate-300"
+                                            )}
+                                         >
+                                            <div className="flex flex-col gap-0.5 max-w-[70%]">
+                                               <span className="text-[9px] font-black uppercase tracking-wider leading-tight">
+                                                  {t.name}
+                                               </span>
+                                               {t.sku && (
+                                                  <span className="text-[6.5px] font-black tracking-widest text-slate-400 dark:text-slate-500 uppercase">
+                                                     Артикул: {t.sku}
+                                                  </span>
+                                               )}
+                                            </div>
+                                            <span className="text-[9px] font-black tabular-nums">
+                                               {formatPrice(t.price)} сум
+                                            </span>
+                                         </button>
+                                      ))}
+                                   </div>
+                                )}
+                             </div>
+                          )}
+                          
+                          {includeTrim && (!accessories.trims || accessories.trims.length === 0) && (
+                             <div className="text-[8px] font-bold text-slate-400 dark:text-slate-500 italic">
+                                Стандартный наличник для {accessories.color || "этого цвета"} (143 000 сум/шт)
+                             </div>
+                          )}
+                       </div>
+                    </div>
+                 </div>
+               ) : (
+                 <div className="grid grid-cols-2 gap-2 lg:gap-3">
+                    <div className="bg-slate-50 dark:bg-slate-800/40 rounded-xl p-3 lg:p-4 border border-slate-100 dark:border-slate-800">
+                       <label className="text-[8px] lg:text-[9px] font-black text-slate-900 dark:text-slate-300 uppercase tracking-widest block mb-2 lg:mb-3">Площадь, м2</label>
+                       <div className="flex items-center gap-2 bg-white dark:bg-slate-900 rounded-lg lg:rounded-xl p-0.5 lg:p-1 border border-slate-100 dark:border-slate-700">
+                          <button onClick={() => setArea(Math.max(1, area - 1))} className="w-7 h-7 lg:w-8 lg:h-8 flex items-center justify-center text-slate-400 hover:text-slate-900 dark:hover:text-white"><Minus className="w-3 h-3" /></button>
+                          <input type="number" value={area} onChange={(e) => setArea(Number(e.target.value))} className="flex-grow bg-transparent text-center font-black text-xs lg:text-sm text-slate-900 dark:text-white outline-none" />
+                          <button onClick={() => setArea(area + 1)} className="w-7 h-7 lg:w-8 lg:h-8 flex items-center justify-center text-slate-400 hover:text-slate-900 dark:hover:text-white"><Plus className="w-3 h-3" /></button>
+                       </div>
+                    </div>
+                    <div className="bg-slate-50 dark:bg-slate-800/40 rounded-xl p-3 lg:p-4 border border-slate-100 dark:border-slate-800 flex flex-col justify-between">
+                       <label className="text-[8px] lg:text-[9px] font-black text-slate-900 dark:text-slate-300 uppercase tracking-widest block mb-1">Итого упаковок</label>
+                       <div className="text-sm lg:text-base font-black text-slate-900 dark:text-white tabular-nums">{packs} <span className="text-[9px] lg:text-[10px] text-slate-400 dark:text-slate-500 uppercase ml-0.5">уп</span></div>
+                    </div>
+                 </div>
+               )}
 
                {/* Buttons */}
-               <div className="grid grid-cols-2 lg:grid-cols-2 gap-2 lg:gap-3">
-                  <button className="bg-[#1a1a1a] dark:bg-white text-white dark:text-slate-900 h-11 lg:h-14 rounded-full flex items-center justify-center gap-2 text-[9px] lg:text-[10px] font-black uppercase tracking-widest hover:bg-[#2c3b6e] dark:hover:bg-blue-50 transition-all active:scale-95">
-                     <ShoppingBag className="w-3 h-3 lg:w-3.5 lg:h-3.5" />
-                     В корзину
-                  </button>
-                  <button className="bg-white dark:bg-slate-900 border-2 border-slate-900 dark:border-white text-slate-900 dark:text-white h-11 lg:h-14 rounded-full flex items-center justify-center gap-2 text-[9px] lg:text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 hover:text-white dark:hover:bg-white dark:hover:text-slate-900 transition-all active:scale-95">
-                     <Zap className="w-3 h-3 lg:w-3.5 lg:h-3.5 text-[#2c3b6e] dark:text-blue-400" />
-                     Купить
-                  </button>
-               </div>
+               {isOrderOnly ? (
+                 <a href={orderLink} target="_blank" rel="noreferrer" className="w-full bg-[#1a1a1a] dark:bg-white text-white dark:text-slate-900 h-11 lg:h-14 rounded-full flex items-center justify-center gap-2 text-[10px] lg:text-[11px] font-black uppercase tracking-widest hover:bg-[#2c3b6e] dark:hover:bg-blue-50 transition-all active:scale-95">
+                    Заказать
+                    <ChevronRight className="w-4 h-4 lg:w-5 lg:h-5" />
+                 </a>
+               ) : (
+                 <div className="grid grid-cols-2 lg:grid-cols-2 gap-2 lg:gap-3">
+                    <button 
+                      disabled={!(product.stock && product.stock > 0)}
+                      className={cn(
+                        "h-11 lg:h-14 rounded-full flex items-center justify-center gap-2 text-[9px] lg:text-[10px] font-black uppercase tracking-widest transition-all",
+                        (product.stock && product.stock > 0)
+                          ? "bg-[#1a1a1a] dark:bg-white text-white dark:text-slate-900 hover:bg-[#2c3b6e] dark:hover:bg-blue-50 active:scale-95 cursor-pointer"
+                          : "bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed"
+                      )}
+                    >
+                       <ShoppingBag className={cn("w-3 h-3 lg:w-3.5 lg:h-3.5", (product.stock && product.stock > 0) ? "" : "text-slate-400 dark:text-slate-500")} />
+                       {(product.stock && product.stock > 0) ? "В корзину" : "Нет на складе"}
+                    </button>
+                    <button 
+                      disabled={!(product.stock && product.stock > 0)}
+                      className={cn(
+                        "h-11 lg:h-14 rounded-full flex items-center justify-center gap-2 text-[9px] lg:text-[10px] font-black uppercase tracking-widest transition-all",
+                        (product.stock && product.stock > 0)
+                          ? "bg-white dark:bg-slate-900 border-2 border-slate-900 dark:border-white text-slate-900 dark:text-white hover:bg-slate-900 hover:text-white dark:hover:bg-white dark:hover:text-slate-900 active:scale-95 cursor-pointer"
+                          : "bg-transparent border-2 border-slate-200 dark:border-slate-800 text-slate-300 dark:text-slate-600 cursor-not-allowed"
+                      )}
+                    >
+                       <Zap className={cn("w-3 h-3 lg:w-3.5 lg:h-3.5", (product.stock && product.stock > 0) ? "text-[#2c3b6e] dark:text-blue-400" : "text-slate-300 dark:text-slate-600")} />
+                       Купить
+                    </button>
+                 </div>
+               )}
 
                {/* Installment */}
-               <div className="bg-white dark:bg-slate-800/40 rounded-2xl lg:rounded-[2rem] p-4 lg:p-6 border border-slate-100 dark:border-slate-800">
+               {true && (
+                 <div className="bg-white dark:bg-slate-800/40 rounded-2xl lg:rounded-[2rem] p-4 lg:p-6 border border-slate-100 dark:border-slate-800">
                   <div className="flex items-center justify-between mb-4 lg:mb-6">
                      <div className="flex items-center gap-3 lg:gap-5">
-                        {installmentPartners.map(p => (
+                        {installmentData.partners.map((p: any) => (
                            <div key={p.name} className="relative w-8 h-4 lg:w-10 lg:h-5">
-                              <Image src={p.logo} alt={p.name} fill className="object-contain" />
+                              <img src={p.logo} alt={p.name} className="w-full h-full object-contain" />
                            </div>
                         ))}
                      </div>
@@ -341,6 +769,7 @@ export default function ProductPageClient({ params }: { params: { slug: string }
                      </div>
                   </div>
                </div>
+               )}
             </div>
           </div>
         </div>
@@ -384,26 +813,7 @@ export default function ProductPageClient({ params }: { params: { slug: string }
                </div>
             )}
 
-            {activeTab === "delivery" && (
-               <div className="space-y-4 lg:space-y-8 animate-in fade-in duration-500">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 lg:gap-6">
-                     <div className="p-4 lg:p-6 bg-slate-50 dark:bg-slate-800/40 rounded-xl lg:rounded-2xl border border-slate-100 dark:border-slate-800 flex items-start gap-3 lg:gap-4">
-                        <Truck className="w-5 h-5 lg:w-6 lg:h-6 text-[#2c3b6e] dark:text-blue-500 flex-shrink-0" />
-                        <div>
-                           <h4 className="text-[9px] lg:text-[10px] font-black uppercase tracking-widest mb-1 lg:mb-2 dark:text-white">Доставка</h4>
-                           <p className="text-slate-600 dark:text-slate-400 text-[10px] lg:text-xs leading-relaxed opacity-80">Бесплатно при заказе от 5 млн сум по Ташкенту.</p>
-                        </div>
-                     </div>
-                     <div className="p-4 lg:p-6 bg-slate-50 dark:bg-slate-800/40 rounded-xl lg:rounded-2xl border border-slate-100 dark:border-slate-800 flex items-start gap-3 lg:gap-4">
-                        <ShieldCheck className="w-5 h-5 lg:w-6 lg:h-6 text-[#2c3b6e] dark:text-blue-500 flex-shrink-0" />
-                        <div>
-                           <h4 className="text-[9px] lg:text-[10px] font-black uppercase tracking-widest mb-1 lg:mb-2 dark:text-white">Гарантия</h4>
-                           <p className="text-slate-600 dark:text-slate-400 text-[10px] lg:text-xs leading-relaxed opacity-80">Официальная гарантия от производителя.</p>
-                        </div>
-                     </div>
-                  </div>
-               </div>
-            )}
+
          </div>
       </section>
 

@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { ChevronRight, Calendar, ArrowRight, RefreshCw } from "lucide-center";
 import { cn } from "@/lib/utils";
 
 // Note: Using standard Lucide icons that are definitely in the project
@@ -43,8 +42,31 @@ export default function BlogListPage() {
 
   if (loading) {
     return (
-      <div className="w-full h-screen bg-white dark:bg-[#0f172a] flex items-center justify-center transition-colors">
-        <div className="w-10 h-10 border-4 border-[#2c3b6e] border-t-transparent rounded-full animate-spin" />
+      <div className="bg-white dark:bg-[#0f172a] min-h-screen pb-16">
+        <div className="border-b border-slate-50 dark:border-white/5 py-3">
+          <div className="max-w-7xl mx-auto px-4 lg:px-6">
+            <nav className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-slate-300 dark:text-white/20">
+               <span className="w-8 h-3 bg-slate-200 dark:bg-slate-800 animate-pulse rounded" />
+               <span>/</span>
+               <span className="w-16 h-3 bg-slate-200 dark:bg-slate-800 animate-pulse rounded" />
+            </nav>
+          </div>
+        </div>
+        <section className="max-w-7xl mx-auto px-4 lg:px-6 py-8 lg:py-10 text-center space-y-3 flex flex-col items-center">
+           <div className="w-20 h-3 bg-slate-200 dark:bg-slate-800 animate-pulse rounded" />
+           <div className="w-56 h-8 bg-slate-200 dark:bg-slate-800 animate-pulse rounded" />
+           <div className="w-80 h-4 bg-slate-200 dark:bg-slate-800 animate-pulse rounded" />
+        </section>
+        <section className="max-w-7xl mx-auto px-4 lg:px-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+           {[1, 2, 3, 4].map(i => (
+              <div key={i} className="bg-white dark:bg-white/5 border border-slate-100 dark:border-white/5 rounded-2xl overflow-hidden animate-pulse space-y-3 p-4">
+                 <div className="w-full aspect-video bg-slate-200 dark:bg-slate-800 rounded-xl" />
+                 <div className="w-24 h-3 bg-slate-200 dark:bg-slate-800 rounded" />
+                 <div className="w-full h-5 bg-slate-200 dark:bg-slate-800 rounded" />
+                 <div className="w-full h-10 bg-slate-200 dark:bg-slate-800 rounded" />
+              </div>
+           ))}
+        </section>
       </div>
     );
   }

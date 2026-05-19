@@ -133,8 +133,37 @@ export default function PartnerPageClient({ params }: { params: Promise<{ slug: 
 
   if (loading) {
      return (
-        <div className="w-full h-screen bg-white dark:bg-[#1a274b] flex items-center justify-center">
-           <div className="w-8 h-8 border-4 border-[#2c3b6e] dark:border-blue-500 border-t-transparent rounded-full animate-spin" />
+        <div className="bg-white dark:bg-[#1a274b] min-h-screen pb-12">
+          <nav className="max-w-6xl mx-auto px-6 pt-4 pb-2 flex items-center gap-2 text-[8px] lg:text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
+             <span className="w-8 h-3 bg-slate-200 dark:bg-slate-800 animate-pulse rounded" />
+             <span>/</span>
+             <span className="w-16 h-3 bg-slate-200 dark:bg-slate-800 animate-pulse rounded" />
+          </nav>
+          <div className="max-w-6xl mx-auto px-6 pt-2 pb-12 space-y-8">
+             <div className="max-w-3xl space-y-4 animate-pulse">
+                <div className="w-12 h-3.5 bg-slate-200 dark:bg-slate-800 rounded" />
+                <div className="w-48 h-8 bg-slate-200 dark:bg-slate-800 rounded" />
+                <div className="w-32 h-5 bg-slate-200 dark:bg-slate-800 rounded" />
+                <div className="w-full h-14 bg-slate-200 dark:bg-slate-800 rounded" />
+             </div>
+             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                <div className="lg:col-span-8 bg-slate-50/50 dark:bg-white/[0.02] border border-slate-100 dark:border-white/5 rounded-2xl p-6 lg:p-8 space-y-4 animate-pulse">
+                   <div className="w-32 h-5 bg-slate-200 dark:bg-slate-800 rounded" />
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {[1, 2, 3, 4].map(i => (
+                         <div key={i} className="flex gap-2">
+                            <div className="w-5 h-5 bg-slate-200 dark:bg-slate-800 rounded-full" />
+                            <div className="w-full h-10 bg-slate-200 dark:bg-slate-800 rounded" />
+                         </div>
+                      ))}
+                   </div>
+                </div>
+                <div className="lg:col-span-4 bg-white dark:bg-white/[0.03] border border-slate-100 dark:border-white/5 rounded-2xl p-6 lg:p-8 animate-pulse space-y-4">
+                   <div className="w-full h-16 bg-slate-200 dark:bg-slate-800 rounded-xl" />
+                   <div className="w-full h-12 bg-slate-200 dark:bg-slate-800 rounded-full" />
+                </div>
+             </div>
+          </div>
         </div>
      );
   }

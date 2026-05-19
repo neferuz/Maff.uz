@@ -31,6 +31,7 @@ interface Product {
   name: string;
   sku: string;
   price: number;
+  price_outlet?: number | null;
   stock: number;
   category_id: number | null;
   image_url: string | null;
@@ -47,7 +48,7 @@ export default function ProductsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "archived">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "archived" | "outlet">("all");
   const itemsPerPage = 50;
 
   const fetchProducts = async () => {
@@ -111,7 +112,7 @@ export default function ProductsPage() {
       const formData = new FormData();
       formData.append("file", file);
 
-      const res = await fetch("/api/v1/upload/image", {
+      const res = await fetch("/api/v1/uploads", {
         method: "POST",
         body: formData,
       });
@@ -151,10 +152,15 @@ export default function ProductsPage() {
           name: editForm.name,
           description: editForm.description,
           price: Number(editForm.price),
+          price_outlet: editForm.price_outlet ? Number(editForm.price_outlet) : null,
           stock: Number(editForm.stock),
           sku: editForm.sku,
           brand: editForm.brand,
-          category_id: editForm.category_id,
+          country: editForm.country,
+          grade: editForm.grade,
+          thickness: editForm.thickness,
+          pack_size: editForm.pack_size ? Number(editForm.pack_size) : null,
+          category_id: editForm.category_id ? Number(editForm.category_id) : null,
           image_url: editForm.image_url,
           is_active: editForm.is_active,
         }),
@@ -209,6 +215,7 @@ export default function ProductsPage() {
     const matchesStatus = 
       statusFilter === "all" ? true :
       statusFilter === "active" ? product.is_active :
+      statusFilter === "outlet" ? (product.price_outlet && product.price_outlet > 0) :
       !product.is_active;
 
     if (!selectedCategoryId) return matchesSearch && matchesStatus;
@@ -402,6 +409,15 @@ export default function ProductsPage() {
             >
               Архив
             </button>
+            <button
+              onClick={() => setStatusFilter("outlet")}
+              className={cn(
+                "px-3 py-1.5 text-[12px] font-bold rounded-md transition-all",
+                statusFilter === "outlet" ? "bg-[#e11d48] text-white" : "text-[#4f566b] hover:bg-[#f7f8f9]"
+              )}
+            >
+              Аутлет
+            </button>
           </div>
         </div>
 
@@ -466,7 +482,18 @@ export default function ProductsPage() {
                         )}
                       </td>
                       <td className="px-6 py-4">
-                        <span className="text-[14px] font-black text-[#1a1f36]">{product.price.toLocaleString('ru-RU')} сум</span>
+                        {product.price_outlet && product.price_outlet > 0 ? (
+                          <div className="flex flex-col">
+                            <span className="text-[11px] font-bold text-slate-400 line-through">
+                              {product.price.toLocaleString('ru-RU')} сум
+                            </span>
+                            <span className="text-[13px] font-black text-[#e11d48]">
+                              {product.price_outlet.toLocaleString('ru-RU')} сум
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-[13px] font-black text-[#1a1f36]">{product.price.toLocaleString('ru-RU')} сум</span>
+                        )}
                       </td>
                       <td className="px-6 py-4 text-right">
                         <ChevronRight className="w-4 h-4 text-[#e3e8ee] group-hover:text-[#2c3b6e] transition-colors ml-auto" />
@@ -631,14 +658,24 @@ export default function ProductsPage() {
                           />
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-3 gap-4">
                           <div>
                             <label className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest mb-1.5 block">Цена (сум)</label>
                             <input 
                               type="number" 
                               value={editForm.price || 0}
                               onChange={(e) => setEditForm({...editForm, price: e.target.value})}
-                              className="w-full px-4 py-2.5 bg-[#f7f8f9] border border-transparent focus:border-[#2c3b6e]/30 focus:bg-white rounded-xl text-[14px] font-black text-[#2c3b6e] outline-none transition-all"
+                              className="w-full px-4 py-2.5 bg-[#f7f8f9] border border-transparent focus:border-[#2c3b6e]/30 focus:bg-white rounded-xl text-[13px] font-black text-[#2c3b6e] outline-none transition-all"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest mb-1.5 block">Аутлет (сум)</label>
+                            <input 
+                              type="number" 
+                              value={editForm.price_outlet || ""}
+                              onChange={(e) => setEditForm({...editForm, price_outlet: e.target.value})}
+                              placeholder="Нет"
+                              className="w-full px-4 py-2.5 bg-[#f7f8f9] border border-transparent focus:border-[#2c3b6e]/30 focus:bg-white rounded-xl text-[13px] font-black text-[#e11d48] outline-none transition-all"
                             />
                           </div>
                           <div>
@@ -647,7 +684,7 @@ export default function ProductsPage() {
                               type="number" 
                               value={editForm.stock || 0}
                               onChange={(e) => setEditForm({...editForm, stock: e.target.value})}
-                              className="w-full px-4 py-2.5 bg-[#f7f8f9] border border-transparent focus:border-[#2c3b6e]/30 focus:bg-white rounded-xl text-[14px] font-bold text-[#1a1f36] outline-none transition-all"
+                              className="w-full px-4 py-2.5 bg-[#f7f8f9] border border-transparent focus:border-[#2c3b6e]/30 focus:bg-white rounded-xl text-[13px] font-bold text-[#1a1f36] outline-none transition-all"
                             />
                           </div>
                         </div>
@@ -660,6 +697,72 @@ export default function ProductsPage() {
                             onChange={(e) => setEditForm({...editForm, sku: e.target.value})}
                             className="w-full px-4 py-2.5 bg-[#f7f8f9] border border-transparent focus:border-[#2c3b6e]/30 focus:bg-white rounded-xl text-[13px] font-medium text-[#4f566b] uppercase tracking-widest outline-none transition-all"
                           />
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest mb-1.5 block">Категория</label>
+                          <select 
+                            value={editForm.category_id || ""}
+                            onChange={(e) => setEditForm({...editForm, category_id: e.target.value ? Number(e.target.value) : null})}
+                            className="w-full px-4 py-2.5 bg-[#f7f8f9] border border-transparent focus:border-[#2c3b6e]/30 focus:bg-white rounded-xl text-[13px] font-semibold text-[#1a1f36] outline-none transition-all"
+                          >
+                            <option value="">Без категории</option>
+                            {categories.map((cat) => (
+                              <option key={cat.id} value={cat.id}>{cat.name}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest mb-1.5 block">Бренд</label>
+                            <input 
+                              type="text" 
+                              value={editForm.brand || ""}
+                              onChange={(e) => setEditForm({...editForm, brand: e.target.value})}
+                              className="w-full px-4 py-2.5 bg-[#f7f8f9] border border-transparent focus:border-[#2c3b6e]/30 focus:bg-white rounded-xl text-[13px] font-medium text-[#1a1f36] outline-none transition-all"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest mb-1.5 block">Страна</label>
+                            <input 
+                              type="text" 
+                              value={editForm.country || ""}
+                              onChange={(e) => setEditForm({...editForm, country: e.target.value})}
+                              className="w-full px-4 py-2.5 bg-[#f7f8f9] border border-transparent focus:border-[#2c3b6e]/30 focus:bg-white rounded-xl text-[13px] font-medium text-[#1a1f36] outline-none transition-all"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-4">
+                          <div>
+                            <label className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest mb-1.5 block">Сорт</label>
+                            <input 
+                              type="text" 
+                              value={editForm.grade || ""}
+                              onChange={(e) => setEditForm({...editForm, grade: e.target.value})}
+                              className="w-full px-4 py-2.5 bg-[#f7f8f9] border border-transparent focus:border-[#2c3b6e]/30 focus:bg-white rounded-xl text-[13px] font-medium text-[#1a1f36] outline-none transition-all"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest mb-1.5 block">Толщина</label>
+                            <input 
+                              type="text" 
+                              value={editForm.thickness || ""}
+                              onChange={(e) => setEditForm({...editForm, thickness: e.target.value})}
+                              className="w-full px-4 py-2.5 bg-[#f7f8f9] border border-transparent focus:border-[#2c3b6e]/30 focus:bg-white rounded-xl text-[13px] font-medium text-[#1a1f36] outline-none transition-all"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest mb-1.5 block">Упаковка</label>
+                            <input 
+                              type="number" 
+                              step="0.01"
+                              value={editForm.pack_size || ""}
+                              onChange={(e) => setEditForm({...editForm, pack_size: e.target.value})}
+                              className="w-full px-4 py-2.5 bg-[#f7f8f9] border border-transparent focus:border-[#2c3b6e]/30 focus:bg-white rounded-xl text-[13px] font-medium text-[#1a1f36] outline-none transition-all"
+                            />
+                          </div>
                         </div>
 
                         {/* Status Toggle */}
@@ -728,18 +831,29 @@ export default function ProductsPage() {
                         </div>
                      </div>
 
-                     <div>
-                        <p className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest mb-3 flex items-center justify-between">
-                          Вариации (Цвета / Размеры)
-                          <span className="text-[#2c3b6e] text-[11px] font-black cursor-pointer hover:underline uppercase tracking-tight">+ Добавить</span>
-                        </p>
-                        <div className="flex items-center gap-3">
-                           <div className="w-12 h-12 rounded-xl border-2 border-[#2c3b6e] p-1 cursor-pointer">
-                              <img src={selectedProduct.image_url || "https://via.placeholder.com/40"} alt="var" className="w-full h-full rounded-lg bg-gray-100 object-cover" />
-                           </div>
-                           <div className="w-12 h-12 rounded-xl border border-[#e3e8ee] p-1 cursor-pointer opacity-50 hover:opacity-100 transition-all flex items-center justify-center bg-slate-50">
-                              <Plus className="w-5 h-5 text-slate-300" />
-                           </div>
+                     <div className="grid grid-cols-2 gap-4">
+                        <div className="p-4 bg-[#f7f8f9] rounded-2xl border border-[#e3e8ee]">
+                           <p className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest mb-1.5">Бренд</p>
+                           <p className="text-[13px] font-bold text-[#1a1f36]">{selectedProduct.brand || "—"}</p>
+                        </div>
+                        <div className="p-4 bg-[#f7f8f9] rounded-2xl border border-[#e3e8ee]">
+                           <p className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest mb-1.5">Страна</p>
+                           <p className="text-[13px] font-bold text-[#1a1f36]">{selectedProduct.country || "—"}</p>
+                        </div>
+                     </div>
+
+                     <div className="grid grid-cols-3 gap-4">
+                        <div className="p-4 bg-[#f7f8f9] rounded-2xl border border-[#e3e8ee]">
+                           <p className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest mb-1.5">Сорт</p>
+                           <p className="text-[13px] font-bold text-[#1a1f36]">{selectedProduct.grade || "—"}</p>
+                        </div>
+                        <div className="p-4 bg-[#f7f8f9] rounded-2xl border border-[#e3e8ee]">
+                           <p className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest mb-1.5">Толщина</p>
+                           <p className="text-[13px] font-bold text-[#1a1f36]">{selectedProduct.thickness || "—"}</p>
+                        </div>
+                        <div className="p-4 bg-[#f7f8f9] rounded-2xl border border-[#e3e8ee]">
+                           <p className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest mb-1.5">Упаковка</p>
+                           <p className="text-[13px] font-bold text-[#1a1f36]">{selectedProduct.pack_size ? `${selectedProduct.pack_size} м²` : "—"}</p>
                         </div>
                      </div>
 

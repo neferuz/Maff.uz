@@ -25,6 +25,7 @@ const FILTERS = {
 function OutletContent() {
   const searchParams = useSearchParams();
   const categoryParam = searchParams.get("category");
+  const isCatalogMode = false;
   
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
@@ -36,6 +37,7 @@ function OutletContent() {
   const [availableBrands, setAvailableBrands] = useState<string[]>([]);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [loading, setLoading] = useState(true);
   const itemsPerPage = 100;
 
   useEffect(() => {
@@ -49,9 +51,10 @@ function OutletContent() {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        setLoading(true);
         const [prodRes, catRes] = await Promise.all([
-          fetch("/api/v1/products/"),
-          fetch("/api/v1/categories/")
+          fetch(`/api/v1/products/?t=${Date.now()}`, { cache: "no-store", headers: { "Cache-Control": "no-cache" } }),
+          fetch(`/api/v1/categories/?t=${Date.now()}`, { cache: "no-store", headers: { "Cache-Control": "no-cache" } })
         ]);
         const prodData = await prodRes.json();
         const catData = await catRes.json();
@@ -67,6 +70,8 @@ function OutletContent() {
         setAvailableBrands(cleanBrands);
       } catch (err) {
         console.error("Fetch failed", err);
+      } finally {
+        setLoading(false);
       }
     };
     fetchData();
@@ -83,7 +88,7 @@ function OutletContent() {
   };
 
   const filteredProducts = useMemo(() => {
-    let result = products;
+    let result = isCatalogMode ? [...products] : products.filter(p => p.price_outlet && p.price_outlet > 0);
     if (selectedCategoryId) {
       const allRelatedIds = getAllChildIds(selectedCategoryId, categories);
       result = result.filter(p => p.category_id && allRelatedIds.includes(p.category_id));
@@ -116,27 +121,52 @@ function OutletContent() {
   const currentProducts = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
     return filteredProducts.slice(start, start + itemsPerPage).map(p => {
-      const name = p.name || "Безымянный товар";
-      const nameParts = name.split(' ');
-      
-      return {
-        id: p.id,
-        title: name,
-        country: p.country || (name.toLowerCase().includes('турц') ? "Турция" : name.toLowerCase().includes('росс') ? "Россия" : "Европа"),
-        brand: p.brand || nameParts[0] || "MAFF",
-        grade: p.grade || (name.includes('33') ? "33 класс" : name.includes('32') ? "32 класс" : "Premium"),
-        thickness: p.thickness || name.match(/\d+мм/)?.[0] || "8мм",
-        price: Number(p.price || 0),
-        inStock: p.stock > 0,
-        isDoor: allDoorIds.includes(p.category_id),
-        image: (p.image_url && typeof p.image_url === 'string')
-          ? (p.image_url.startsWith('http') 
-              ? `${p.image_url}?v=3`
-              : `https://maff.uz${p.image_url.startsWith('/') ? '' : '/'}${p.image_url}?v=3`)
-          : "/placeholder.png",
-        discount: p.price < 200000 ? "−20%" : "SALE"
-      };
-    });
+        const name = p.name || "Безымянный товар";
+        const nameParts = name.split(' ');
+        
+        // Resolve category order-only recursively
+        let isOrderOnly = false;
+        let isPreorder = false;
+        let currentCat = categories.find(c => c.id === p.category_id);
+        const visited = new Set();
+        while (currentCat && !visited.has(currentCat.id)) {
+          visited.add(currentCat.id);
+          if (currentCat.is_order_only) {
+            isOrderOnly = true;
+          }
+          if (currentCat.is_preorder) {
+            isPreorder = true;
+          }
+          if (currentCat.parent_id) {
+            currentCat = categories.find(c => c.id === currentCat.parent_id);
+          } else {
+            break;
+          }
+        }
+        
+        return {
+          id: p.id,
+          title: name,
+          country: p.country || (name.toLowerCase().includes('турц') ? "Турция" : name.toLowerCase().includes('росс') ? "Россия" : "Европа"),
+          brand: p.brand || nameParts[0] || "MAFF",
+          grade: p.grade || (name.includes('33') ? "33 класс" : name.includes('32') ? "32 класс" : "Premium"),
+          thickness: p.thickness || name.match(/\d+мм/)?.[0] || "8мм",
+          price: Number(p.price || 0),
+          priceOutlet: p.price_outlet ? Number(p.price_outlet) : undefined,
+          inStock: p.stock > 0,
+          isDoor: allDoorIds.includes(p.category_id),
+          isOrderOnly: isOrderOnly,
+          isPreorder: isPreorder,
+          image: (p.image_url && typeof p.image_url === 'string')
+            ? (p.image_url.startsWith('http') 
+                ? `${p.image_url}?v=3`
+                : `${p.image_url.startsWith('/') ? '' : '/'}${p.image_url}?v=3`)
+            : "",
+          discount: p.price_outlet 
+            ? `−${Math.round(((p.price - p.price_outlet) / p.price) * 100)}%` 
+            : (p.price < 200000 ? "−20%" : "SALE")
+        };
+      })
   }, [currentPage, filteredProducts, allDoorIds]);
 
   const handlePageChange = (page: number) => {
@@ -190,10 +220,18 @@ function OutletContent() {
       <div>
          <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-900 dark:text-white mb-6 pb-2 border-b border-slate-100 dark:border-white/5">Категории</h3>
          <div className="space-y-1">
-            <button onClick={() => setSelectedCategoryId(null)} className={cn("w-full text-left px-3 py-2 rounded-xl text-[11px] font-bold transition-colors", !selectedCategoryId ? "bg-blue-50 dark:bg-blue-900/30 text-[#2c3b6e] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50")}>Все товары</button>
-            {mainCategories.map(cat => (
-              <button key={cat.id} onClick={() => setSelectedCategoryId(cat.id)} className={cn("w-full text-left px-3 py-2 rounded-xl text-[11px] font-bold transition-colors", selectedCategoryId === cat.id ? "bg-blue-50 dark:bg-blue-900/30 text-[#2c3b6e] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50")}>{cat.name}</button>
-            ))}
+            {loading ? (
+              Array.from({ length: 4 }).map((_, idx) => (
+                <div key={idx} className="w-full h-8 bg-slate-100 dark:bg-slate-800/40 rounded-xl animate-pulse" />
+              ))
+            ) : (
+              <>
+                <button onClick={() => setSelectedCategoryId(null)} className={cn("w-full text-left px-3 py-2 rounded-xl text-[11px] font-bold transition-colors", !selectedCategoryId ? "bg-blue-50 dark:bg-blue-900/30 text-[#2c3b6e] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50")}>Все товары</button>
+                {mainCategories.map(cat => (
+                  <button key={cat.id} onClick={() => setSelectedCategoryId(cat.id)} className={cn("w-full text-left px-3 py-2 rounded-xl text-[11px] font-bold transition-colors", selectedCategoryId === cat.id ? "bg-blue-50 dark:bg-blue-900/30 text-[#2c3b6e] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50")}>{cat.name}</button>
+                ))}
+              </>
+            )}
          </div>
       </div>
       <div>
@@ -204,31 +242,70 @@ function OutletContent() {
             )}
          </h3>
          <div className="space-y-1.5">
-            {availableBrands.map(brand => {
-              const isSelected = activeFilters.includes(brand);
-              const formattedBrand = brand.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
-              return (
-                <button 
-                  key={brand} 
-                  onClick={() => toggleFilter(brand)} 
-                  className={cn(
-                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group",
-                    isSelected ? "bg-blue-50 dark:bg-blue-900/30" : "hover:bg-slate-50 dark:hover:bg-slate-800/50"
-                  )}
-                >
-                  <div className={cn(
-                    "w-4 h-4 rounded border flex items-center justify-center transition-colors flex-shrink-0",
-                    isSelected ? "bg-[#2c3b6e] border-[#2c3b6e] dark:bg-blue-600 dark:border-blue-600" : "border-slate-300 dark:border-slate-700 group-hover:border-[#2c3b6e] dark:group-hover:border-blue-500"
-                  )}>
-                    {isSelected && <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
-                  </div>
-                  <span className={cn(
-                    "text-[12px] font-bold truncate",
-                    isSelected ? "text-[#0f172a] dark:text-white" : "text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white"
-                  )}>{formattedBrand}</span>
-                </button>
-              );
-            })}
+
+            {loading ? (
+
+              Array.from({ length: 5 }).map((_, idx) => (
+
+                <div key={idx} className="w-full h-9 bg-slate-100 dark:bg-slate-800/40 rounded-xl animate-pulse" />
+
+              ))
+
+            ) : (
+
+              availableBrands.map(brand => {
+
+                const isSelected = activeFilters.includes(brand);
+
+                const formattedBrand = brand.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+
+                return (
+
+                  <button 
+
+                    key={brand} 
+
+                    onClick={() => toggleFilter(brand)} 
+
+                    className={cn(
+
+                      "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group",
+
+                      isSelected ? "bg-blue-50 dark:bg-blue-900/30" : "hover:bg-slate-50 dark:hover:bg-slate-800/50"
+
+                    )}
+
+                  >
+
+                    <div className={cn(
+
+                      "w-4 h-4 rounded border flex items-center justify-center transition-colors flex-shrink-0",
+
+                      isSelected ? "bg-[#2c3b6e] border-[#2c3b6e] dark:bg-blue-600 dark:border-blue-600" : "border-slate-300 dark:border-slate-700 group-hover:border-[#2c3b6e] dark:group-hover:border-blue-500"
+
+                    )}>
+
+                      {isSelected && <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+
+                    </div>
+
+                    <span className={cn(
+
+                      "text-[12px] font-bold truncate",
+
+                      isSelected ? "text-[#0f172a] dark:text-white" : "text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white"
+
+                    )}>
+              {formattedBrand}</span>
+
+                  </button>
+
+                );
+
+              })
+
+            )}
+
          </div>
       </div>
     </div>
@@ -242,23 +319,61 @@ function OutletContent() {
           <nav className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
             <Link href="/" className="hover:text-[#2c3b6e] dark:hover:text-blue-400 transition-colors">Главная</Link>
             <ChevronRight className="w-3 h-3" />
-            <Link href="/outlet" className="hover:text-[#2c3b6e] dark:hover:text-blue-400 transition-colors">Аутлет</Link>
-            {selectedCategoryName && (
+            {isCatalogMode ? (
+              <Link href="/catalog" className="hover:text-[#2c3b6e] dark:hover:text-blue-400 transition-colors">Каталог</Link>
+            ) : (
+              <Link href="/outlet" className="hover:text-[#2c3b6e] dark:hover:text-blue-400 transition-colors">Аутлет</Link>
+            )}
+            {loading && categoryParam ? (
+              <>
+                <ChevronRight className="w-3 h-3" />
+                <span className="inline-block w-20 h-3.5 bg-slate-200 dark:bg-slate-800/40 rounded animate-pulse" />
+              </>
+            ) : selectedCategoryName ? (
               <>
                 <ChevronRight className="w-3 h-3" />
                 <span className="text-slate-900 dark:text-white">{selectedCategoryName}</span>
               </>
-            )}
+            ) : null}
           </nav>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-10">
-        <h1 className="text-2xl lg:text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tight mb-8">
-          {selectedCategoryName || (
-            <>Аутлет <span className="text-slate-200 dark:text-slate-700">& Распродажа</span></>
+        <div className="mb-8">
+          {isCatalogMode ? (
+            <h1 className="text-2xl lg:text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tight">
+              {loading && categoryParam ? (
+                <span className="inline-block w-48 h-8 bg-slate-200 dark:bg-slate-800/40 rounded animate-pulse" />
+              ) : (
+                <>
+                  {selectedCategoryName} <span className="text-[#2c3b6e] dark:text-blue-500">MAFF</span>
+                </>
+              )}
+            </h1>
+          ) : (
+            <>
+              <h1 className="text-2xl lg:text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tight">
+                Аутлет <span className="text-slate-200 dark:text-slate-700">& Распродажа</span>
+              </h1>
+              {selectedCategoryName && (
+                <div className="mt-3.5 flex items-center gap-2 flex-wrap">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Категория:</span>
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-100 dark:bg-slate-800/80 border border-slate-200/50 dark:border-white/5 text-slate-900 dark:text-white rounded-full text-[11px] font-bold">
+                    {selectedCategoryName}
+                    <button 
+                      onClick={() => setSelectedCategoryId(null)} 
+                      className="w-3.5 h-3.5 rounded-full bg-slate-200 dark:bg-slate-750 hover:bg-[#e11d48] hover:text-white dark:hover:bg-[#e11d48] flex items-center justify-center transition-all"
+                      title="Сбросить фильтр"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                    </button>
+                  </span>
+                </div>
+              )}
+            </>
           )}
-        </h1>
+        </div>
 
         <div className="flex flex-col lg:flex-row gap-10">
           {/* Sidebar */}
@@ -280,11 +395,65 @@ function OutletContent() {
             </div>
 
             {/* GRID */}
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 lg:gap-6">
-               {currentProducts.map((product) => (
-                 <ProductCard key={product.id} {...product} />
-               ))}
-            </div>
+            {!loading && currentProducts.length === 0 ? (
+              <div className="flex flex-col items-center justify-center text-center py-10 px-4 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-white/5 space-y-4">
+                <div className="w-10 h-10 bg-slate-200/50 dark:bg-slate-800 text-slate-500 rounded-full flex items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-shopping-bag opacity-80"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+                </div>
+                <div className="space-y-1 max-w-xs">
+                  <h3 className="text-[11px] font-black text-slate-900 dark:text-white uppercase tracking-wider">Нет товаров в наличии</h3>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium leading-relaxed">
+                    В этой категории товаров пока нет скидок в Аутлете. Пожалуйста, выберите другую категорию или зайдите позже.
+                  </p>
+                </div>
+                <button 
+                  onClick={() => setSelectedCategoryId(null)}
+                  className="px-4 py-1.5 bg-[#e11d48] text-white rounded-lg text-[9px] font-bold uppercase tracking-wider hover:bg-[#be123c] transition-colors"
+                >
+                  Сбросить категорию
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 lg:gap-6">
+                 {loading ? (
+                   Array.from({ length: 6 }).map((_, idx) => (
+                     <div 
+                       key={idx} 
+                       className="bg-white dark:bg-[#161d2f] rounded-2xl lg:rounded-[2.5rem] border border-slate-100 dark:border-white/5 p-2 lg:p-3 flex flex-col h-full animate-pulse"
+                     >
+                       {/* Image Area Skeleton */}
+                       <div className="aspect-square rounded-xl lg:rounded-[2rem] bg-slate-100 dark:bg-slate-800/80 mb-3 lg:mb-4 w-full" />
+                       
+                       {/* Content Area Skeleton */}
+                       <div className="px-1 lg:px-2 pb-1 lg:pb-2 flex flex-col flex-grow space-y-3">
+                          {/* Title */}
+                          <div className="h-4 bg-slate-100 dark:bg-slate-800/80 rounded w-3/4" />
+                          
+                          {/* Specs */}
+                          <div className="space-y-1.5 pt-2">
+                             <div className="flex justify-between">
+                                <div className="h-2.5 bg-slate-100 dark:bg-slate-800/80 rounded w-1/4" />
+                                <div className="h-2.5 bg-slate-100 dark:bg-slate-800/80 rounded w-1/3" />
+                             </div>
+                             <div className="flex justify-between">
+                                <div className="h-2.5 bg-slate-100 dark:bg-slate-800/80 rounded w-1/4" />
+                                <div className="h-2.5 bg-slate-100 dark:bg-slate-800/80 rounded w-1/3" />
+                             </div>
+                          </div>
+
+                          {/* Price & Button */}
+                          <div className="mt-auto pt-4 space-y-2">
+                             <div className="h-8 bg-slate-100 dark:bg-slate-800/80 rounded-full w-full" />
+                             <div className="h-10 bg-slate-100 dark:bg-slate-800/80 rounded-full w-full" />
+                          </div>
+                       </div>
+                     </div>
+                   ))
+                 ) : currentProducts.map((product) => (
+                   <ProductCard key={product.id} {...product} />
+                 ))}
+              </div>
+            )}
 
             {/* Pagination */}
             {totalPages > 1 && (

@@ -35,8 +35,43 @@ export default function DeliveryPage() {
   }, []);
 
   if (loading) return (
-    <div className="min-h-screen bg-white dark:bg-[#1a274b] flex items-center justify-center">
-      <div className="w-8 h-8 border-2 border-[#2c3b6e] dark:border-white/20 border-t-transparent rounded-full animate-spin" />
+    <div className="bg-white dark:bg-[#1a274b] min-h-screen pb-16">
+      <nav className="max-w-6xl mx-auto px-6 pt-4 pb-1 flex items-center gap-1.5 text-[8px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
+        <span className="w-8 h-3 bg-slate-200 dark:bg-slate-800 animate-pulse rounded" />
+        <span>/</span>
+        <span className="w-16 h-3 bg-slate-200 dark:bg-slate-800 animate-pulse rounded" />
+      </nav>
+      <div className="max-w-6xl mx-auto px-6 pt-2 space-y-8">
+        <div className="max-w-xl space-y-3">
+           <div className="w-24 h-4 bg-slate-200 dark:bg-slate-800 animate-pulse rounded" />
+           <div className="w-80 h-10 bg-slate-200 dark:bg-slate-800 animate-pulse rounded" />
+           <div className="w-full h-14 bg-slate-200 dark:bg-slate-800 animate-pulse rounded" />
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+           <div className="lg:col-span-7 bg-slate-50 dark:bg-white/[0.01] border border-slate-100 dark:border-white/5 rounded-2xl p-6 lg:p-8 space-y-8">
+              {[1, 2, 3].map(i => (
+                 <div key={i} className="flex gap-5 animate-pulse">
+                    <div className="w-9 h-9 bg-slate-200 dark:bg-slate-800 rounded-xl" />
+                    <div className="flex-1 space-y-2">
+                       <div className="w-32 h-4 bg-slate-200 dark:bg-slate-800 rounded" />
+                       <div className="w-full h-10 bg-slate-200 dark:bg-slate-800 rounded" />
+                    </div>
+                 </div>
+              ))}
+           </div>
+           <div className="lg:col-span-5 bg-white dark:bg-white/[0.01] border border-slate-100 dark:border-white/5 rounded-2xl p-6 lg:p-8 space-y-4">
+              {[1, 2, 3].map(i => (
+                 <div key={i} className="p-4 bg-slate-50/50 dark:bg-white/[0.02] rounded-xl animate-pulse space-y-2">
+                    <div className="flex items-center gap-3">
+                       <div className="w-7 h-7 bg-slate-200 dark:bg-slate-800 rounded-lg" />
+                       <div className="w-24 h-3.5 bg-slate-200 dark:bg-slate-800 rounded" />
+                    </div>
+                    <div className="w-full h-8 bg-slate-200 dark:bg-slate-800 rounded" />
+                 </div>
+              ))}
+           </div>
+        </div>
+      </div>
     </div>
   );
 

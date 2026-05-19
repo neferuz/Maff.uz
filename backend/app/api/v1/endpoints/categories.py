@@ -65,7 +65,11 @@ async def read_categories(
             "description": c.description,
             "image_url": c.image_url,
             "product_count": get_total_count(c.id),
-            "is_active": c.is_active
+            "is_active": c.is_active,
+            "is_order_only": c.is_order_only,
+            "is_preorder": c.is_preorder,
+            "price_prefix": c.price_prefix,
+            "order_link": c.order_link,
         }
         result.append(c_dict)
         
@@ -318,5 +322,9 @@ async def update_category(
         description=updated.description,
         image_url=updated.image_url,
         is_active=updated.is_active if updated.is_active is not None else True,
+        is_order_only=updated.is_order_only,
+        is_preorder=updated.is_preorder,
+        price_prefix=updated.price_prefix,
+        order_link=updated.order_link,
         product_count=0
     )

@@ -29,12 +29,27 @@ class OneCService:
 
     async def fetch_stock(self) -> List[Dict[str, Any]]:
         """
-        Fetch current stock balances.
+        Fetch current stock balances with Warehouse key.
         """
         url = f"{self.base_url}AccumulationRegister_СвободныеОстатки/Balance()"
         params = {
             "$format": "json",
-            "$select": "Номенклатура_Key,ВНаличииBalance"
+            "$select": "Номенклатура_Key,Склад_Key,ВНаличииBalance"
+        }
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, headers=self.headers, params=params)
+            response.raise_for_status()
+            data = response.json()
+            return data.get("value", [])
+
+    async def fetch_warehouses(self) -> List[Dict[str, Any]]:
+        """
+        Fetch warehouses catalog.
+        """
+        url = f"{self.base_url}Catalog_Склады"
+        params = {
+            "$format": "json",
+            "$select": "Ref_Key,Description"
         }
         async with httpx.AsyncClient() as client:
             response = await client.get(url, headers=self.headers, params=params)

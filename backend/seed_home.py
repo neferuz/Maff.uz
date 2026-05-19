@@ -24,8 +24,8 @@ async def seed_home():
                     {"icon": "Truck", "text": "Быстрая доставка"}
                 ],
                 "images": [
-                    "/spacejoy-9M66C_w_ToM-unsplash.jpg",
-                    "/kam-idris-U39FPHKfDu0-unsplash.jpg"
+                    { "url": "/spacejoy-9M66C_w_ToM-unsplash.jpg", "link": "/catalog" },
+                    { "url": "/kam-idris-U39FPHKfDu0-unsplash.jpg", "link": "/catalog" }
                 ]
             },
             "about": {

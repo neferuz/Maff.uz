@@ -9,6 +9,10 @@ class CategoryBase(BaseModel):
     description: Optional[str] = None
     image_url: Optional[str] = None
     is_active: Optional[bool] = True
+    is_order_only: Optional[bool] = False
+    is_preorder: Optional[bool] = False
+    price_prefix: Optional[str] = None
+    order_link: Optional[str] = None
 
 class CategoryCreate(CategoryBase):
     pass
@@ -20,6 +24,10 @@ class CategoryUpdate(BaseModel):
     description: Optional[str] = None
     image_url: Optional[str] = None
     is_active: Optional[bool] = None
+    is_order_only: Optional[bool] = None
+    is_preorder: Optional[bool] = None
+    price_prefix: Optional[str] = None
+    order_link: Optional[str] = None
 
 class Category(CategoryBase):
     id: int
@@ -34,6 +42,9 @@ class ProductBase(BaseModel):
     description: Optional[str] = None
     price: float
     price_rub: Optional[float] = None
+    price_outlet: Optional[float] = None
+    price_outlet_usd: Optional[float] = None
+    price_outlet_wholesale: Optional[float] = None
     sku: Optional[str] = None
     unit: Optional[str] = None
     stock: float = 0
@@ -75,6 +86,14 @@ class ProductUpdate(BaseModel):
     description: Optional[str] = None
     price: Optional[float] = None
     price_rub: Optional[float] = None
+    price_outlet: Optional[float] = None
+    price_outlet_usd: Optional[float] = None
+    price_outlet_wholesale: Optional[float] = None
+    price_outlet_usd: Optional[float] = None
+    price_outlet_wholesale: Optional[float] = None
+    price_outlet: Optional[float] = None
+    price_outlet_usd: Optional[float] = None
+    price_outlet_wholesale: Optional[float] = None
     sku: Optional[str] = None
     unit: Optional[str] = None
     stock: Optional[float] = None

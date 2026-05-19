@@ -23,22 +23,22 @@ import {
   HelpCircle,
   PhoneCall,
   Truck,
-  Share2
+  Share2,
+  Zap,
+  ShieldCheck
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const menuItems = [
   { group: "Основные", items: [
     { label: "Дашборд", href: "/", icon: LayoutDashboard },
-    { label: "Аналитика", href: "/analytics", icon: BarChart3 },
-  ]},
-  { group: "Магазин", items: [
-    { label: "Товары", href: "/products", icon: Box },
-    { label: "Категории", href: "/categories", icon: Layers },
     { label: "Заказы", href: "/orders", icon: ShoppingBag },
+    { label: "Категории", href: "/categories", icon: Layers },
+    { label: "Товары", href: "/products", icon: Box },
     { label: "Клиенты", href: "/customers", icon: Users },
+    { label: "Интеграции", href: "/integrations", icon: Zap },
   ]},
-  { group: "Страницы", items: [
+  { group: "Контент", items: [
     { label: "Главная", href: "/pages/home", icon: ImageIcon },
     { label: "Соц. сети", href: "/socials", icon: Share2 },
     { label: "О нас", href: "/about", icon: Info },
@@ -50,8 +50,10 @@ const menuItems = [
     { label: "Блог", href: "/blog", icon: MessageSquare },
     { label: "Доставка", href: "/delivery", icon: Truck },
     { label: "Рассрочка", href: "/installment", icon: CreditCard },
+    { label: "Гарантия", href: "/warranty", icon: ShieldCheck },
   ]},
   { group: "Система", items: [
+    { label: "Аналитика", href: "/analytics", icon: BarChart3 },
     { label: "Настройки", href: "/settings", icon: Settings },
   ]},
 ];

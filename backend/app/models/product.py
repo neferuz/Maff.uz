@@ -11,6 +11,11 @@ class Category(Base):
     parent_id = Column(Integer, ForeignKey("category.id"), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     
+    is_order_only = Column(Boolean, default=False)
+    is_preorder = Column(Boolean, default=False)
+    price_prefix = Column(String, nullable=True)
+    order_link = Column(String, nullable=True)
+    
     products = relationship("Product", back_populates="category")
     children = relationship("Category", backref="parent", remote_side=[id])
 
@@ -20,6 +25,9 @@ class Product(Base):
     description = Column(String)
     price = Column(Float, nullable=False)
     price_rub = Column(Float, nullable=True)
+    price_outlet = Column(Float, nullable=True)
+    price_outlet_usd = Column(Float, nullable=True)
+    price_outlet_wholesale = Column(Float, nullable=True)
     sku = Column(String, index=True)
     unit = Column(String, nullable=True)
     stock = Column(Float, default=0)

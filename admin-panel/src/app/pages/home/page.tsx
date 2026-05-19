@@ -27,7 +27,8 @@ import {
   Headset,
   Check,
   Info,
-  Tag
+  Tag,
+  Search
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect, useRef } from "react";
@@ -54,14 +55,19 @@ const availableIcons = [
 ];
 
 export default function HomePageEditor() {
-  const [data, setData] = useState(initialData);
-  const [originalData, setOriginalData] = useState(initialData);
+  const [data, setData] = useState<any>(initialData);
+  const [originalData, setOriginalData] = useState<any>(initialData);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [showToast, setShowToast] = useState(false);
-  const [activeTab, setActiveTab] = useState("hero"); // "hero", "about", "brands"
+  const [activeTab, setActiveTab] = useState("hero"); // "hero", "about", "brands", "recommendations"
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [prodSearch, setProdSearch] = useState("");
+  const [prodResults, setProdResults] = useState<any[]>([]);
+  const [isSearchingProds, setIsSearchingProds] = useState(false);
+  const [recommendedProducts, setRecommendedProducts] = useState<any[]>([]);
 
   const isDirty = JSON.stringify(data) !== JSON.stringify(originalData);
 
@@ -79,7 +85,8 @@ export default function HomePageEditor() {
             ...content,
             hero: { ...initialData.hero, ...content.hero },
             about: { ...initialData.about, ...content.about },
-            brands: content.brands || initialData.brands
+            brands: content.brands || initialData.brands,
+            recommendations: content.recommendations || []
           };
 
           setData(mergedData);
@@ -93,6 +100,54 @@ export default function HomePageEditor() {
     }
     fetchData();
   }, []);
+
+  useEffect(() => {
+    async function loadRecommendedProducts() {
+      const ids = data.recommendations || [];
+      if (ids.length === 0) {
+        setRecommendedProducts([]);
+        return;
+      }
+      try {
+        const responses = await Promise.all(
+          ids.map((id: number) => fetch(`${API_BASE_URL}/products/${id}`))
+        );
+        const prods = [];
+        for (const res of responses) {
+          if (res.ok) {
+            prods.push(await res.json());
+          }
+        }
+        setRecommendedProducts(prods);
+      } catch (err) {
+        console.error("Failed to load recommended products details", err);
+      }
+    }
+    loadRecommendedProducts();
+  }, [data.recommendations]);
+
+  useEffect(() => {
+    if (!prodSearch.trim()) {
+      setProdResults([]);
+      return;
+    }
+    const delayDebounceFn = setTimeout(async () => {
+      setIsSearchingProds(true);
+      try {
+        const response = await fetch(`${API_BASE_URL}/products?q=${encodeURIComponent(prodSearch)}&limit=10`);
+        if (response.ok) {
+          const results = await response.json();
+          setProdResults(results);
+        }
+      } catch (err) {
+        console.error("Error searching products:", err);
+      } finally {
+        setIsSearchingProds(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [prodSearch]);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -129,7 +184,7 @@ export default function HomePageEditor() {
         const result = await response.json();
         setData({
           ...data,
-          hero: { ...data.hero, images: [...data.hero.images, result.url] }
+          hero: { ...data.hero, images: [...(data.hero.images || []), { url: result.url, link: "" }] }
         });
       }
     } catch (error) {
@@ -140,9 +195,17 @@ export default function HomePageEditor() {
     }
   };
 
-  // --- Hero Handlers ---
   const removeImage = (index: number) => {
-    const newImages = data.hero.images.filter((_, i) => i !== index);
+    const newImages = data.hero.images.filter((_: any, i: number) => i !== index);
+    setData({ ...data, hero: { ...data.hero, images: newImages } });
+  };
+  const updateImageLink = (index: number, link: string) => {
+    const newImages = data.hero.images.map((img: any, i: number) => {
+      if (i === index) {
+        return typeof img === "string" ? { url: img, link } : { ...img, link };
+      }
+      return img;
+    });
     setData({ ...data, hero: { ...data.hero, images: newImages } });
   };
   const addFeature = () => {
@@ -150,15 +213,15 @@ export default function HomePageEditor() {
     setData({ ...data, hero: { ...data.hero, features: [...data.hero.features, newFeature] } });
   };
   const removeFeature = (index: number) => {
-    const newFeatures = data.hero.features.filter((_, i) => i !== index);
+    const newFeatures = data.hero.features.filter((_: any, i: number) => i !== index);
     setData({ ...data, hero: { ...data.hero, features: newFeatures } });
   };
   const updateFeatureIcon = (index: number, iconName: string) => {
-    const newFeatures = data.hero.features.map((f, i) => i === index ? { ...f, icon: iconName } : f);
+    const newFeatures = data.hero.features.map((f: any, i: number) => i === index ? { ...f, icon: iconName } : f);
     setData({ ...data, hero: { ...data.hero, features: newFeatures } });
   };
   const updateFeatureText = (index: number, text: string) => {
-    const newFeatures = data.hero.features.map((f, i) => i === index ? { ...f, text: text } : f);
+    const newFeatures = data.hero.features.map((f: any, i: number) => i === index ? { ...f, text: text } : f);
     setData({ ...data, hero: { ...data.hero, features: newFeatures } });
   };
 
@@ -195,6 +258,26 @@ export default function HomePageEditor() {
   const removeBrand = (index: number) => {
     const newBrands = data.brands.filter((_: any, i: number) => i !== index);
     setData({ ...data, brands: newBrands });
+  };
+
+  // --- Recommendation Handlers ---
+  const addRecommendation = (productId: number) => {
+    const currentRecs = data.recommendations || [];
+    if (currentRecs.includes(productId)) return;
+    setData({
+      ...data,
+      recommendations: [...currentRecs, productId]
+    });
+    setProdSearch("");
+    setProdResults([]);
+  };
+
+  const removeRecommendation = (productId: number) => {
+    const currentRecs = data.recommendations || [];
+    setData({
+      ...data,
+      recommendations: currentRecs.filter((id: number) => id !== productId)
+    });
   };
 
   if (isLoading) {
@@ -245,7 +328,8 @@ export default function HomePageEditor() {
          {[
            { id: "hero", label: "Hero-баннер", icon: Layout },
            { id: "about", label: "О компании", icon: Info },
-           { id: "brands", label: "Наши бренды", icon: Tag }
+           { id: "brands", label: "Наши бренды", icon: Tag },
+           { id: "recommendations", label: "Рекомендации", icon: Search }
          ].map(tab => (
            <button
              key={tab.id}
@@ -324,15 +408,28 @@ export default function HomePageEditor() {
                      Загрузить
                   </button>
                </div>
-               <div className="grid grid-cols-2 gap-3">
-                  {data.hero?.images?.map((img: string, idx: number) => (
-                    <div key={idx} className="relative group aspect-[16/10] rounded-lg overflow-hidden border border-[#e3e8ee] bg-[#f7f8f9]">
-                       <img src={img} alt="Hero" className="w-full h-full object-cover" />
-                       <button onClick={() => removeImage(idx)} className="absolute top-2 right-2 p-1.5 bg-white/90 backdrop-blur-md rounded-md text-[#cd5c5c] opacity-0 group-hover:opacity-100 transition-all shadow-none">
-                          <Trash2 className="w-3.5 h-3.5" />
-                       </button>
-                    </div>
-                  ))}
+               <div className="grid grid-cols-2 gap-4">
+                  {data.hero?.images?.map((imgObj: any, idx: number) => {
+                    const imgUrl = typeof imgObj === "string" ? imgObj : imgObj.url;
+                    const imgLink = typeof imgObj === "string" ? "" : (imgObj.link || "");
+                    return (
+                      <div key={idx} className="flex flex-col gap-2 relative group p-2 border border-[#e3e8ee] rounded-xl bg-[#f7f8f9]">
+                        <div className="relative aspect-[16/10] rounded-lg overflow-hidden bg-white border border-[#e3e8ee]">
+                           <img src={imgUrl} alt="Hero" className="w-full h-full object-cover" />
+                           <button onClick={() => removeImage(idx)} className="absolute top-2 right-2 p-1.5 bg-white/90 backdrop-blur-md rounded-md text-[#cd5c5c] opacity-0 group-hover:opacity-100 transition-all shadow-none">
+                              <Trash2 className="w-3.5 h-3.5" />
+                           </button>
+                        </div>
+                        <input 
+                          type="text" 
+                          value={imgLink} 
+                          onChange={(e) => updateImageLink(idx, e.target.value)} 
+                          placeholder="Ссылка (например, /catalog?category=418)" 
+                          className="w-full px-2.5 py-1.5 bg-white border border-[#e3e8ee] rounded text-[11px] outline-none" 
+                        />
+                      </div>
+                    );
+                  })}
                </div>
              </div>
 
@@ -464,6 +561,102 @@ export default function HomePageEditor() {
                       </div>
                     );
                  })}
+              </div>
+           </div>
+        </div>
+      )}
+
+      {/* --- RECOMMENDATIONS TAB --- */}
+      {activeTab === "recommendations" && (
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500 max-w-4xl">
+           <div className="bg-white border border-[#e3e8ee] rounded-xl p-6 space-y-6 shadow-none">
+              <div className="flex items-center gap-2 mb-2">
+                 <Search className="w-4 h-4 text-[#2c3b6e]" />
+                 <h3 className="text-[12px] font-bold text-[#1a1f36] uppercase tracking-wider">Настройка рекомендаций</h3>
+              </div>
+
+              {/* Search Bar */}
+              <div className="space-y-2 relative">
+                 <label className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest">Добавить товар в рекомендации</label>
+                 <div className="relative">
+                    <input 
+                      type="text" 
+                      value={prodSearch}
+                      onChange={(e) => setProdSearch(e.target.value)}
+                      placeholder="Введите название или артикул для поиска..."
+                      className="w-full pl-10 pr-4 py-2.5 bg-[#f7f8f9] border border-[#e3e8ee] rounded-xl text-[13px] outline-none focus:border-[#2c3b6e]/30"
+                    />
+                    <Search className="absolute left-3.5 top-3 w-4 h-4 text-slate-400" />
+                    {isSearchingProds && (
+                      <RefreshCw className="absolute right-3.5 top-3 w-4 h-4 text-[#2c3b6e] animate-spin" />
+                    )}
+                 </div>
+
+                 {/* Results dropdown */}
+                 {prodResults.length > 0 && (
+                   <div className="absolute left-0 right-0 mt-1 bg-white border border-[#e3e8ee] rounded-xl shadow-xl max-h-[300px] overflow-y-auto z-50">
+                      {prodResults.map(p => {
+                        const isAlreadyAdded = (data.recommendations || []).includes(p.id);
+                        return (
+                          <div 
+                            key={p.id}
+                            onClick={() => !isAlreadyAdded && addRecommendation(p.id)}
+                            className={cn(
+                              "flex items-center gap-3 p-3 transition-colors border-b border-[#f7f8f9] last:border-0",
+                              isAlreadyAdded ? "opacity-50 cursor-not-allowed bg-slate-50" : "hover:bg-[#f7f8f9] cursor-pointer"
+                            )}
+                          >
+                             {p.image_url ? (
+                               <img src={p.image_url} alt={p.name} className="w-10 h-10 object-cover rounded-lg bg-slate-50 border" />
+                             ) : (
+                               <div className="w-10 h-10 rounded-lg bg-slate-50 border flex items-center justify-center text-slate-400 text-[10px]">No pix</div>
+                             )}
+                             <div className="flex-1 min-w-0">
+                                <p className="text-[12px] font-bold text-[#1a1f36] truncate">{p.name}</p>
+                                <p className="text-[10px] text-[#4f566b] font-medium">{p.brand || "Maff"} • {p.price?.toLocaleString()} сум</p>
+                             </div>
+                             {isAlreadyAdded ? (
+                               <span className="text-[9px] font-bold text-emerald-600 uppercase bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">Добавлен</span>
+                             ) : (
+                               <span className="text-[9px] font-bold text-[#2c3b6e] uppercase bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">Выбрать</span>
+                             )}
+                          </div>
+                        );
+                      })}
+                   </div>
+                 )}
+              </div>
+
+              {/* Selected List */}
+              <div className="space-y-3 pt-4 border-t border-[#f7f8f9]">
+                 <label className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest block mb-1">Выбранные товары для главной страницы ({recommendedProducts.length})</label>
+                 
+                 {recommendedProducts.length === 0 ? (
+                   <div className="py-8 text-center border-2 border-dashed border-[#e3e8ee] rounded-2xl">
+                      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Нет выбранных товаров</p>
+                      <p className="text-[10px] text-[#4f566b] mt-1">Используйте поиск выше, чтобы добавить товары в рекомендации</p>
+                   </div>
+                 ) : (
+                   <div className="grid grid-cols-1 gap-2.5">
+                      {recommendedProducts.map((p, idx) => (
+                        <div key={p.id} className="flex items-center gap-3 p-3 bg-[#f7f8f9] border border-[#e3e8ee] hover:border-[#2c3b6e] rounded-xl transition-all group">
+                           <span className="text-[10px] font-black text-slate-400 w-4">{idx + 1}</span>
+                           {p.image_url ? (
+                             <img src={p.image_url} alt={p.name} className="w-10 h-10 object-cover rounded-lg bg-white border" />
+                           ) : (
+                             <div className="w-10 h-10 rounded-lg bg-white border flex items-center justify-center text-slate-400 text-[10px]">No pix</div>
+                           )}
+                           <div className="flex-1 min-w-0">
+                              <p className="text-[12px] font-bold text-[#1a1f36] truncate">{p.name}</p>
+                              <p className="text-[10px] text-[#4f566b] font-medium">{p.brand || "Maff"} • {p.price?.toLocaleString()} сум</p>
+                           </div>
+                           <button onClick={() => removeRecommendation(p.id)} className="p-2 text-[#cd5c5c] hover:bg-[#cd5c5c]/10 rounded-lg transition-all opacity-0 group-hover:opacity-100">
+                             <Trash2 className="w-4 h-4" />
+                           </button>
+                        </div>
+                      ))}
+                   </div>
+                 )}
               </div>
            </div>
         </div>

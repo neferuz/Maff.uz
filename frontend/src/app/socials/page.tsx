@@ -89,8 +89,26 @@ export default function SocialsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-[#0f172a] flex items-center justify-center">
-        <RefreshCw className="w-8 h-8 animate-spin text-[#2c3b6e]" />
+      <div className="min-h-screen bg-slate-50 dark:bg-[#0f172a] pb-16">
+        <div className="relative z-10 max-w-2xl mx-auto px-4 lg:px-6 pt-6 lg:pt-10">
+           <div className="text-center mb-6 lg:mb-10 space-y-4 flex flex-col items-center">
+              <div className="w-40 h-8 bg-slate-200 dark:bg-slate-800 animate-pulse rounded" />
+              <div className="w-56 h-6 bg-slate-200 dark:bg-slate-800 animate-pulse rounded" />
+              <div className="w-48 h-3.5 bg-slate-200 dark:bg-slate-800 animate-pulse rounded" />
+           </div>
+           <div className="space-y-3 lg:space-y-4">
+              {[1, 2, 3, 4].map(i => (
+                 <div key={i} className="bg-white dark:bg-white/5 border border-slate-100 dark:border-white/10 rounded-[1.5rem] lg:rounded-[2rem] p-4 lg:p-6 flex items-center gap-4 animate-pulse">
+                    <div className="w-12 h-12 lg:w-14 lg:h-14 bg-slate-200 dark:bg-slate-800 rounded-[1rem]" />
+                    <div className="flex-grow space-y-2">
+                       <div className="w-32 h-5 bg-slate-200 dark:bg-slate-800 rounded" />
+                       <div className="w-48 h-3.5 bg-slate-200 dark:bg-slate-800 rounded" />
+                    </div>
+                    <div className="w-8 h-8 bg-slate-200 dark:bg-slate-800 rounded-full" />
+                 </div>
+              ))}
+           </div>
+        </div>
       </div>
     );
   }

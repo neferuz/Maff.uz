@@ -1,34 +1,96 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { 
   ShieldCheck, RotateCcw, AlertCircle, Phone, Square, ChevronRight, 
-  CheckCircle2, Info, ArrowRight, ShieldPlus, BadgeCheck, Sparkles
+  CheckCircle2, Info, ArrowRight, ShieldPlus, BadgeCheck, Sparkles, Loader2, Shield
 } from "lucide-react";
 import { ScrollReveal } from "@/components/ui/scroll-reveal";
 
 export default function WarrantyPage() {
-  const warrantyFeatures = [
-    {
-      icon: ShieldPlus,
-      title: "Заводская гарантия",
-      description: "Официальная поддержка от производителя до 30 лет. Мы дистрибьюторы всех брендов.",
-      meta: "Гарантийный талон"
-    },
-    {
-      icon: RotateCcw,
-      title: "Легкий возврат",
-      description: "Обмен или возврат неиспользованного товара в течение 14 дней без лишних вопросов.",
-      meta: "Закон РУз"
-    },
-    {
-      icon: BadgeCheck,
-      title: "Оригинал 100%",
-      description: "Двойной контроль качества на соответствие геометрии перед каждой отгрузкой.",
-      meta: "Контроль MAFF"
+  const [data, setData] = useState<any>({
+    title: "Гарантия и Возврат",
+    description: "Мы берем на себя полную ответственность за продукцию. Каждый клиент MAFF защищен официальными обязательствами производителей.",
+    features: [
+      {
+        icon: "ShieldPlus",
+        title: "Заводская гарантия",
+        description: "Официальная поддержка от производителя до 30 лет. Мы дистрибьюторы всех брендов.",
+        meta: "Гарантийный талон"
+      },
+      {
+        icon: "RotateCcw",
+        title: "Легкий возврат",
+        description: "Обмен или возврат неиспользованного товара в течение 14 дней без лишних вопросов.",
+        meta: "Закон РУз"
+      },
+      {
+        icon: "BadgeCheck",
+        title: "Оригинал 100%",
+        description: "Двойной контроль качества на соответствие геометрии перед каждой отгрузкой.",
+        meta: "Контроль MAFF"
+      }
+    ],
+    steps: [
+      { t: "Заявление", d: "Бланк возврата в любом из шоу-румов." },
+      { t: "Осмотр", d: "Проверка сохранности упаковки товара." },
+      { t: "Возврат", d: "Выплата средств тем же способом оплаты." }
+    ]
+  });
+
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/v1/pages/warranty?t=" + Date.now())
+      .then(res => res.json())
+      .then(res => {
+        if (res && res.content) {
+          setData(res.content);
+        }
+      })
+      .catch(err => console.error("Error loading warranty page content:", err))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const getIcon = (name: string) => {
+    switch (name) {
+      case "ShieldPlus": return ShieldPlus;
+      case "RotateCcw": return RotateCcw;
+      case "BadgeCheck": return BadgeCheck;
+      case "ShieldCheck": return ShieldCheck;
+      case "Shield": return Shield;
+      default: return BadgeCheck;
     }
-  ];
+  };
+
+    if (loading) {
+    return (
+      <div className="bg-white dark:bg-[#1a274b] min-h-screen pb-16">
+        <nav className="max-w-5xl mx-auto px-6 pt-4 pb-1 flex items-center gap-1.5 text-[8px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
+          <span className="w-8 h-3 bg-slate-200 dark:bg-slate-800 animate-pulse rounded" />
+          <span>/</span>
+          <span className="w-16 h-3 bg-slate-200 dark:bg-slate-800 animate-pulse rounded" />
+        </nav>
+        <div className="max-w-5xl mx-auto px-6 pt-2 space-y-8">
+          <div className="max-w-xl space-y-3">
+             <div className="w-20 h-4 bg-slate-200 dark:bg-slate-800 animate-pulse rounded" />
+             <div className="w-64 h-8 bg-slate-200 dark:bg-slate-800 animate-pulse rounded" />
+             <div className="w-full h-12 bg-slate-200 dark:bg-slate-800 animate-pulse rounded" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+             {[1, 2, 3].map(i => (
+                <div key={i} className="h-48 bg-slate-50 dark:bg-white/[0.01] border border-slate-100 dark:border-white/5 rounded-xl p-5 animate-pulse space-y-4">
+                   <div className="w-8 h-8 bg-slate-200 dark:bg-slate-800 rounded-lg" />
+                   <div className="w-24 h-4 bg-slate-200 dark:bg-slate-800 rounded" />
+                   <div className="w-full h-12 bg-slate-200 dark:bg-slate-800 rounded" />
+                </div>
+             ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white dark:bg-[#1a274b] min-h-screen transition-colors duration-500 relative pb-16">
@@ -52,10 +114,10 @@ export default function WarrantyPage() {
                  <span className="text-[8px] font-black uppercase tracking-[0.3em] text-[#2c3b6e] dark:text-blue-400/80">Сервисная политика</span>
               </div>
               <h1 className="text-2xl lg:text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tighter leading-none mb-3">
-                Гарантия и Возврат
+                {data.title}
               </h1>
               <p className="text-[12px] lg:text-[13px] text-slate-600 dark:text-slate-400 font-medium leading-relaxed">
-                Мы берем на себя полную ответственность за продукцию. Каждый клиент MAFF защищен официальными обязательствами производителей.
+                {data.description}
               </p>
            </div>
         </ScrollReveal>
@@ -63,22 +125,27 @@ export default function WarrantyPage() {
         {/* Features Grid */}
         <ScrollReveal delay={100}>
            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-8">
-              {warrantyFeatures.map((feat, idx) => (
-                <div key={idx} className="bg-slate-50 dark:bg-white/[0.01] border border-slate-100 dark:border-white/5 rounded-xl p-5 group transition-all">
-                   <div className="w-8 h-8 bg-white dark:bg-white/5 flex items-center justify-center rounded-lg text-[#2c3b6e] dark:text-white mb-4">
-                      <feat.icon className="w-4 h-4" />
-                   </div>
-                   <h3 className="text-[11px] lg:text-[12px] font-black text-slate-900 dark:text-white uppercase tracking-tight mb-2">{feat.title}</h3>
-                   <p className="text-[10px] lg:text-[11px] text-slate-500 dark:text-slate-400 font-medium leading-snug mb-4 opacity-90">{feat.description}</p>
-                   <div className="text-[7px] font-black uppercase tracking-[0.2em] px-2 py-1 bg-white dark:bg-white/5 rounded-md border border-slate-100 dark:border-white/5 w-fit text-[#2c3b6e] dark:text-blue-400">
-                      {feat.meta}
-                   </div>
-                </div>
-              ))}
+              {data.features && data.features.map((feat: any, idx: number) => {
+                const IconComp = getIcon(feat.icon);
+                return (
+                  <div key={idx} className="bg-slate-50 dark:bg-white/[0.01] border border-slate-100 dark:border-white/5 rounded-xl p-5 group transition-all">
+                     <div className="w-8 h-8 bg-white dark:bg-white/5 flex items-center justify-center rounded-lg text-[#2c3b6e] dark:text-white mb-4">
+                        <IconComp className="w-4 h-4" />
+                     </div>
+                     <h3 className="text-[11px] lg:text-[12px] font-black text-slate-900 dark:text-white uppercase tracking-tight mb-2">{feat.title}</h3>
+                     <p className="text-[10px] lg:text-[11px] text-slate-500 dark:text-slate-400 font-medium leading-snug mb-4 opacity-90">{feat.description}</p>
+                     {feat.meta && (
+                       <div className="text-[7px] font-black uppercase tracking-[0.2em] px-2 py-1 bg-white dark:bg-white/5 rounded-md border border-slate-100 dark:border-white/5 w-fit text-[#2c3b6e] dark:text-blue-400">
+                          {feat.meta}
+                       </div>
+                     )}
+                  </div>
+                );
+              })}
            </div>
         </ScrollReveal>
 
-        {/* Info & Steps (Tighter) */}
+        {/* Info & Steps */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 mb-10">
            <div className="lg:col-span-4 bg-[#2c3b6e] dark:bg-white p-6 rounded-2xl text-white dark:text-black flex flex-col justify-between">
               <div>
@@ -104,11 +171,7 @@ export default function WarrantyPage() {
                  <div className="h-px bg-slate-200 dark:bg-white/5 flex-1" />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                 {[
-                    { s: "01", t: "Заявление", d: "Бланк возврата в любом из шоу-румов." },
-                    { s: "02", t: "Осмотр", d: "Проверка сохранности упаковки товара." },
-                    { s: "03", t: "Возврат", d: "Выплата средств тем же способом оплаты." }
-                 ].map((step, idx) => (
+                 {data.steps && data.steps.map((step: any, idx: number) => (
                     <div key={idx} className="space-y-1.5 relative">
                        <div className="text-2xl font-black text-slate-900/5 dark:text-white/[0.02] absolute -top-2 -left-1 pointer-events-none">0{idx + 1}</div>
                        <h4 className="text-[10px] font-black uppercase tracking-widest text-[#2c3b6e] dark:text-blue-400 relative z-10">{step.t}</h4>
@@ -119,7 +182,7 @@ export default function WarrantyPage() {
            </div>
         </div>
 
-        {/* Final CTA (Slimmer) */}
+        {/* Final CTA */}
         <ScrollReveal delay={200}>
            <div className="bg-slate-50 dark:bg-white/[0.01] border border-slate-100 dark:border-white/5 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-6">
               <div className="text-center md:text-left">

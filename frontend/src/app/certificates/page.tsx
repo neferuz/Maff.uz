@@ -45,8 +45,27 @@ export default function CertificatesPage() {
 
   if (loading) {
      return (
-        <div className="w-full h-screen bg-white dark:bg-slate-900 flex items-center justify-center">
-           <div className="w-10 h-10 border-4 border-[#2c3b6e] border-t-transparent rounded-full animate-spin" />
+        <div className="bg-white dark:bg-slate-900 min-h-screen pb-16">
+          <nav className="max-w-7xl mx-auto px-4 lg:px-6 py-4 lg:py-8 flex items-center gap-2 text-[8px] lg:text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+             <span className="w-8 h-3 bg-slate-200 dark:bg-slate-800 animate-pulse rounded" />
+             <span>/</span>
+             <span className="w-16 h-3 bg-slate-200 dark:bg-slate-800 animate-pulse rounded" />
+          </nav>
+          <div className="max-w-7xl mx-auto px-4 lg:px-6 mb-6 lg:mb-8 space-y-3">
+             <div className="w-24 h-3.5 bg-slate-200 dark:bg-slate-800 animate-pulse rounded" />
+             <div className="w-48 h-8 bg-slate-200 dark:bg-slate-800 animate-pulse rounded" />
+             <div className="w-64 h-4 bg-slate-200 dark:bg-slate-800 animate-pulse rounded" />
+          </div>
+          <div className="max-w-7xl mx-auto px-4 lg:px-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6">
+             {[1, 2, 4, 5].map(i => (
+                <div key={i} className="bg-[#f8f9fa] dark:bg-slate-800/50 rounded-[1.5rem] border border-slate-100/50 dark:border-white/5 p-3 lg:p-4 animate-pulse space-y-3">
+                   <div className="w-full aspect-[4/5] bg-slate-200 dark:bg-slate-900 rounded-[1rem]" />
+                   <div className="w-16 h-3 bg-slate-200 dark:bg-slate-800 rounded" />
+                   <div className="w-full h-4 bg-slate-200 dark:bg-slate-800 rounded" />
+                   <div className="w-full h-3 bg-slate-200 dark:bg-slate-800 rounded" />
+                </div>
+             ))}
+          </div>
         </div>
      );
   }

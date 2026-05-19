@@ -4,8 +4,16 @@ import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
-  Heart, BarChart2, ShoppingBag, User, Menu, Search, ChevronDown, Phone, MapPin, X, Grid3X3, Sofa, Store, Handshake, HelpCircle, Award, Star, PhoneCall, Box, Sparkles, Layers, ChevronRight, Hammer, Building2, Palette, Users, Briefcase, CheckCircle2, CameraOff, Sun, Moon, Loader2, Image as ImageIcon
+  Heart, BarChart2, ShoppingBag, User, Menu, Search, ChevronDown, Phone, MapPin, X, Grid3X3, Sofa, Store, Handshake, HelpCircle, Award, Star, PhoneCall, Box, Sparkles, Layers, ChevronRight, Hammer, Building2, Palette, Users, Briefcase, CheckCircle2, CameraOff, Sun, Moon, Loader2, Image as ImageIcon,
+  Home as HomeIcon, DoorOpen, LayoutGrid, Square, Maximize, Layout, Shapes, Wind, Wrench, Grid, HardHat, Brush, Paintbrush, Ruler, Construction, Flame, Compass, Scissors, ShieldCheck, PenTool, Pipette, Trees, Boxes, Warehouse, Smile, Sparkle, Gem
 } from "lucide-react";
+
+const lucideMap: Record<string, any> = {
+  Home: HomeIcon, DoorOpen, Layers, LayoutGrid, Square, Maximize, Layout, Box, Shapes, Hammer, Wind, Sparkles, Award,
+  Wrench, Grid, HardHat, Brush, Paintbrush, Ruler, Construction, Flame, Sun, Compass, Scissors, ShieldCheck,
+  PenTool, Pipette, Trees, Boxes, Warehouse, Smile, Heart, Sparkle, Gem
+};
+const categoryIcons = [Layers, LayoutGrid, Square, DoorOpen, Layout, Box, Shapes, Hammer, Wind, Sparkles];
 import { cn } from "@/lib/utils";
 
 import { CartDrawer } from "./cart-drawer";
@@ -97,7 +105,7 @@ const socialLinks = [
 
 const navLinks = [
   { label: "3D Визуализатор", href: "/3d", icon: Sparkles },
-  { label: "Аутлет", href: "/outlet", icon: Box },
+  { label: "Каталог", href: "/catalog", icon: Layers },
   { label: "Шоурумы", href: "/showrooms", icon: Store },
   { 
     label: "Партнерам", 
@@ -111,8 +119,13 @@ const navLinks = [
     ]
   },
   { label: "Вопросы и ответы", href: "/faq", icon: HelpCircle },
+  { label: "Аутлет", href: "/outlet", icon: Box },
   { label: "Сертификаты", href: "/certificates", icon: Award },
 ];
+
+
+
+
 
 export function Header() {
   const { cart, favorites, compare } = useShop();
@@ -143,6 +156,19 @@ export function Header() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  const renderCategoryIcon = (cat: any) => {
+    const url = cat.imageUrl;
+    if (url && (url.startsWith("http") || url.startsWith("/"))) {
+      return <img src={url} alt={cat.title} className="w-full h-full object-cover rounded-lg" />;
+    }
+    if (url && lucideMap[url]) {
+      const IconComp = lucideMap[url];
+      return <IconComp className="w-5 h-5 text-slate-700 dark:text-slate-300 group-hover:text-[#2c3b6e] dark:group-hover:text-blue-400 transition-colors" />;
+    }
+    const IconComp = categoryIcons[cat.fallbackIconIdx % categoryIcons.length];
+    return <IconComp className="w-5 h-5 text-slate-700 dark:text-slate-300 group-hover:text-[#2c3b6e] dark:group-hover:text-blue-400 transition-colors" />;
+  };
+
   useEffect(() => {
     const fetchCategories = async () => {
       try {
@@ -150,10 +176,15 @@ export function Header() {
         if (!res.ok) return;
         const data = await res.json();
         const mainCats = data.filter((c: any) => !c.parent_id);
-        const icons = [Layers, Sofa, Grid3X3, Sparkles, Box];
         const mappedData = mainCats.map((cat: any, idx: number) => {
           const subs = data.filter((c: any) => c.parent_id === cat.id).map((c: any) => c.name);
-          return { id: cat.id, title: cat.name, subcategories: subs, icon: icons[idx % icons.length] };
+          return { 
+            id: cat.id, 
+            title: cat.name, 
+            subcategories: subs, 
+            imageUrl: cat.image_url,
+            fallbackIconIdx: idx
+          };
         });
         if (mappedData.length > 0) { setCatalogData(mappedData); setActiveCategory(mappedData[0].id); }
       } catch (e) { console.error("Failed to fetch catalog", e); }
@@ -364,7 +395,7 @@ export function Header() {
              <div className="w-[300px] border-r border-slate-50 dark:border-slate-800 overflow-y-auto no-scrollbar py-4 bg-slate-50/30 dark:bg-slate-950/30 shadow-none">
                 {catalogData.map((cat) => (
                   <button key={cat.id} onMouseEnter={() => setActiveCategory(cat.id)} className={cn("w-full flex items-center justify-between px-6 py-3.5 text-left transition-all group shadow-none", activeCategory === cat.id ? "bg-white dark:bg-slate-900 border-r-2 border-[#2c3b6e] text-[#2c3b6e] dark:text-white" : "text-slate-500 dark:text-slate-400 hover:text-[#2c3b6e] dark:hover:text-white")}>
-                    <div className="flex items-center gap-3"><div className={cn("w-8 h-8 rounded-lg flex items-center justify-center transition-colors", activeCategory === cat.id ? "bg-blue-50 dark:bg-blue-900/30" : "bg-slate-100 dark:bg-slate-800 group-hover:bg-blue-50 dark:group-hover:bg-blue-900/20")}>{cat.icon && <cat.icon className="w-4 h-4" />}</div><span className="text-[11px] font-black uppercase tracking-tight">{cat.title}</span></div>
+                    <div className="flex items-center gap-3"><div className={cn("w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center transition-colors", activeCategory === cat.id ? "bg-blue-50 dark:bg-blue-900/30" : "bg-slate-100 dark:bg-slate-800 group-hover:bg-blue-50 dark:group-hover:bg-blue-900/20")}>{renderCategoryIcon(cat)}</div><span className="text-[11px] font-black uppercase tracking-tight">{cat.title}</span></div>
                     <ChevronRight className={cn("w-3.5 h-3.5 transition-transform", activeCategory === cat.id ? "translate-x-0 opacity-100" : "-translate-x-2 opacity-0")} />
                   </button>
                 ))}
@@ -418,7 +449,9 @@ export function Header() {
                  <div className={cn("overflow-hidden transition-all duration-300 bg-slate-50/50 dark:bg-slate-950/30 shadow-none", isMobileCatalogExpanded ? "max-h-[1000px] opacity-100 pb-4" : "max-h-0 opacity-0")}>
                    {catalogData.map((cat) => (
                      <Link key={cat.id} href={`/catalog?category=${cat.id}`} onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-4 px-10 py-3 text-[13px] font-bold text-slate-600 dark:text-slate-400 hover:text-[#2c3b6e] dark:hover:text-blue-500 transition-colors group/mobcat">
-                       {cat.icon && <cat.icon className="w-4 h-4 opacity-40 group-hover/mobcat:text-[#2c3b6e] dark:group-hover/mobcat:text-blue-500" />}
+                       <div className="w-8 h-8 flex-shrink-0 rounded-lg overflow-hidden flex items-center justify-center bg-slate-100 dark:bg-slate-800">
+                         {renderCategoryIcon(cat)}
+                       </div>
                        {cat.title}
                      </Link>
                    ))}

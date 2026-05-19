@@ -50,8 +50,21 @@ export default function AboutPage() {
 
   if (isLoading || !pageData) {
     return (
-      <div className="w-full h-screen bg-white dark:bg-slate-950 flex items-center justify-center">
-        <RefreshCw className="w-10 h-10 text-[#2c3b6e] dark:text-blue-400 animate-spin" />
+      <div className="bg-white dark:bg-slate-950 min-h-screen pb-16">
+        <nav className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between border-b border-slate-100 dark:border-slate-800">
+          <div className="w-20 h-4 bg-slate-200 dark:bg-slate-800 animate-pulse rounded" />
+          <div className="w-16 h-4 bg-slate-200 dark:bg-slate-800 animate-pulse rounded" />
+        </nav>
+        <div className="max-w-7xl mx-auto px-6 pt-10 space-y-12">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+             <div className="lg:col-span-6 space-y-4 animate-pulse">
+                <div className="w-24 h-3 bg-slate-200 dark:bg-slate-800 rounded" />
+                <div className="w-64 h-10 bg-slate-200 dark:bg-slate-800 rounded" />
+                <div className="w-full h-16 bg-slate-200 dark:bg-slate-800 rounded" />
+             </div>
+             <div className="lg:col-span-6 aspect-[16/9] lg:aspect-[4/2.5] bg-slate-100 dark:bg-slate-900 animate-pulse rounded-[1.5rem]" />
+          </div>
+        </div>
       </div>
     );
   }
@@ -79,14 +92,14 @@ export default function AboutPage() {
       {/* ── 1. Hero Section ── */}
       <header className="max-w-7xl mx-auto px-6 pt-10 pb-12">
         <ScrollReveal direction="up">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-            <div className="lg:col-span-5 space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+            <div className="lg:col-span-6 space-y-6">
                <div className="space-y-4">
                   <div className="flex items-center gap-2">
                      <div className="w-4 h-[1.5px] bg-[#2c3b6e] dark:bg-blue-500" />
                      <span className="text-[8px] font-black uppercase tracking-[0.3em] text-[#2c3b6e] dark:text-blue-500">Экспертиза</span>
                   </div>
-                  <h1 className="text-[36px] lg:text-[48px] font-black text-slate-900 dark:text-white uppercase tracking-tighter leading-[0.95]">
+                  <h1 className="text-[36px] lg:text-[44px] font-black text-slate-900 dark:text-white uppercase tracking-tighter leading-[0.95]">
                     {hero.title}
                   </h1>
                   <p className="text-slate-500 dark:text-slate-400 text-[11px] lg:text-[13px] font-medium leading-relaxed uppercase tracking-tight max-w-sm">
@@ -103,10 +116,12 @@ export default function AboutPage() {
                   </Link>
                </div>
             </div>
-            <div className="lg:col-span-7">
-               <div className="relative aspect-[16/9] lg:aspect-[4/2.5] w-full overflow-hidden rounded-[1.5rem] border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900">
-                  <Image src={hero.image} alt="Hero" fill className="object-cover opacity-90 dark:opacity-80" priority />
-               </div>
+            <div className="lg:col-span-6">
+               <img 
+                 src={hero.image} 
+                 alt="Hero" 
+                 className="w-full h-auto rounded-[1.5rem] border border-slate-100 dark:border-slate-800 opacity-90 dark:opacity-80"
+               />
             </div>
           </div>
         </ScrollReveal>

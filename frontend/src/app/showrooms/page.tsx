@@ -79,8 +79,26 @@ export default function ShowroomsPage() {
 
   if (loading) {
      return (
-        <div className="w-full h-screen bg-white flex items-center justify-center">
-           <RefreshCw className="w-10 h-10 animate-spin text-[#2c3b6e]" />
+        <div className="w-full bg-[#f8f9fa] dark:bg-slate-950 min-h-screen pb-16">
+          <div className="border-b border-slate-100 dark:border-slate-800 py-6 lg:py-10">
+             <div className="max-w-7xl mx-auto px-4 lg:px-6 flex flex-col items-center text-center space-y-3">
+                <div className="w-32 h-3.5 bg-slate-200 dark:bg-slate-800 animate-pulse rounded" />
+                <div className="w-48 h-8 bg-slate-200 dark:bg-slate-800 animate-pulse rounded" />
+                <div className="w-80 h-4 bg-slate-200 dark:bg-slate-800 animate-pulse rounded" />
+             </div>
+          </div>
+          <div className="max-w-7xl mx-auto px-2 lg:px-6 py-4 lg:py-8 flex flex-col lg:flex-row gap-4 lg:gap-6 min-h-[500px]">
+             <div className="lg:w-4/12 flex flex-col gap-3 animate-pulse">
+                {[1, 2].map(i => (
+                   <div key={i} className="p-4 lg:p-6 bg-white dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-xl lg:rounded-[2rem] space-y-4">
+                      <div className="w-32 h-5 bg-slate-200 dark:bg-slate-800 rounded" />
+                      <div className="w-full h-12 bg-slate-200 dark:bg-slate-800 rounded" />
+                      <div className="w-full h-8 bg-slate-200 dark:bg-slate-800 rounded" />
+                   </div>
+                ))}
+             </div>
+             <div className="lg:w-8/12 flex-1 bg-white dark:bg-slate-900 rounded-2xl lg:rounded-[2.5rem] border border-slate-100 dark:border-slate-800 animate-pulse min-h-[300px] lg:min-h-[500px]" />
+          </div>
         </div>
      );
   }
@@ -89,7 +107,7 @@ export default function ShowroomsPage() {
     <div className="w-full bg-white dark:bg-slate-900 min-h-screen transition-colors duration-300">
       {/* ── Share Modal ── */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100000] flex items-center justify-center p-4">
           <div 
             className={cn(
               "absolute inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity duration-500 ease-out",

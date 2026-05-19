@@ -30,7 +30,10 @@ import {
   CreditCard,
   Headset,
   Star,
-  Sparkles
+  Sparkles,
+  // Additional icons for 34 category list
+  Home as HomeIcon, Grid, HardHat, Brush, Paintbrush, Ruler, Construction, Flame, Sun, Compass, Scissors,
+  PenTool, Pipette, Trees, Boxes, Warehouse, Sparkle
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -82,6 +85,12 @@ const fallbackData = {
   brands: ["Kronopol", "Quick-Step", "Tarkett", "Classen", "BerryAlloc"]
 };
 
+const lucideMap: Record<string, any> = {
+  Home: HomeIcon, DoorOpen, Layers, LayoutGrid, Square, Maximize, Layout, Box, Shapes, Hammer, Wind, Sparkles, Award,
+  Wrench, Grid, HardHat, Brush, Paintbrush, Ruler, Construction, Flame, Sun, Compass, Scissors, ShieldCheck,
+  PenTool, Pipette, Trees, Pallet: Boxes, Boxes, Warehouse, Smile, Heart, Sparkle, Gem
+};
+
 export default function Home() {
   const [currentImage, setCurrentImage] = useState(0);
   const [pageData, setPageData] = useState<any>(null);
@@ -117,35 +126,65 @@ export default function Home() {
 
   const [recommendedProducts, setRecommendedProducts] = useState<any[]>([]);
 
+  const [isRecommendedLoading, setIsRecommendedLoading] = useState(true);
+
   useEffect(() => {
     async function fetchRecommended() {
-      try {
-        const res = await fetch("/api/v1/products?limit=8", { cache: "no-store", mode: "cors" });
-        if (res.ok) {
-          const allProducts = await res.json();
-          if (allProducts.length > 0) {
-            const today = new Date().toDateString();
-            const seed = today.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-            const shuffled = [...allProducts].sort((a, b) => {
-              const valA = (a.id * seed) % 100;
-              const valB = (b.id * seed) % 100;
-              return valA - valB;
-            });
-            setRecommendedProducts(shuffled.slice(0, 8));
+      if (!pageData) return;
+      
+      const customIds = pageData.recommendations || [];
+      setIsRecommendedLoading(true);
+      if (customIds.length > 0) {
+        try {
+          const responses = await Promise.all(
+            customIds.map((id: number) => fetch(`/api/v1/products/${id}`, { cache: "no-store", mode: "cors" }))
+          );
+          const prods = [];
+          for (const res of responses) {
+            if (res.ok) {
+              prods.push(await res.json());
+            }
           }
+          setRecommendedProducts(prods);
+        } catch (err) {
+          console.error("Failed to fetch customized recommended products:", err);
+        } finally {
+          setIsRecommendedLoading(false);
         }
-      } catch (err) {
-        console.error("Failed to fetch recommended products:", err);
+      } else {
+        try {
+          const res = await fetch("/api/v1/products?limit=8", { cache: "no-store", mode: "cors" });
+          if (res.ok) {
+            const allProducts = await res.json();
+            if (allProducts.length > 0) {
+              const today = new Date().toDateString();
+              const seed = today.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+              const shuffled = [...allProducts].sort((a, b) => {
+                const valA = (a.id * seed) % 100;
+                const valB = (b.id * seed) % 100;
+                return valA - valB;
+              });
+              setRecommendedProducts(shuffled.slice(0, 8));
+            }
+          }
+        } catch (err) {
+          console.error("Failed to fetch recommended products:", err);
+        } finally {
+          setIsRecommendedLoading(false);
+        }
       }
     }
     fetchRecommended();
-  }, []);
+  }, [pageData]);
 
   const [categories, setCategories] = useState<any[]>([]);
+
+  const [isCategoriesLoading, setIsCategoriesLoading] = useState(true);
 
   useEffect(() => {
     async function fetchCategories() {
       try {
+        setIsCategoriesLoading(true);
         const res = await fetch("/api/v1/categories", { cache: "no-store", mode: "cors" });
         if (res.ok) {
           const allCats = await res.json();
@@ -154,21 +193,14 @@ export default function Home() {
         }
       } catch (err) {
         console.error("Failed to fetch categories:", err);
+      } finally {
+        setIsCategoriesLoading(false);
       }
     }
     fetchCategories();
   }, []);
 
-  if (isLoading && !pageData) {
-    return (
-      <div className="min-h-[60vh] bg-white dark:bg-[#0f172a] flex items-center justify-center">
-         <div className="flex flex-col items-center gap-4">
-            <Loader2 className="w-8 h-8 text-[#2c3b6e] animate-spin" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Загрузка Maff.uz</span>
-         </div>
-      </div>
-    );
-  }
+
 
   // Use fallback if data is still missing after loading
   const activeData = pageData || fallbackData;
@@ -238,12 +270,26 @@ export default function Home() {
             <div className="lg:col-span-7 xl:col-span-7 relative">
                <div className="relative w-full aspect-[16/9] lg:aspect-[16/10] xl:aspect-[16/9] rounded-[2rem] lg:rounded-[2.5rem] overflow-hidden group">
                   <div className="flex h-full transition-transform duration-1000 ease-[cubic-bezier(0.19,1,0.22,1)]" style={{ transform: `translateX(-${currentImage * 100}%)` }}>
-                    {hero.images?.map((src: string, idx: number) => (
-                      <div key={src} className="w-full h-full flex-shrink-0 relative overflow-hidden">
-                        <Image src={src} alt="Banner" fill priority={idx === 0} className="object-cover transition-transform duration-[8000ms] ease-out scale-110 group-hover:scale-100" />
-                        <div className="absolute inset-0 bg-slate-900/5 dark:bg-slate-900/20" />
-                      </div>
-                    ))}
+                    {hero.images?.map((src: any, idx: number) => {
+                      const imgUrl = typeof src === "string" ? src : src.url;
+                      const imgLink = typeof src === "string" ? null : (src.link || null);
+                      const Inner = () => (
+                        <>
+                          <Image src={imgUrl} alt="Banner" fill priority={idx === 0} className="object-cover transition-transform duration-[8000ms] ease-out scale-110 group-hover:scale-100" />
+                          <div className="absolute inset-0 bg-slate-900/5 dark:bg-slate-900/20 pointer-events-none" />
+                        </>
+                      );
+                      
+                      return imgLink ? (
+                        <Link href={imgLink} key={idx} className="w-full h-full flex-shrink-0 relative overflow-hidden block cursor-pointer">
+                          <Inner />
+                        </Link>
+                      ) : (
+                        <div key={idx} className="w-full h-full flex-shrink-0 relative overflow-hidden">
+                          <Inner />
+                        </div>
+                      );
+                    })}
                   </div>
                   <div className="absolute inset-0 p-4 lg:p-6 flex flex-col justify-between pointer-events-none">
                      <div className="flex justify-between items-start">
@@ -272,7 +318,7 @@ export default function Home() {
             </Link>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3 lg:gap-4">
-            {categories.length > 0 ? (
+            {!isCategoriesLoading && categories.length > 0 ? (
               categories.map((cat, idx) => {
                 const Icon = categoryIcons[idx % categoryIcons.length];
                 const color = categoryColors[idx % categoryColors.length];
@@ -290,8 +336,8 @@ export default function Home() {
                 );
               })
             ) : (
-              [1, 2, 3, 4, 5].map(id => (
-                <div key={id} className="h-16 bg-slate-50 dark:bg-slate-800/50 animate-pulse rounded-2xl" />
+              Array.from({ length: 5 }).map((_, id) => (
+                <div key={id} className="h-16 bg-slate-100/80 dark:bg-slate-800/40 animate-pulse rounded-xl lg:rounded-2xl" />
               ))
             )}
           </div>
@@ -305,36 +351,74 @@ export default function Home() {
             </div>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 lg:gap-6">
-             {recommendedProducts.length > 0 ? (
-               recommendedProducts.map((p) => (
-                 <ProductCard 
-                   key={p.id}
-                   id={p.id} 
-                   title={p.name} 
-                   country="Беларусь" 
-                   brand={p.brand || "Maff"} 
-                   grade="Премиум" 
-                   thickness={p.thickness || "12"} 
-                   price={p.price || 0} 
-                   inStock={p.stock > 0} 
-                   image={p.image_url || "/kam-idris-U39FPHKfDu0-unsplash.jpg"} 
-                 />
+             {isRecommendedLoading || recommendedProducts.length === 0 ? (
+               Array.from({ length: 8 }).map((_, idx) => (
+                 <div 
+                   key={idx} 
+                   className="bg-white dark:bg-[#161d2f] rounded-2xl lg:rounded-[2.5rem] border border-slate-100 dark:border-white/5 p-2 lg:p-3 flex flex-col h-full animate-pulse"
+                 >
+                   {/* Image Area Skeleton */}
+                   <div className="aspect-square rounded-xl lg:rounded-[2rem] bg-slate-100 dark:bg-slate-800/80 mb-3 lg:mb-4 w-full" />
+                   
+                   {/* Content Area Skeleton */}
+                   <div className="px-1 lg:px-2 pb-1 lg:pb-2 flex flex-col flex-grow space-y-3">
+                      {/* Title */}
+                      <div className="h-4 bg-slate-100 dark:bg-slate-800/80 rounded w-3/4" />
+                      
+                      {/* Specs */}
+                      <div className="space-y-1.5 pt-2">
+                         <div className="flex justify-between">
+                            <div className="h-2.5 bg-slate-100 dark:bg-slate-800/80 rounded w-1/4" />
+                            <div className="h-2.5 bg-slate-100 dark:bg-slate-800/80 rounded w-1/3" />
+                         </div>
+                         <div className="flex justify-between">
+                            <div className="h-2.5 bg-slate-100 dark:bg-slate-800/80 rounded w-1/4" />
+                            <div className="h-2.5 bg-slate-100 dark:bg-slate-800/80 rounded w-1/3" />
+                         </div>
+                      </div>
+
+                      {/* Price & Button */}
+                      <div className="mt-auto pt-4 space-y-2">
+                         <div className="h-8 bg-slate-100 dark:bg-slate-800/80 rounded-full w-full" />
+                         <div className="h-10 bg-slate-100 dark:bg-slate-800/80 rounded-full w-full" />
+                      </div>
+                   </div>
+                 </div>
                ))
              ) : (
-               [1, 2, 3, 4, 5, 6, 7, 8].map((id) => (
-                <ProductCard 
-                  key={id}
-                  id={id} 
-                  title={`Товар #${id}`} 
-                  country="Беларусь" 
-                  brand="Maff" 
-                  grade="Премиум" 
-                  thickness="12" 
-                  price="1 404 000" 
-                  inStock={true} 
-                  image={id % 2 === 0 ? "/kam-idris-U39FPHKfDu0-unsplash.jpg" : "/spacejoy-9M66C_w_ToM-unsplash.jpg"} 
-                />
-               ))
+               recommendedProducts.map((p) => {
+                  let isOrderOnly = false;
+                  let currentCat = categories.find(c => c.id === p.category_id);
+                  const visited = new Set();
+                  while (currentCat && !visited.has(currentCat.id)) {
+                    visited.add(currentCat.id);
+                    if (currentCat.is_order_only) {
+                      isOrderOnly = true;
+                      break;
+                    }
+                    if (currentCat.parent_id) {
+                      currentCat = categories.find(c => c.id === currentCat.parent_id);
+                    } else {
+                      break;
+                    }
+                  }
+                  return (
+                    <ProductCard 
+                      key={p.id}
+                      id={p.id} 
+                      title={p.name} 
+                      country="Беларусь" 
+                      brand={p.brand || "Maff"} 
+                      grade="Премиум" 
+                      thickness={p.thickness || "12"} 
+                      price={p.price || 0} 
+                      priceOutlet={p.price_outlet ? Number(p.price_outlet) : undefined}
+                      inStock={p.stock > 0} 
+                      isOrderOnly={isOrderOnly}
+                      image={p.image_url || "/kam-idris-U39FPHKfDu0-unsplash.jpg"} 
+                    />
+                  );
+                })
              )}
           </div>
       </section>

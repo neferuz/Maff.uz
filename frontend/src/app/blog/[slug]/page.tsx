@@ -62,8 +62,24 @@ export default function BlogPostDetail() {
 
   if (loading) {
     return (
-      <div className="w-full h-screen bg-white flex items-center justify-center">
-        <div className="w-10 h-10 border-4 border-[#2c3b6e] border-t-transparent rounded-full animate-spin" />
+      <div className="bg-white dark:bg-[#0f172a] min-h-screen pb-16">
+        <div className="max-w-4xl mx-auto px-4 lg:px-6 pt-12 space-y-8">
+           <div className="w-24 h-4 bg-slate-200 dark:bg-slate-800 animate-pulse rounded" />
+           <header className="space-y-4 animate-pulse">
+              <div className="flex gap-2">
+                 <div className="w-16 h-4 bg-slate-200 dark:bg-slate-800 rounded" />
+                 <div className="w-24 h-4 bg-slate-200 dark:bg-slate-800 rounded" />
+              </div>
+              <div className="w-full h-10 bg-slate-200 dark:bg-slate-800 rounded" />
+              <div className="w-1/2 h-8 bg-slate-200 dark:bg-slate-800 rounded" />
+           </header>
+           <div className="w-full aspect-video bg-slate-100 dark:bg-slate-900 animate-pulse rounded-2xl" />
+           <div className="space-y-4 max-w-2xl mx-auto animate-pulse">
+              <div className="w-full h-4 bg-slate-200 dark:bg-slate-800 rounded" />
+              <div className="w-full h-4 bg-slate-200 dark:bg-slate-800 rounded" />
+              <div className="w-3/4 h-4 bg-slate-200 dark:bg-slate-800 rounded" />
+           </div>
+        </div>
       </div>
     );
   }
@@ -90,7 +106,7 @@ export default function BlogPostDetail() {
           </Link>
           <div className="flex items-center gap-4">
              {showCopied && (
-               <div className="fixed inset-0 z-[200] flex items-center justify-center p-6">
+               <div className="fixed inset-0 z-[100000] flex items-center justify-center p-6">
                  {/* Backdrop */}
                  <div 
                    className={cn(

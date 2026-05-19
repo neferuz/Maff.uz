@@ -50,7 +50,8 @@ const pageSections = [
       { label: "Партнеры", href: "/partners" },
       { label: "Блог", href: "/blog" },
       { label: "Доставка", href: "/delivery" },
-      { label: "Рассрочка", href: "/installment" }
+      { label: "Рассрочка", href: "/installment" },
+      { label: "Гарантия", href: "/warranty" }
     ]
   },
 ];

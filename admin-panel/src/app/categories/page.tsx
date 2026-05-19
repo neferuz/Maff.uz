@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { 
   MoreHorizontal, 
   ExternalLink,
@@ -18,11 +19,23 @@ import {
   Folder,
   RefreshCw,
   ChevronDown,
-  Archive
+  Archive,
+  // 34 Lucide Icons for category selection
+  Home as HomeIcon, DoorOpen, LayoutGrid, Square, Maximize, Layout, Box, Shapes, Hammer, Wind, Sparkles, Award,
+  Wrench, Grid, HardHat, Brush, Paintbrush, Ruler, Construction, Flame, Sun, Compass, Scissors, ShieldCheck,
+  PenTool, Pipette, Trees, Boxes, Warehouse, Smile, Heart, Sparkle, Gem
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
+
+const lucideMap: Record<string, any> = {
+  Home: HomeIcon, DoorOpen, Layers, LayoutGrid, Square, Maximize, Layout, Box, Shapes, Hammer, Wind, Sparkles, Award,
+  Wrench, Grid, HardHat, Brush, Paintbrush, Ruler, Construction, Flame, Sun, Compass, Scissors, ShieldCheck,
+  PenTool, Pipette, Trees, Boxes, Warehouse, Smile, Heart, Sparkle, Gem
+};
+
+const categoryIcons = [Layers, LayoutGrid, Square, DoorOpen, Layout, Box, Shapes, Hammer, Wind, Sparkles];
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<any[]>([]);
@@ -36,6 +49,12 @@ export default function CategoriesPage() {
   const [categoryToArchive, setCategoryToArchive] = useState<any | null>(null);
   const [statusFilter, setStatusFilter] = useState<'active' | 'archived'>('active');
   const [editName, setEditName] = useState("");
+  const [editIsOrderOnly, setEditIsOrderOnly] = useState(false);
+  const [editIsPreorder, setEditIsPreorder] = useState(false);
+  const [editPricePrefix, setEditPricePrefix] = useState("");
+  const [editOrderLink, setEditOrderLink] = useState("");
+  const [editImageUrl, setEditImageUrl] = useState("");
+  const [editParentId, setEditParentId] = useState<number | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   const fetchCategories = async () => {
@@ -125,7 +144,13 @@ export default function CategoriesPage() {
   useEffect(() => {
     if (selectedCategory) {
       document.body.style.overflow = 'hidden';
-      setEditName(selectedCategory.name);
+      setEditName(selectedCategory.name || "");
+      setEditIsOrderOnly(selectedCategory.is_order_only || false);
+      setEditIsPreorder(selectedCategory.is_preorder || false);
+      setEditPricePrefix(selectedCategory.price_prefix || "");
+      setEditOrderLink(selectedCategory.order_link || "");
+      setEditImageUrl(selectedCategory.image_url || "");
+      setEditParentId(selectedCategory.parent_id || null);
     } else {
       document.body.style.overflow = 'unset';
     }
@@ -146,6 +171,12 @@ export default function CategoriesPage() {
         },
         body: JSON.stringify({
           name: editName,
+          parent_id: editParentId,
+          is_order_only: editIsOrderOnly,
+          is_preorder: editIsPreorder,
+          price_prefix: editPricePrefix,
+          order_link: editOrderLink,
+          image_url: editImageUrl,
         }),
       });
       if (res.ok) {
@@ -334,13 +365,25 @@ export default function CategoriesPage() {
                                <ChevronRight className={cn("w-4 h-4 text-[#4f566b] transition-transform", expandedFolders.has(cat.id) && "rotate-90")} />
                              )}
                            </div>
-                           <div className="w-10 h-10 bg-[#f7f8f9] group-hover:bg-white border border-transparent group-hover:border-[#e3e8ee] rounded-xl flex items-center justify-center text-[#2c3b6e] transition-all flex-shrink-0">
-                              {cat.children && cat.children.length > 0 ? (
-                                <Folder className="w-5 h-5 fill-[#2c3b6e]/10" />
-                              ) : (
-                                <FolderOpen className="w-5 h-5" />
-                              )}
-                           </div>
+                                                       <div className="w-10 h-10 bg-[#f7f8f9] group-hover:bg-white border border-transparent group-hover:border-[#e3e8ee] rounded-xl flex items-center justify-center text-[#2c3b6e] transition-all flex-shrink-0">
+                               {cat.image_url ? (
+                                 (cat.image_url.startsWith("http") || cat.image_url.startsWith("/")) ? (
+                                   <img src={cat.image_url} alt={cat.name} className="w-5 h-5 object-contain rounded" />
+                                 ) : (
+                                   lucideMap[cat.image_url] ? (
+                                     React.createElement(lucideMap[cat.image_url], { className: "w-5 h-5" })
+                                   ) : (
+                                     <FolderOpen className="w-5 h-5" />
+                                   )
+                                 )
+                               ) : (
+                                 cat.children && cat.children.length > 0 ? (
+                                   <Folder className="w-5 h-5 fill-[#2c3b6e]/10" />
+                                 ) : (
+                                   React.createElement(categoryIcons[idx % categoryIcons.length] || FolderOpen, { className: "w-5 h-5" })
+                                 )
+                               )}
+                            </div>
                            <span className="text-[14px] font-bold text-[#1a1f36] group-hover:text-[#2c3b6e] transition-colors">{cat.name}</span>
                         </div>
                       </td>
@@ -432,7 +475,206 @@ export default function CategoriesPage() {
                       className="w-full px-4 py-3 bg-[#f7f8f9] border border-[#e3e8ee] rounded-xl text-[14px] font-bold text-[#1a1f36] outline-none focus:border-[#2c3b6e]/30"
                     />
                  </div>
-                 <div className="grid grid-cols-2 gap-4">
+
+                  <div className="space-y-4">
+                     <label className="text-[11px] font-bold text-[#4f566b] uppercase tracking-widest">Родительская категория</label>
+                     <div className="relative">
+                        <select 
+                          value={editParentId || ""}
+                          onChange={(e) => setEditParentId(e.target.value ? parseInt(e.target.value) : null)}
+                          className="w-full px-4 py-3 bg-[#f7f8f9] border border-[#e3e8ee] rounded-xl text-[13px] font-bold text-[#1a1f36] outline-none focus:border-[#2c3b6e]/30 appearance-none cursor-pointer"
+                        >
+                          <option value="">Без родительской категории (Корневая)</option>
+                          {categories
+                            .filter((c) => c.id !== selectedCategory.id)
+                            .map((c) => (
+                              <option key={c.id} value={c.id}>
+                                {c.name}
+                              </option>
+                            ))}
+                        </select>
+                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#4f566b] pointer-events-none" />
+                     </div>
+                  </div>
+
+                 {/* Custom Order Settings */}
+                  <div className="space-y-4 p-4 bg-white border border-[#e3e8ee] rounded-xl">
+                     <div className="flex items-center justify-between">
+                        <div>
+                           <p className="text-[13px] font-bold text-[#1a1f36]">Режим «Заказать»</p>
+                           <p className="text-[10px] text-[#4f566b] mt-0.5 max-w-[200px]">Вместо покупки через корзину кнопка будет вести в Telegram с текстом «Заказать»</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditIsOrderOnly(!editIsOrderOnly);
+                            if (!editIsOrderOnly) setEditIsPreorder(false);
+                          }}
+                          className={cn(
+                            "relative inline-flex h-6 w-11 items-center rounded-full transition-colors outline-none flex-shrink-0",
+                            editIsOrderOnly ? "bg-[#10b981]" : "bg-slate-300"
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+                              editIsOrderOnly ? "translate-x-6" : "translate-x-1"
+                            )}
+                          />
+                        </button>
+                     </div>
+
+                     <div className="flex items-center justify-between pt-3 border-t border-[#f7f8f9]">
+                        <div>
+                           <p className="text-[13px] font-bold text-[#1a1f36]">Режим «Под заказ»</p>
+                           <p className="text-[10px] text-[#4f566b] mt-0.5 max-w-[200px]">Вместо покупки через корзину кнопка будет вести в Telegram с текстом «Под заказ»</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditIsPreorder(!editIsPreorder);
+                            if (!editIsPreorder) setEditIsOrderOnly(false);
+                          }}
+                          className={cn(
+                            "relative inline-flex h-6 w-11 items-center rounded-full transition-colors outline-none flex-shrink-0",
+                            editIsPreorder ? "bg-[#10b981]" : "bg-slate-300"
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+                              editIsPreorder ? "translate-x-6" : "translate-x-1"
+                            )}
+                          />
+                        </button>
+                     </div>
+
+                     {editIsOrderOnly && (
+                       <div className="space-y-3 pt-3 border-t border-[#f7f8f9] animate-in fade-in slide-in-from-top-2">
+                         <div>
+                            <label className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest mb-1.5 block">Ссылка для заказа (Telegram)</label>
+                            <input 
+                              type="text" 
+                              value={editOrderLink}
+                              onChange={(e) => setEditOrderLink(e.target.value)}
+                              placeholder="https://t.me/your_username"
+                              className="w-full px-3 py-2 bg-[#f7f8f9] border border-[#e3e8ee] rounded-lg text-[13px] font-medium text-[#2c3b6e] outline-none focus:border-[#2c3b6e]/30"
+                            />
+                         </div>
+                       </div>
+                     )}
+                  </div>
+                  
+                  {/* Category Icon and Image Selector */}
+                  <div className="space-y-4 p-4 bg-white border border-[#e3e8ee] rounded-xl">
+                     <p className="text-[13px] font-bold text-[#1a1f36]">Выбор иконки категории</p>
+                     
+                     {/* Preview */}
+                     <div className="flex items-center gap-3.5 pb-3.5 border-b border-[#f7f8f9]">
+                        <div className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-[#2c3b6e]">
+                           {editImageUrl ? (
+                             (editImageUrl.startsWith("http") || editImageUrl.startsWith("/")) ? (
+                               <img src={editImageUrl} alt="Preview" className="w-8 h-8 object-contain rounded-lg" />
+                             ) : (
+                               lucideMap[editImageUrl] ? (
+                                 React.createElement(lucideMap[editImageUrl], { className: "w-6 h-6" })
+                               ) : (
+                                 <Folder className="w-6 h-6" />
+                               )
+                             )
+                           ) : (
+                             <Folder className="w-6 h-6" />
+                           )}
+                        </div>
+                        <div>
+                           <p className="text-[11px] font-bold text-[#1a1f36]">Текущая иконка</p>
+                           <p className="text-[10px] text-[#4f566b] mt-0.5">
+                             {editImageUrl ? (
+                               (editImageUrl.startsWith("http") || editImageUrl.startsWith("/")) ? "Собственный SVG/PNG" : `Lucide: ${editImageUrl}`
+                             ) : "Стандартная (Папка)"}
+                           </p>
+                           {editImageUrl && (
+                             <button 
+                               onClick={() => setEditImageUrl("")}
+                               className="text-[9px] font-extrabold text-red-500 hover:text-red-600 uppercase tracking-wider mt-1 block"
+                             >
+                               Сбросить иконку
+                             </button>
+                           )}
+                        </div>
+                     </div>
+
+                     {/* Upload Custom Image Option */}
+                     <div className="space-y-2">
+                        <label className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest block">Загрузить файл иконки (SVG/PNG)</label>
+                        <div className="relative border border-dashed border-[#e3e8ee] hover:border-[#2c3b6e]/30 rounded-xl p-3 text-center transition-all bg-[#f7f8f9]/50">
+                           <input 
+                              type="file" 
+                              accept="image/*"
+                              onChange={async (e) => {
+                                 const file = e.target.files?.[0];
+                                 if (!file) return;
+                                 
+                                 const formData = new FormData();
+                                 formData.append("file", file);
+                                 
+                                 try {
+                                    const res = await fetch("/api/v1/uploads", {
+                                       method: "POST",
+                                       body: formData,
+                                    });
+                                    if (res.ok) {
+                                       const data = await res.json();
+                                       setEditImageUrl(data.url);
+                                    } else {
+                                       alert("Не удалось загрузить иконку");
+                                    }
+                                 } catch (err) {
+                                    console.error("Upload error", err);
+                                    alert("Ошибка сети при загрузке");
+                                 }
+                              }}
+                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                           />
+                           <div className="space-y-1">
+                              <p className="text-[11px] font-bold text-[#2c3b6e]">Выберите SVG или PNG файл</p>
+                              <p className="text-[9px] text-[#4f566b] leading-tight">
+                                 Рекомендуемый формат: <strong>SVG</strong> или <strong>PNG</strong><br/>
+                                 Размер: <strong>64x64px</strong>, прозрачный фон.
+                              </p>
+                           </div>
+                        </div>
+                     </div>
+
+                     {/* Grid of Lucide Icons */}
+                     <div className="space-y-2 pt-2">
+                        <label className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest block">Выбрать готовую иконку (30+ вариантов)</label>
+                        <div className="grid grid-cols-6 gap-2 max-h-[160px] overflow-y-auto p-1.5 bg-[#f7f8f9] rounded-xl border border-[#e3e8ee]">
+                           {Object.keys(lucideMap).map((iconName) => {
+                              const IconComp = lucideMap[iconName];
+                              const isSelected = editImageUrl === iconName;
+                              return (
+                                 <button
+                                    key={iconName}
+                                    type="button"
+                                    onClick={() => setEditImageUrl(iconName)}
+                                    className={cn(
+                                       "aspect-square rounded-lg flex items-center justify-center transition-all border",
+                                       isSelected 
+                                          ? "bg-[#2c3b6e] text-white border-transparent scale-105" 
+                                          : "bg-white text-slate-600 hover:text-[#2c3b6e] border-slate-100 hover:border-slate-300"
+                                    )}
+                                    title={iconName}
+                                 >
+                                    <IconComp className="w-4 h-4" />
+                                 </button>
+                              );
+                           })}
+                        </div>
+                     </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
                     <div className="p-4 bg-[#f7f8f9] rounded-xl border border-[#e3e8ee]">
                        <p className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest mb-1">Товаров</p>
                        <p className="text-[13px] font-bold text-[#1a1f36]">{selectedCategory.product_count || 0} шт</p>

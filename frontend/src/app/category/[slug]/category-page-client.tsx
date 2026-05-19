@@ -190,12 +190,13 @@ export default function CategoryPageClient() {
         grade: p.grade || (name.includes('33') ? "33 класс" : name.includes('32') ? "32 класс" : "Premium"),
         thickness: p.thickness || name.match(/\d+мм/)?.[0] || "8мм",
         price: Number(p.price || 0),
+        priceOutlet: p.price_outlet ? Number(p.price_outlet) : undefined,
         inStock: p.stock > 0,
         image: (p.image_url && typeof p.image_url === 'string')
           ? (p.image_url.startsWith('http') 
               ? p.image_url 
-              : `https://maff.uz${p.image_url.startsWith('/') ? '' : '/'}${p.image_url}`)
-          : "/placeholder.png"
+              : `${p.image_url.startsWith('/') ? '' : '/'}${p.image_url}`)
+          : ""
       };
     });
   }, [filteredProducts]);
@@ -254,8 +255,31 @@ export default function CategoryPageClient() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white dark:bg-slate-900 flex items-center justify-center">
-        <RefreshCw className="w-8 h-8 animate-spin text-[#2c3b6e]" />
+      <div className="bg-white dark:bg-[#0f172a] min-h-screen pb-16">
+        <div className="border-b border-slate-50 dark:border-white/5 py-3">
+          <div className="max-w-7xl mx-auto px-4 lg:px-6">
+            <nav className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-slate-300 dark:text-white/20">
+               <span className="w-8 h-3 bg-slate-200 dark:bg-slate-800 animate-pulse rounded" />
+               <span>/</span>
+               <span className="w-16 h-3 bg-slate-200 dark:bg-slate-800 animate-pulse rounded" />
+            </nav>
+          </div>
+        </div>
+        <section className="max-w-7xl mx-auto px-4 lg:px-6 py-8 lg:py-10 text-center space-y-3 flex flex-col items-center">
+           <div className="w-20 h-3 bg-slate-200 dark:bg-slate-800 animate-pulse rounded" />
+           <div className="w-56 h-8 bg-slate-200 dark:bg-slate-800 animate-pulse rounded" />
+           <div className="w-80 h-4 bg-slate-200 dark:bg-slate-800 animate-pulse rounded" />
+        </section>
+        <section className="max-w-7xl mx-auto px-4 lg:px-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+           {[1, 2, 3, 4].map(i => (
+              <div key={i} className="bg-white dark:bg-[#161d2f] rounded-2xl lg:rounded-[2.5rem] border border-slate-100 dark:border-white/5 p-2 lg:p-3 flex flex-col h-full animate-pulse space-y-3">
+                 <div className="w-full aspect-square bg-slate-200 dark:bg-slate-800 rounded-xl" />
+                 <div className="w-24 h-3 bg-slate-200 dark:bg-slate-800 rounded" />
+                 <div className="w-full h-5 bg-slate-200 dark:bg-slate-800 rounded" />
+                 <div className="w-full h-4 bg-slate-200 dark:bg-slate-800 rounded" />
+              </div>
+           ))}
+        </section>
       </div>
     );
   }
@@ -375,7 +399,7 @@ export default function CategoryPageClient() {
             <div className="flex flex-wrap items-center justify-between gap-4 mb-8 bg-white border border-slate-100 p-2 rounded-2xl">
                <div className="flex items-center gap-2 pl-2">
                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Найдено:</span>
-                  <span className="text-[11px] font-black text-slate-900">{allProducts.length} товаров</span>
+                  <span className="text-[11px] font-black text-slate-900">{products.length} товаров</span>
                </div>
                
                <div className="flex items-center gap-3">

@@ -66,8 +66,13 @@ export default function FAQPage() {
       {/* ── FAQ Content ── */}
       <section className="max-w-3xl mx-auto px-4 lg:px-6 py-4 lg:py-8">
          {loading ? (
-            <div className="flex justify-center py-12">
-               <RefreshCw className="w-8 h-8 animate-spin text-[#2c3b6e]" />
+            <div className="space-y-4 py-6">
+               {[1, 2, 3, 4].map(i => (
+                  <div key={i} className="border border-slate-100 dark:border-slate-800 rounded-[1.5rem] lg:rounded-[2rem] bg-[#f8f9fa] dark:bg-slate-800/50 p-4 lg:p-6 animate-pulse flex items-center justify-between">
+                     <div className="w-2/3 h-5 bg-slate-200 dark:bg-slate-800 rounded" />
+                     <div className="w-6 h-6 bg-slate-200 dark:bg-slate-800 rounded-lg" />
+                  </div>
+               ))}
             </div>
          ) : faqData && Array.isArray(faqData) && faqData.length > 0 ? (
            faqData.map((cat, cIdx) => (
