@@ -407,9 +407,9 @@ export default function Home() {
                       key={p.id}
                       id={p.id} 
                       title={p.name} 
-                      country="Беларусь" 
+                      country={p.country || "Европа"} 
                       brand={p.brand || "Maff"} 
-                      grade="Премиум" 
+                      grade={p.grade || "Стандарт"} 
                       thickness={p.thickness || "12"} 
                       price={p.price || 0} 
                       priceOutlet={p.price_outlet ? Number(p.price_outlet) : undefined}
