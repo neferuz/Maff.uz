@@ -14,6 +14,11 @@ const nextConfig = {
         source: '/admin-maff/api/v1/:path*',
         destination: 'http://localhost:8000/api/v1/:path*',
         basePath: false,
+      },
+      {
+        source: '/static/:path*',
+        destination: 'http://localhost:8000/static/:path*',
+        basePath: false,
       }
     ];
   },
