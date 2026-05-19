@@ -97,16 +97,16 @@ export function ProductCard({
     >
       {/* Image Area */}
       <div className="relative aspect-square rounded-xl lg:rounded-[2rem] overflow-hidden bg-slate-50 dark:bg-slate-900/50 mb-3 lg:mb-4 group-hover:bg-slate-100 dark:group-hover:bg-slate-800 transition-colors duration-500">
-        {isPreorder && (
-          <div className="absolute top-2 left-2 px-2.5 py-1 bg-[#2c3b6e] text-white rounded-lg text-[8px] lg:text-[9px] font-black uppercase tracking-widest z-10 shadow-md">
-             Под заказ
+        <div className="absolute top-2 left-2 flex flex-col items-start gap-1.5 z-10">
+          {isPreorder && (
+            <div className="px-2 py-0.5 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md text-[#2c3b6e] dark:text-blue-400 rounded-md border border-slate-100 dark:border-slate-800 text-[7px] lg:text-[8px] font-black uppercase tracking-widest">
+               Под заказ
+            </div>
+          )}
+          <div className="px-2 py-0.5 bg-emerald-500/90 text-white backdrop-blur-md rounded-md border border-emerald-500/50 text-[7px] lg:text-[8px] font-black tracking-widest">
+             От {Math.round((priceOutlet || getNumericPrice(price)) / 12).toLocaleString('ru-RU')} сум/мес
           </div>
-        )}
-        {isOrderOnly && (
-          <div className="absolute top-2 left-2 px-2.5 py-1 bg-emerald-600 text-white rounded-lg text-[8px] lg:text-[9px] font-black uppercase tracking-widest z-10 shadow-md">
-             Заказать
-          </div>
-        )}
+        </div>
         {image ? (
           <img
             src={image}
@@ -183,18 +183,18 @@ export function ProductCard({
           {isOrderOnly ? (
             <div 
               className={cn(
-                "w-full py-2 lg:py-2.5 rounded-full text-[8px] lg:text-[10px] font-black uppercase tracking-widest text-center transition-all cursor-pointer flex items-center justify-center gap-2",
+                "w-full py-1.5 lg:py-2.5 rounded-xl lg:rounded-full text-[8px] lg:text-[10px] font-black uppercase tracking-widest text-center transition-all cursor-pointer flex items-center justify-center gap-2",
                 "bg-[#1a1a1a] dark:bg-white text-white dark:text-slate-900 hover:bg-[#2c3b6e] dark:hover:bg-blue-50"
               )}
             >
-               <Zap className="w-3 lg:w-3.5 h-3 lg:h-3.5 text-[#2c3b6e] dark:text-blue-400" />
+               <Zap className="w-3 lg:w-3.5 h-3 lg:h-3.5 text-current" />
                Заказать
             </div>
           ) : (
             <div 
               onClick={handleAddToCart}
               className={cn(
-                "w-full py-2 lg:py-2.5 rounded-full text-[8px] lg:text-[10px] font-black uppercase tracking-widest text-center transition-all cursor-pointer flex items-center justify-center gap-2",
+                "w-full py-1.5 lg:py-2.5 rounded-xl lg:rounded-full text-[8px] lg:text-[10px] font-black uppercase tracking-widest text-center transition-all cursor-pointer flex items-center justify-center gap-2",
                 inStock 
                   ? "bg-[#f1f5f9] dark:bg-slate-800 text-[#2c3b6e] dark:text-white hover:bg-[#2c3b6e] dark:hover:bg-blue-600 hover:text-white" 
                   : "bg-slate-50 dark:bg-slate-900/50 text-slate-400 dark:text-white/60 cursor-not-allowed"
@@ -209,21 +209,19 @@ export function ProductCard({
             </div>
           )}
 
-          <div className="w-full py-2 lg:py-3.5 rounded-full bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-white/5 group-hover:border-[#2c3b6e] dark:group-hover:border-blue-500 transition-all flex flex-col items-center justify-center">
+          <div className="w-full py-1.5 lg:py-3.5 rounded-xl lg:rounded-full bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-white/5 transition-all flex flex-col items-center justify-center">
             {priceOutlet ? (
               <div className="flex flex-col items-center justify-center">
-                <div className="flex items-center gap-1.5 justify-center leading-none mb-0.5">
+                <div className="flex items-center gap-1.5 justify-center leading-none">
                   <span className="text-[11px] lg:text-[13px] font-black text-[#e11d48] dark:text-rose-400 leading-none">{getDisplayPrice(priceOutlet)} сум</span>
-                  <span className="text-[8px] lg:text-[9px] font-bold text-slate-400 line-through leading-none">{getDisplayPrice(price)} сум</span>
+                  <span className="text-[7px] lg:text-[9px] font-bold text-slate-400 line-through leading-none">{getDisplayPrice(price)} сум</span>
                 </div>
-                <span className="text-[7px] lg:text-[9px] font-bold text-slate-400 dark:text-slate-500">стоимость за м.кв.</span>
-                <span className="text-[7px] lg:text-[9px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">от {Math.round(priceOutlet / 12).toLocaleString('ru-RU')} сум/мес</span>
+                <span className="text-[6px] lg:text-[8px] font-bold text-slate-400 dark:text-slate-500 mt-0.5 uppercase tracking-widest">за 1 м²</span>
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center">
-                <span className="text-[11px] lg:text-[13px] font-black text-slate-900 dark:text-white leading-none mb-0.5">{getDisplayPrice(price)} сум</span>
-                <span className="text-[7px] lg:text-[9px] font-bold text-slate-400 dark:text-slate-500">стоимость за м.кв.</span>
-                <span className="text-[7px] lg:text-[9px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">от {Math.round(getNumericPrice(price) / 12).toLocaleString('ru-RU')} сум/мес</span>
+                <span className="text-[11px] lg:text-[13px] font-black text-slate-900 dark:text-white leading-none">{getDisplayPrice(price)} сум</span>
+                <span className="text-[6px] lg:text-[8px] font-bold text-slate-400 dark:text-slate-500 mt-0.5 uppercase tracking-widest">за 1 м²</span>
               </div>
             )}
           </div>
