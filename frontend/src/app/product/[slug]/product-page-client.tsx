@@ -698,9 +698,9 @@ export default function ProductPageClient({ params }: { params: { slug: string }
                )}
 
                {/* Buttons */}
-               {isOrderOnly ? (
+               {(isOrderOnly || isPreorder) ? (
                  <a href={orderLink} target="_blank" rel="noreferrer" className="w-full bg-[#1a1a1a] dark:bg-white text-white dark:text-slate-900 h-11 lg:h-14 rounded-full flex items-center justify-center gap-2 text-[10px] lg:text-[11px] font-black uppercase tracking-widest hover:bg-[#2c3b6e] dark:hover:bg-blue-50 transition-all active:scale-95">
-                    Заказать
+                    {isPreorder && !isOrderOnly ? "Под заказ" : "Заказать"}
                     <ChevronRight className="w-4 h-4 lg:w-5 lg:h-5" />
                  </a>
                ) : (

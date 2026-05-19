@@ -508,7 +508,6 @@ export default function CategoriesPage() {
                           type="button"
                           onClick={() => {
                             setEditIsOrderOnly(!editIsOrderOnly);
-                            if (!editIsOrderOnly) setEditIsPreorder(false);
                           }}
                           className={cn(
                             "relative inline-flex h-6 w-11 items-center rounded-full transition-colors outline-none flex-shrink-0",
@@ -533,7 +532,6 @@ export default function CategoriesPage() {
                           type="button"
                           onClick={() => {
                             setEditIsPreorder(!editIsPreorder);
-                            if (!editIsPreorder) setEditIsOrderOnly(false);
                           }}
                           className={cn(
                             "relative inline-flex h-6 w-11 items-center rounded-full transition-colors outline-none flex-shrink-0",
@@ -549,7 +547,7 @@ export default function CategoriesPage() {
                         </button>
                      </div>
 
-                     {editIsOrderOnly && (
+                     {(editIsOrderOnly || editIsPreorder) && (
                        <div className="space-y-3 pt-3 border-t border-[#f7f8f9] animate-in fade-in slide-in-from-top-2">
                          <div>
                             <label className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest mb-1.5 block">Ссылка для заказа (Telegram)</label>
