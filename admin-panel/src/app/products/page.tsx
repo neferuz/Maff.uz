@@ -95,6 +95,25 @@ export default function ProductsPage() {
   }, []);
 
   const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
+
+  const handleProductClick = async (product: any) => {
+    setSelectedProduct(product);
+    if (product.id === 'new') return;
+    try {
+      const res = await fetch(`/api/v1/products/${product.id}`);
+      if (res.ok) {
+        const fullProduct = await res.json();
+        setSelectedProduct((curr: any) => {
+          if (curr && curr.id === fullProduct.id) {
+            return fullProduct;
+          }
+          return curr;
+        });
+      }
+    } catch (error) {
+      console.error("Failed to fetch full product details:", error);
+    }
+  };
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<any>({});
   const [isSaving, setIsSaving] = useState(false);
@@ -143,36 +162,44 @@ export default function ProductsPage() {
 
   const handleUpdateProduct = async () => {
     if (!selectedProduct) return;
+    const isNew = selectedProduct.id === 'new';
     try {
       setIsSaving(true);
-      const res = await fetch(`/api/v1/products/${selectedProduct.id}`, {
-        method: "PATCH",
+      const payload = {
+        name: editForm.name || 'Новый товар',
+        description: editForm.description || null,
+        price: Number(editForm.price) || 0,
+        price_outlet: editForm.price_outlet ? Number(editForm.price_outlet) : null,
+        stock: Number(editForm.stock) || 0,
+        sku: editForm.sku || null,
+        brand: editForm.brand || null,
+        country: editForm.country || null,
+        grade: editForm.grade || null,
+        thickness: editForm.thickness || null,
+        pack_size: editForm.pack_size ? Number(editForm.pack_size) : null,
+        category_id: editForm.category_id ? Number(editForm.category_id) : null,
+        image_url: editForm.image_url || null,
+        is_active: editForm.is_active !== undefined ? editForm.is_active : true,
+      };
+      const url = isNew ? '/api/v1/products' : `/api/v1/products/${selectedProduct.id}`;
+      const method = isNew ? 'POST' : 'PATCH';
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: editForm.name,
-          description: editForm.description,
-          price: Number(editForm.price),
-          price_outlet: editForm.price_outlet ? Number(editForm.price_outlet) : null,
-          stock: Number(editForm.stock),
-          sku: editForm.sku,
-          brand: editForm.brand,
-          country: editForm.country,
-          grade: editForm.grade,
-          thickness: editForm.thickness,
-          pack_size: editForm.pack_size ? Number(editForm.pack_size) : null,
-          category_id: editForm.category_id ? Number(editForm.category_id) : null,
-          image_url: editForm.image_url,
-          is_active: editForm.is_active,
-        }),
+        body: JSON.stringify(payload),
       });
       if (res.ok) {
-        const updated = await res.json();
-        setProducts(products.map(p => p.id === updated.id ? updated : p));
-        setSelectedProduct(updated);
+        const saved = await res.json();
+        if (isNew) {
+          setProducts([saved, ...products]);
+        } else {
+          setProducts(products.map(p => p.id === saved.id ? saved : p));
+        }
+        setSelectedProduct(saved);
         setIsEditing(false);
       }
     } catch (error) {
-      console.error("Update failed:", error);
+      console.error(isNew ? "Create failed:" : "Update failed:", error);
     } finally {
       setIsSaving(false);
     }
@@ -262,7 +289,29 @@ export default function ProductsPage() {
               <RefreshCw className={cn("w-3.5 h-3.5", isSyncing && "animate-spin")} />
               {isSyncing ? "Синхронизация..." : "Синхронизация с 1С"}
             </button>
-            <button className="flex items-center gap-2 px-3 py-1.5 text-[13px] font-semibold text-white bg-[#2c3b6e] border border-[#2c3b6e] rounded-md hover:bg-[#232f58] transition-all no-shadow">
+            <button 
+              onClick={() => {
+                setSelectedProduct({
+                  id: 'new',
+                  name: '',
+                  price: 0,
+                  price_outlet: null,
+                  stock: 0,
+                  sku: '',
+                  brand: '',
+                  country: '',
+                  grade: '',
+                  thickness: '',
+                  pack_size: null,
+                  category_id: null,
+                  image_url: null,
+                  is_active: true,
+                  description: ''
+                });
+                setIsEditing(true);
+              }}
+              className="flex items-center gap-2 px-3 py-1.5 text-[13px] font-semibold text-white bg-[#2c3b6e] border border-[#2c3b6e] rounded-md hover:bg-[#232f58] transition-all no-shadow"
+            >
               <Plus className="w-3.5 h-3.5" />
               Новый товар
             </button>
@@ -443,7 +492,7 @@ export default function ProductsPage() {
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: idx * 0.02 }}
-                      onClick={() => setSelectedProduct(product)}
+                      onClick={() => handleProductClick(product)}
                       className="group cursor-pointer hover:bg-[#2c3b6e]/[0.02] transition-colors"
                     >
                       <td className="px-6 py-4 truncate">
@@ -585,12 +634,17 @@ export default function ProductsPage() {
               <div className="px-6 py-5 border-b border-[#e3e8ee] flex items-center justify-between">
                 <div>
                    <h2 className="text-[16px] font-bold text-[#1a1f36]">
-                     {isEditing ? "Редактирование товара" : "Детали товара"}
+                     {selectedProduct.id === 'new' ? "Создание товара" : isEditing ? "Редактирование товара" : "Детали товара"}
                    </h2>
-                   <p className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest">ID: PRD-{selectedProduct.id}</p>
+                   {selectedProduct.id !== 'new' && (
+                     <p className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest">ID: PRD-{selectedProduct.id}</p>
+                   )}
+                   {selectedProduct.id === 'new' && (
+                     <p className="text-[10px] font-bold text-[#2c3b6e] uppercase tracking-widest">Новый товар</p>
+                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  {!isEditing && (
+                  {!isEditing && selectedProduct.id !== 'new' && (
                     <button 
                       onClick={() => setIsEditing(true)}
                       className="p-2 hover:bg-[#f7f8f9] rounded-lg text-[#2c3b6e] transition-colors"
@@ -872,9 +926,15 @@ export default function ProductsPage() {
 
               <div className="px-6 py-5 border-t border-[#e3e8ee] bg-[#f7f8f9]/50 sticky bottom-0">
                 {isEditing ? (
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className={selectedProduct.id === 'new' ? "grid grid-cols-2 gap-3" : "grid grid-cols-2 gap-3"}>
                     <button 
-                      onClick={() => setIsEditing(false)}
+                      onClick={() => {
+                        if (selectedProduct.id === 'new') {
+                          setSelectedProduct(null);
+                        } else {
+                          setIsEditing(false);
+                        }
+                      }}
                       disabled={isSaving}
                       className="flex items-center justify-center gap-2 px-4 py-3 border border-[#e3e8ee] bg-white rounded-xl text-[13px] font-bold text-[#4f566b] hover:bg-white transition-all no-shadow disabled:opacity-50"
                     >
@@ -882,11 +942,11 @@ export default function ProductsPage() {
                     </button>
                     <button 
                       onClick={handleUpdateProduct}
-                      disabled={isSaving}
+                      disabled={isSaving || !editForm.name}
                       className="flex items-center justify-center gap-2 px-4 py-3 bg-[#2c3b6e] rounded-xl text-[13px] font-bold text-white hover:bg-[#232f58] transition-all disabled:opacity-50"
                     >
                       {isSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                      Сохранить
+                      {selectedProduct.id === 'new' ? 'Создать' : 'Сохранить'}
                     </button>
                   </div>
                 ) : (

@@ -12,6 +12,20 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: 'pultop.uz' },
     ],
   },
+  async redirects() {
+    return [
+      {
+        source: '/admin',
+        destination: '/admin-maff',
+        permanent: false,
+      },
+      {
+        source: '/admin/:path*',
+        destination: '/admin-maff/:path*',
+        permanent: false,
+      },
+    ];
+  },
   async rewrites() {
     return [
       {
@@ -19,12 +33,12 @@ const nextConfig: NextConfig = {
         destination: 'http://127.0.0.1:8000/api/v1/:path*',
       },
       {
-        source: '/admin/:path*',
-        destination: 'http://127.0.0.1:3001/admin/:path*',
+        source: '/admin-maff/:path*',
+        destination: 'http://127.0.0.1:3001/admin-maff/:path*',
       },
       {
-        source: '/admin',
-        destination: 'http://127.0.0.1:3001/admin',
+        source: '/admin-maff',
+        destination: 'http://127.0.0.1:3001/admin-maff',
       },
       {
         source: '/static/:path*',

@@ -301,6 +301,70 @@ async def restore_category(
         "restored_products_count": len(products_to_activate)
     }
 
+@router.post("/{id}/merge")
+async def merge_category(
+    id: int,
+    target_category_id: int,
+    db: AsyncSession = Depends(deps.get_db),
+) -> Any:
+    """
+    Merge all products from this category into the target category.
+    """
+    from app.models.product import Product
+    from sqlalchemy import update
+    
+    # 1. Verify both categories exist
+    source_cat = await category_crud.get(db, id=id)
+    if not source_cat:
+        raise HTTPException(status_code=404, detail="Source category not found")
+        
+    target_cat = await category_crud.get(db, id=target_category_id)
+    if not target_cat:
+        raise HTTPException(status_code=404, detail="Target category not found")
+        
+    if id == target_category_id:
+        raise HTTPException(status_code=400, detail="Cannot merge a category into itself")
+        
+    # 2. Update all products having category_id = id to target_category_id
+    stmt = (
+        update(Product)
+        .where(Product.category_id == id)
+        .values(category_id=target_category_id)
+    )
+    result = await db.execute(stmt)
+    await db.commit()
+    
+    return {
+        "status": "success",
+        "moved_products_count": result.rowcount,
+        "source_category_id": id,
+        "target_category_id": target_category_id
+    }
+
+@router.post("", response_model=Category)
+async def create_category(
+    obj_in: CategoryCreate,
+    db: AsyncSession = Depends(deps.get_db),
+) -> Any:
+    """
+    Create a new category.
+    """
+    created = await category_crud.create(db, obj_in=obj_in)
+    return Category(
+        id=created.id,
+        name=created.name,
+        ref_key=created.ref_key,
+        parent_id=created.parent_id,
+        description=created.description,
+        image_url=created.image_url,
+        is_active=created.is_active if created.is_active is not None else True,
+        is_order_only=created.is_order_only,
+        is_preorder=created.is_preorder,
+        price_prefix=created.price_prefix,
+        order_link=created.order_link,
+        product_count=0
+    )
+
 @router.put("/{id}", response_model=Category)
 async def update_category(
     id: int,

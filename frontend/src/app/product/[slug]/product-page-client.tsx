@@ -21,11 +21,13 @@ import {
 import { cn } from "@/lib/utils";
 import { ScrollReveal } from "@/components/ui/scroll-reveal";
 import { ProductCard } from "@/components/ui/product-card";
+import { getProductUnit } from "@/lib/units";
 
 export default function ProductPageClient({ params }: { params: { slug: string } }) {
   // ── State ──
   const [product, setProduct] = useState<any>(null);
   const [similarProducts, setSimilarProducts] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [area, setArea] = useState(1);
   const [packs, setPacks] = useState(1);
@@ -115,8 +117,9 @@ export default function ProductPageClient({ params }: { params: { slug: string }
             }
             
             if (catRes.ok) {
-              const categories = await catRes.json();
-              const cat = categories.find((c: any) => c.id === data.category_id);
+              const categoriesData = await catRes.json();
+              setCategories(categoriesData);
+              const cat = categoriesData.find((c: any) => c.id === data.category_id);
               if (cat) {
                 let currentCat = cat;
                 let isOrderOnly = cat.is_order_only || false;
@@ -127,7 +130,7 @@ export default function ProductPageClient({ params }: { params: { slug: string }
                 const visited = new Set();
                 while (currentCat && currentCat.parent_id && !visited.has(currentCat.id)) {
                   visited.add(currentCat.id);
-                  const parent = categories.find((c: any) => c.id === currentCat.parent_id);
+                  const parent = categoriesData.find((c: any) => c.id === currentCat.parent_id);
                   if (parent) {
                     if (parent.is_order_only) {
                       isOrderOnly = true;
@@ -196,14 +199,28 @@ export default function ProductPageClient({ params }: { params: { slug: string }
     fetchData();
   }, [params.slug]);
 
+  const productName = product?.name || "Товар без названия";
+  const productBrand = (product?.brand || "").toLowerCase();
+  const doorBrands = ['portika', 'zadoor', 'profildoors', 'волховец', 'volkhovets', 'filomuro'];
+  const doorKeywords = ['двер', 'door', 'классико', 'порта', 'centro', 'неоклассико'];
+  const isDoor = product ? (
+    doorKeywords.some(k => productName.toLowerCase().includes(k)) ||
+    doorBrands.some(b => productBrand.includes(b))
+  ) : false;
+  const unit = product ? (isDoor ? "шт" : getProductUnit(productName, product.category?.name || "")) : "м²";
+
   // ── Calculations ──
   useEffect(() => {
     if (!product) return;
-    const packSize = product.packSize || 2.13;
-    const areaWithWaste = area * (1 + waste / 100);
-    const neededPacks = Math.ceil(areaWithWaste / packSize);
-    setPacks(neededPacks);
-  }, [area, waste, product]);
+    if (unit === "шт") {
+      setPacks(area);
+    } else {
+      const packSize = product.packSize || 2.13;
+      const areaWithWaste = area * (1 + waste / 100);
+      const neededPacks = Math.ceil(areaWithWaste / packSize);
+      setPacks(neededPacks);
+    }
+  }, [area, waste, product, unit]);
 
   if (isLoading) {
     return (
@@ -233,13 +250,6 @@ export default function ProductPageClient({ params }: { params: { slug: string }
     );
   }
 
-  const productName = product.name || "Товар без названия";
-  const productBrand = (product.brand || "").toLowerCase();
-  const doorBrands = ['portika', 'zadoor', 'profildoors', 'волховец', 'volkhovets', 'filomuro'];
-  const doorKeywords = ['двер', 'door', 'классико', 'порта', 'centro', 'неоклассико'];
-  const isDoor = doorKeywords.some(k => productName.toLowerCase().includes(k)) ||
-                 doorBrands.some(b => productBrand.includes(b));
-
   const doorLeafPrice = product.price_outlet || product.price || 0;
   const boxPrice = (includeBox && selectedBox) ? (selectedBox.price || 234000) : (accessories.boxes && accessories.boxes.length > 0 ? accessories.boxes[0].price : 234000);
   const trimPrice = (includeTrim && selectedTrim) ? (selectedTrim.price || 143000) : (accessories.trims && accessories.trims.length > 0 ? accessories.trims[0].price : 143000);
@@ -249,7 +259,7 @@ export default function ProductPageClient({ params }: { params: { slug: string }
   const totalArea = packs * packSize;
   const totalPrice = isDoor 
     ? (doorLeafPrice + (includeBox ? boxPrice * 3 : 0) + (includeTrim ? trimPrice * 3 : 0)) * doorQuantity
-    : totalArea * pricePerM2;
+    : (unit === "шт" ? area * pricePerM2 : totalArea * pricePerM2);
   const monthlyPayment = totalPrice / installmentMonths;
 
   
@@ -445,7 +455,7 @@ export default function ProductPageClient({ params }: { params: { slug: string }
                {/* Price Area */}
                <div className="flex items-center gap-4 lg:gap-8 py-3 lg:py-4 border-y border-slate-100 dark:border-slate-800">
                   <div className="flex flex-col">
-                     <span className="text-[7px] font-black text-slate-500 dark:text-slate-500 uppercase tracking-widest mb-0.5 lg:mb-1">Цена за м.кв.</span>
+                     <span className="text-[7px] font-black text-slate-500 dark:text-slate-500 uppercase tracking-widest mb-0.5 lg:mb-1">Цена</span>
                      <span className="text-xl lg:text-2xl font-black text-slate-900 dark:text-white tabular-nums leading-none">
                         {isOrderOnly && pricePrefix && <span className="text-sm lg:text-base mr-1 opacity-80">{pricePrefix}</span>}
                         {product.price_outlet ? (
@@ -471,11 +481,6 @@ export default function ProductPageClient({ params }: { params: { slug: string }
                        </p>
                     </div>
                   )}
-                    <div className="bg-blue-50 dark:bg-blue-900/20 px-3 lg:px-4 py-1.5 lg:py-2 rounded-lg lg:rounded-xl border border-blue-100 dark:border-blue-900/30">
-                       <p className="text-[7px] lg:text-[8px] font-black text-blue-700 dark:text-blue-400 uppercase tracking-widest leading-none">
-                          Рассрочка без переплат
-                       </p>
-                    </div>
                </div>
 
                {/* Calculator */}
@@ -681,20 +686,24 @@ export default function ProductPageClient({ params }: { params: { slug: string }
                     </div>
                  </div>
                ) : (
-                 <div className="grid grid-cols-2 gap-2 lg:gap-3">
-                    <div className="bg-slate-50 dark:bg-slate-800/40 rounded-xl p-3 lg:p-4 border border-slate-100 dark:border-slate-800">
-                       <label className="text-[8px] lg:text-[9px] font-black text-slate-900 dark:text-slate-300 uppercase tracking-widest block mb-2 lg:mb-3">Площадь, м2</label>
-                       <div className="flex items-center gap-2 bg-white dark:bg-slate-900 rounded-lg lg:rounded-xl p-0.5 lg:p-1 border border-slate-100 dark:border-slate-700">
-                          <button onClick={() => setArea(Math.max(1, area - 1))} className="w-7 h-7 lg:w-8 lg:h-8 flex items-center justify-center text-slate-400 hover:text-slate-900 dark:hover:text-white"><Minus className="w-3 h-3" /></button>
-                          <input type="number" value={area} onChange={(e) => setArea(Number(e.target.value))} className="flex-grow bg-transparent text-center font-black text-xs lg:text-sm text-slate-900 dark:text-white outline-none" />
-                          <button onClick={() => setArea(area + 1)} className="w-7 h-7 lg:w-8 lg:h-8 flex items-center justify-center text-slate-400 hover:text-slate-900 dark:hover:text-white"><Plus className="w-3 h-3" /></button>
-                       </div>
-                    </div>
-                    <div className="bg-slate-50 dark:bg-slate-800/40 rounded-xl p-3 lg:p-4 border border-slate-100 dark:border-slate-800 flex flex-col justify-between">
-                       <label className="text-[8px] lg:text-[9px] font-black text-slate-900 dark:text-slate-300 uppercase tracking-widest block mb-1">Итого упаковок</label>
-                       <div className="text-sm lg:text-base font-black text-slate-900 dark:text-white tabular-nums">{packs} <span className="text-[9px] lg:text-[10px] text-slate-400 dark:text-slate-500 uppercase ml-0.5">уп</span></div>
-                    </div>
-                 </div>
+                  <div className={cn("grid gap-2 lg:gap-3", unit === "шт" ? "grid-cols-1" : "grid-cols-2")}>
+                     <div className="bg-slate-50 dark:bg-slate-800/40 rounded-xl p-3 lg:p-4 border border-slate-100 dark:border-slate-800">
+                        <label className="text-[8px] lg:text-[9px] font-black text-slate-900 dark:text-slate-300 uppercase tracking-widest block mb-2 lg:mb-3">
+                           {unit === "шт" ? "Количество" : "Площадь"}
+                        </label>
+                        <div className="flex items-center gap-2 bg-white dark:bg-slate-900 rounded-lg lg:rounded-xl p-0.5 lg:p-1 border border-slate-100 dark:border-slate-700">
+                           <button onClick={() => setArea(Math.max(1, area - 1))} className="w-7 h-7 lg:w-8 lg:h-8 flex items-center justify-center text-slate-400 hover:text-slate-900 dark:hover:text-white"><Minus className="w-3 h-3" /></button>
+                           <input type="number" value={area} onChange={(e) => setArea(Number(e.target.value))} className="flex-grow bg-transparent text-center font-black text-xs lg:text-sm text-slate-900 dark:text-white outline-none" />
+                           <button onClick={() => setArea(area + 1)} className="w-7 h-7 lg:w-8 lg:h-8 flex items-center justify-center text-slate-400 hover:text-slate-900 dark:hover:text-white"><Plus className="w-3 h-3" /></button>
+                        </div>
+                     </div>
+                     {unit !== "шт" && (
+                        <div className="bg-slate-50 dark:bg-slate-800/40 rounded-xl p-3 lg:p-4 border border-slate-100 dark:border-slate-800 flex flex-col justify-between">
+                           <label className="text-[8px] lg:text-[9px] font-black text-slate-900 dark:text-slate-300 uppercase tracking-widest block mb-1">Итого упаковок</label>
+                           <div className="text-sm lg:text-base font-black text-slate-900 dark:text-white tabular-nums">{packs} <span className="text-[9px] lg:text-[10px] text-slate-400 dark:text-slate-500 uppercase ml-0.5">уп</span></div>
+                        </div>
+                     )}
+                  </div>
                )}
 
                {/* Buttons */}
@@ -803,7 +812,6 @@ export default function ProductPageClient({ params }: { params: { slug: string }
                      { l: "Класс износостойкости", v: product.grade || "Premium" },
                      { l: "Толщина", v: product.thickness || "8 мм" },
                      { l: "Артикул / SKU", v: product.sku || "-" },
-                     { l: "Ед. измерения", v: product.unit || "м.кв." },
                   ].map(s => (
                      <div key={s.l} className="flex items-center justify-between py-2 lg:py-3 border-b border-slate-50 dark:border-slate-800">
                         <span className="text-[8px] lg:text-[9px] font-bold text-slate-500 dark:text-slate-500 uppercase tracking-widest">{s.l}</span>
@@ -832,21 +840,49 @@ export default function ProductPageClient({ params }: { params: { slug: string }
            </div>
 
            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-8">
-              {similarProducts.map((p) => (
-                 <div key={p.id} className="relative group h-full">
-                    <ProductCard 
-                      id={p.id}
-                      title={p.name}
-                      price={p.price || 0}
-                      image={p.image_url || ""}
-                      brand={p.brand || "MAFF"}
-                      country={p.country || "Европа"}
-                      grade={p.grade || "Premium"}
-                      thickness={p.thickness || "8мм"}
-                      inStock={p.stock > 0}
-                    />
-                 </div>
-              ))}
+              {similarProducts.map((p) => {
+                 let simOrderOnly = false;
+                 let simPreorder = false;
+                 let simOrderLink = "";
+                 let currentCat = categories.find((c: any) => c.id === p.category_id);
+                 const visited = new Set();
+                 while (currentCat && !visited.has(currentCat.id)) {
+                   visited.add(currentCat.id);
+                   if (currentCat.is_order_only) {
+                     simOrderOnly = true;
+                   }
+                   if (currentCat.is_preorder) {
+                     simPreorder = true;
+                   }
+                   if (!simOrderLink && currentCat.order_link) {
+                     simOrderLink = currentCat.order_link;
+                   }
+                   if (currentCat.parent_id) {
+                     currentCat = categories.find((c: any) => c.id === currentCat.parent_id);
+                   } else {
+                     break;
+                   }
+                 }
+                 return (
+                    <div key={p.id} className="relative group h-full">
+                       <ProductCard 
+                         id={p.id}
+                         title={p.name}
+                         price={p.price || 0}
+                         priceOutlet={p.price_outlet ? Number(p.price_outlet) : undefined}
+                         image={p.image_url || ""}
+                         brand={p.brand || "MAFF"}
+                         country={p.country || "Европа"}
+                         grade={p.grade || "Premium"}
+                         thickness={p.thickness || "8мм"}
+                         inStock={p.stock > 0}
+                         isOrderOnly={simOrderOnly}
+                         isPreorder={simPreorder}
+                         orderLink={simOrderLink}
+                       />
+                    </div>
+                 );
+              })}
            </div>
         </section>
       )}

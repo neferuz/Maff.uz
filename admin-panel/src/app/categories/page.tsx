@@ -56,6 +56,13 @@ export default function CategoriesPage() {
   const [editImageUrl, setEditImageUrl] = useState("");
   const [editParentId, setEditParentId] = useState<number | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [categoryProducts, setCategoryProducts] = useState<any[]>([]);
+  const [isLoadingCategoryProducts, setIsLoadingCategoryProducts] = useState(false);
+  const [productSearchQuery, setProductSearchQuery] = useState("");
+  const [searchedProducts, setSearchedProducts] = useState<any[]>([]);
+  const [isSearchingProducts, setIsSearchingProducts] = useState(false);
+  const [mergeTargetCategoryId, setMergeTargetCategoryId] = useState<number | null>(null);
+  const [isMerging, setIsMerging] = useState(false);
 
   const fetchCategories = async () => {
     try {
@@ -67,6 +74,119 @@ export default function CategoriesPage() {
       console.error("Failed to fetch categories:", error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchCategoryProducts = async (catId: number) => {
+    try {
+      setIsLoadingCategoryProducts(true);
+      const res = await fetch(`/api/v1/products?category_id=${catId}&include_inactive=true`);
+      if (res.ok) {
+        const data = await res.json();
+        setCategoryProducts(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch category products:", error);
+    } finally {
+      setIsLoadingCategoryProducts(false);
+    }
+  };
+
+  const handleSearchProducts = async (query: string) => {
+    setProductSearchQuery(query);
+    if (!query.trim()) {
+      setSearchedProducts([]);
+      return;
+    }
+    
+    try {
+      setIsSearchingProducts(true);
+      const res = await fetch(`/api/v1/products?q=${encodeURIComponent(query)}&include_inactive=true`);
+      if (res.ok) {
+        const data = await res.json();
+        // Filter out products that are already in this category
+        const filtered = data.filter((p: any) => p.category_id !== selectedCategory?.id);
+        setSearchedProducts(filtered);
+      }
+    } catch (error) {
+      console.error("Failed to search products:", error);
+    } finally {
+      setIsSearchingProducts(false);
+    }
+  };
+
+  const handleAssignProduct = async (productId: number) => {
+    if (!selectedCategory || selectedCategory.id === 'new') return;
+    try {
+      const res = await fetch(`/api/v1/products/${productId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          category_id: selectedCategory.id,
+        }),
+      });
+      if (res.ok) {
+        await fetchCategoryProducts(selectedCategory.id);
+        setSearchedProducts(prev => prev.filter(p => p.id !== productId));
+        await fetchCategories();
+      } else {
+        alert("Не удалось добавить товар в категорию");
+      }
+    } catch (error) {
+      console.error("Failed to assign product:", error);
+      alert("Ошибка сети");
+    }
+  };
+
+  const handleRemoveProduct = async (productId: number) => {
+    if (!selectedCategory || selectedCategory.id === 'new') return;
+    try {
+      const res = await fetch(`/api/v1/products/${productId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          category_id: null,
+        }),
+      });
+      if (res.ok) {
+        await fetchCategoryProducts(selectedCategory.id);
+        await fetchCategories();
+      } else {
+        alert("Не удалось убрать товар из категории");
+      }
+    } catch (error) {
+      console.error("Failed to remove product:", error);
+      alert("Ошибка сети");
+    }
+  };
+
+  const handleMergeCategory = async () => {
+    if (!selectedCategory || selectedCategory.id === 'new' || !mergeTargetCategoryId) return;
+    
+    try {
+      setIsMerging(true);
+      const res = await fetch(`/api/v1/categories/${selectedCategory.id}/merge?target_category_id=${mergeTargetCategoryId}`, {
+        method: "POST",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        alert(`Успешно перенесено товаров: ${data.moved_products_count}`);
+        await fetchCategories();
+        await fetchCategoryProducts(selectedCategory.id);
+        setMergeTargetCategoryId(null);
+      } else {
+        const err = await res.json();
+        alert(`Не удалось объединить категории: ${err.detail || "Неизвестная ошибка"}`);
+      }
+    } catch (error) {
+      console.error("Merge error:", error);
+      alert("Ошибка при подключении к серверу");
+    } finally {
+      setIsMerging(false);
     }
   };
 
@@ -151,6 +271,15 @@ export default function CategoriesPage() {
       setEditOrderLink(selectedCategory.order_link || "");
       setEditImageUrl(selectedCategory.image_url || "");
       setEditParentId(selectedCategory.parent_id || null);
+
+      if (selectedCategory.id !== 'new') {
+        fetchCategoryProducts(selectedCategory.id);
+        setProductSearchQuery("");
+        setSearchedProducts([]);
+        setMergeTargetCategoryId(null);
+      } else {
+        setCategoryProducts([]);
+      }
     } else {
       document.body.style.overflow = 'unset';
     }
@@ -164,8 +293,10 @@ export default function CategoriesPage() {
     
     try {
       setIsSaving(true);
-      const res = await fetch(`/api/v1/categories/${selectedCategory.id}`, {
-        method: "PUT",
+      const url = selectedCategory.id === 'new' ? '/api/v1/categories' : `/api/v1/categories/${selectedCategory.id}`;
+      const method = selectedCategory.id === 'new' ? 'POST' : 'PUT';
+      const res = await fetch(url, {
+        method: method,
         headers: {
           "Content-Type": "application/json",
         },
@@ -271,7 +402,10 @@ export default function CategoriesPage() {
               <RefreshCw className={cn("w-3.5 h-3.5", isSyncing && "animate-spin")} />
               {isSyncing ? "Синхронизация..." : "Синхронизация с 1С"}
             </button>
-            <button className="flex items-center gap-2 px-3 py-1.5 text-[13px] font-semibold text-white bg-[#2c3b6e] border border-[#2c3b6e] rounded-md hover:bg-[#232f58] transition-all no-shadow">
+            <button 
+              onClick={() => setSelectedCategory({ id: 'new', name: '', parent_id: null, is_order_only: false, is_preorder: false, price_prefix: '', order_link: '', image_url: '' })}
+              className="flex items-center gap-2 px-3 py-1.5 text-[13px] font-semibold text-white bg-[#2c3b6e] border border-[#2c3b6e] rounded-md hover:bg-[#232f58] transition-all no-shadow"
+            >
               <Plus className="w-3.5 h-3.5" />
               Создать категорию
             </button>
@@ -460,8 +594,12 @@ export default function CategoriesPage() {
             >
               <div className="px-6 py-5 border-b border-[#e3e8ee] flex items-center justify-between">
                 <div>
-                   <h2 className="text-[16px] font-bold text-[#1a1f36]">Настройки категории</h2>
-                   <p className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest">ID: CAT-{selectedCategory.id}</p>
+                   <h2 className="text-[16px] font-bold text-[#1a1f36]">
+                      {selectedCategory.id === 'new' ? "Создание категории" : "Настройки категории"}
+                   </h2>
+                   <p className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest">
+                      {selectedCategory.id === 'new' ? "Новая категория" : `ID: CAT-${selectedCategory.id}`}
+                   </p>
                 </div>
                 <button onClick={() => setSelectedCategory(null)} className="p-2 hover:bg-[#f7f8f9] rounded-lg transition-colors"><XCircle className="w-5 h-5 text-[#4f566b]" /></button>
               </div>
@@ -672,10 +810,150 @@ export default function CategoriesPage() {
                      </div>
                   </div>
 
+                  {selectedCategory.id !== 'new' && (
+                    <>
+                      {/* Products section */}
+                      <div className="space-y-4 p-4 bg-white border border-[#e3e8ee] rounded-xl">
+                         <div className="flex items-center justify-between pb-2 border-b border-[#f7f8f9]">
+                            <p className="text-[13px] font-bold text-[#1a1f36]">Товары в этой категории</p>
+                            <span className="px-2 py-0.5 bg-[#2c3b6e]/10 text-[#2c3b6e] text-[10px] font-bold rounded-full">
+                               {categoryProducts.length} шт
+                            </span>
+                         </div>
+                         
+                         {/* Products list */}
+                         <div className="max-h-[200px] overflow-y-auto space-y-2 pr-1">
+                            {isLoadingCategoryProducts ? (
+                               <p className="text-[11px] text-[#4f566b] text-center py-4">Загрузка товаров...</p>
+                            ) : categoryProducts.length === 0 ? (
+                               <p className="text-[11px] text-[#4f566b] text-center py-4">В этой категории пока нет товаров</p>
+                            ) : (
+                               categoryProducts.map((prod) => (
+                                  <div key={prod.id} className="flex items-center justify-between gap-3 p-2 bg-[#f7f8f9] hover:bg-[#f7f8f9]/80 rounded-lg border border-slate-100 transition-all text-left">
+                                     <div className="flex items-center gap-2.5 min-w-0">
+                                        <div className="w-8 h-8 rounded-md bg-white border border-slate-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                                           {prod.image_url ? (
+                                              <img src={prod.image_url} alt={prod.name} className="w-full h-full object-cover" />
+                                           ) : (
+                                              <Tag className="w-3.5 h-3.5 text-[#4f566b]" />
+                                           )}
+                                        </div>
+                                        <div className="min-w-0">
+                                           <p className="text-[11px] font-bold text-[#1a1f36] truncate">{prod.name}</p>
+                                           <p className="text-[9px] text-[#4f566b]">SKU: {prod.sku || "—"}</p>
+                                        </div>
+                                     </div>
+                                     <button 
+                                       onClick={() => handleRemoveProduct(prod.id)}
+                                       className="p-1 hover:bg-red-50 text-red-500 rounded transition-colors flex-shrink-0"
+                                       title="Убрать из категории"
+                                     >
+                                        <XCircle className="w-4 h-4" />
+                                     </button>
+                                  </div>
+                               ))
+                            )}
+                         </div>
+
+                         {/* Add products search */}
+                         <div className="space-y-2 pt-2 border-t border-[#f7f8f9]">
+                            <label className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest block">Добавить товары в категорию</label>
+                            <div className="relative">
+                               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#4f566b]" />
+                               <input 
+                                 type="text" 
+                                 placeholder="Поиск товаров для добавления..." 
+                                 value={productSearchQuery}
+                                 onChange={(e) => handleSearchProducts(e.target.value)}
+                                 className="w-full pl-9 pr-4 py-2 bg-[#f7f8f9] border border-[#e3e8ee] focus:border-[#2c3b6e]/30 focus:bg-white rounded-lg text-[12px] outline-none transition-all no-shadow"
+                               />
+                            </div>
+                            
+                            {/* Search results */}
+                            {productSearchQuery && (
+                               <div className="max-h-[150px] overflow-y-auto space-y-2 p-1.5 bg-[#f7f8f9]/50 rounded-lg border border-[#e3e8ee] mt-1 animate-in fade-in duration-200">
+                                  {isSearchingProducts ? (
+                                     <p className="text-[10px] text-[#4f566b] text-center py-2">Поиск...</p>
+                                  ) : searchedProducts.length === 0 ? (
+                                     <p className="text-[10px] text-[#4f566b] text-center py-2">Ничего не найдено</p>
+                                  ) : (
+                                     searchedProducts.map((prod) => (
+                                        <div key={prod.id} className="flex items-center justify-between gap-3 p-2 bg-white rounded-lg border border-slate-100 text-left">
+                                           <div className="flex items-center gap-2.5 min-w-0">
+                                              <div className="w-7 h-7 rounded bg-slate-50 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                                                 {prod.image_url ? (
+                                                    <img src={prod.image_url} alt={prod.name} className="w-full h-full object-cover" />
+                                                 ) : (
+                                                    <Tag className="w-3 h-3 text-[#4f566b]" />
+                                                 )}
+                                              </div>
+                                              <div className="min-w-0">
+                                                 <p className="text-[10px] font-bold text-[#1a1f36] truncate">{prod.name}</p>
+                                                 <p className="text-[8px] text-[#4f566b]">SKU: {prod.sku || "—"}</p>
+                                              </div>
+                                           </div>
+                                           <button 
+                                             onClick={() => handleAssignProduct(prod.id)}
+                                             className="flex items-center gap-1 px-2 py-1 bg-[#2c3b6e]/5 hover:bg-[#2c3b6e]/10 text-[#2c3b6e] text-[9px] font-bold rounded transition-colors flex-shrink-0"
+                                           >
+                                              <Plus className="w-3 h-3" />
+                                              Добавить
+                                           </button>
+                                        </div>
+                                     ))
+                                  )}
+                               </div>
+                            )}
+                         </div>
+                      </div>
+
+                      {/* Merge category section */}
+                      <div className="space-y-4 p-4 bg-white border border-[#e3e8ee] rounded-xl text-left">
+                         <div>
+                            <p className="text-[13px] font-bold text-[#1a1f36]">Объединение категорий</p>
+                            <p className="text-[10px] text-[#4f566b] mt-0.5">Перенести все товары из этой категории в другую.</p>
+                         </div>
+                         
+                         <div className="space-y-3">
+                            <div className="relative">
+                               <select 
+                                 value={mergeTargetCategoryId || ""}
+                                 onChange={(e) => setMergeTargetCategoryId(e.target.value ? parseInt(e.target.value) : null)}
+                                 className="w-full px-4 py-2.5 bg-[#f7f8f9] border border-[#e3e8ee] rounded-xl text-[12px] font-bold text-[#1a1f36] outline-none focus:border-[#2c3b6e]/30 appearance-none cursor-pointer"
+                               >
+                                 <option value="">Выберите целевую категорию...</option>
+                                 {categories
+                                   .filter((c) => c.id !== selectedCategory.id)
+                                   .map((c) => (
+                                     <option key={c.id} value={c.id}>
+                                       {c.name}
+                                     </option>
+                                   ))}
+                               </select>
+                               <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#4f566b] pointer-events-none" />
+                            </div>
+                            
+                            {mergeTargetCategoryId && (
+                               <button 
+                                 onClick={handleMergeCategory}
+                                 disabled={isMerging}
+                                 className={cn(
+                                   "w-full flex items-center justify-center gap-2 py-2 px-4 bg-[#f59e0b] hover:bg-[#d97706] text-white rounded-xl text-[12px] font-bold transition-all",
+                                   isMerging && "opacity-50 cursor-not-allowed"
+                                 )}
+                               >
+                                  {isMerging ? "Перенос товаров..." : "Перенести товары и объединить"}
+                               </button>
+                            )}
+                         </div>
+                      </div>
+                    </>
+                  )}
+
                   <div className="grid grid-cols-2 gap-4">
                     <div className="p-4 bg-[#f7f8f9] rounded-xl border border-[#e3e8ee]">
                        <p className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest mb-1">Товаров</p>
-                       <p className="text-[13px] font-bold text-[#1a1f36]">{selectedCategory.product_count || 0} шт</p>
+                       <p className="text-[13px] font-bold text-[#1a1f36]">{selectedCategory.id === 'new' ? 0 : (selectedCategory.product_count || 0)} шт</p>
                     </div>
                     <div className="p-4 bg-[#f7f8f9] rounded-xl border border-[#e3e8ee]">
                        <p className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest mb-1">Статус</p>
@@ -686,43 +964,49 @@ export default function CategoriesPage() {
                          {selectedCategory.is_active !== false ? "Активна" : "В архиве"}
                        </p>
                     </div>
-                 </div>
-                 <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100">
-                    <p className="text-[12px] font-bold text-emerald-800">Категория синхронизирована</p>
-                    <p className="text-[10px] text-emerald-600 mt-1">Все изменения будут автоматически обновлены в основном каталоге.</p>
-                 </div>
+                  </div>
+                  {selectedCategory.id !== 'new' && (
+                    <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100">
+                       <p className="text-[12px] font-bold text-emerald-800">Категория синхронизирована</p>
+                       <p className="text-[10px] text-emerald-600 mt-1">Все изменения будут автоматически обновлены в основном каталоге.</p>
+                    </div>
+                  )}
               </div>
-              <div className="px-6 py-5 border-t border-[#e3e8ee] bg-[#f7f8f9]/50 sticky bottom-0 grid grid-cols-3 gap-3">
-                 <button 
-                   onClick={() => handleDeleteCategory(selectedCategory.id)}
-                   disabled={isDeleting || isSaving}
-                   className={cn(
-                     "flex items-center justify-center gap-2 px-4 py-3 border border-[#e3e8ee] bg-white rounded-xl text-[13px] font-bold text-[#cd5c5c] hover:bg-white transition-all no-shadow",
-                     (isDeleting || isSaving) && "opacity-50 cursor-not-allowed"
-                   )}
-                 >
-                    <Trash2 className="w-4 h-4" />
-                 </button>
-                 <button 
-                   onClick={() => handleToggleArchiveCategory(selectedCategory)}
-                   disabled={isDeleting || isSaving}
-                   className={cn(
-                     "flex items-center justify-center gap-2 px-4 py-3 border border-[#e3e8ee] bg-white rounded-xl text-[13px] font-bold text-[#f59e0b] hover:bg-[#f7f8f9] transition-all no-shadow",
-                     (isDeleting || isSaving) && "opacity-50 cursor-not-allowed"
-                   )}
-                 >
-                    <Archive className="w-4 h-4" />
-                    {selectedCategory.is_active !== false ? "В архив" : "Восст."}
-                 </button>
+              <div className="px-6 py-5 border-t border-[#e3e8ee] bg-[#f7f8f9]/50 sticky bottom-0 flex gap-3">
+                 {selectedCategory.id !== 'new' && (
+                   <>
+                     <button 
+                       onClick={() => handleDeleteCategory(selectedCategory.id)}
+                       disabled={isDeleting || isSaving}
+                       className={cn(
+                         "flex items-center justify-center gap-2 px-4 py-3 border border-[#e3e8ee] bg-white rounded-xl text-[13px] font-bold text-[#cd5c5c] hover:bg-white transition-all no-shadow",
+                         (isDeleting || isSaving) && "opacity-50 cursor-not-allowed"
+                       )}
+                     >
+                        <Trash2 className="w-4 h-4" />
+                     </button>
+                     <button 
+                       onClick={() => handleToggleArchiveCategory(selectedCategory)}
+                       disabled={isDeleting || isSaving}
+                       className={cn(
+                         "flex items-center justify-center gap-2 px-4 py-3 border border-[#e3e8ee] bg-white rounded-xl text-[13px] font-bold text-[#f59e0b] hover:bg-[#f7f8f9] transition-all no-shadow",
+                         (isDeleting || isSaving) && "opacity-50 cursor-not-allowed"
+                       )}
+                     >
+                        <Archive className="w-4 h-4" />
+                        {selectedCategory.is_active !== false ? "В архив" : "Восст."}
+                     </button>
+                   </>
+                 )}
                  <button 
                    onClick={handleSaveCategory}
                    disabled={isSaving || isDeleting || !editName.trim()}
                    className={cn(
-                     "flex items-center justify-center gap-2 px-4 py-3 bg-[#2c3b6e] rounded-xl text-[13px] font-bold text-white hover:bg-[#232f58] transition-all",
+                     "flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-[#2c3b6e] rounded-xl text-[13px] font-bold text-white hover:bg-[#232f58] transition-all",
                      (isSaving || isDeleting || !editName.trim()) && "opacity-50 cursor-not-allowed"
                    )}
                  >
-                    {isSaving ? "Сохранение..." : "Сохранить"}
+                    {isSaving ? "Сохранение..." : selectedCategory.id === 'new' ? "Создать" : "Сохранить"}
                  </button>
               </div>
             </motion.div>

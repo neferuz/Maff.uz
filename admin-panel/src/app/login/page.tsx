@@ -34,6 +34,7 @@ export default function LoginPage() {
       if (res.ok) {
         const data = await res.json();
         localStorage.setItem("admin_token", data.access_token);
+        localStorage.setItem("token", data.access_token);
         router.push("/products");
       } else {
         const errData = await res.json();

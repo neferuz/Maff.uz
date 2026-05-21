@@ -161,3 +161,19 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* ── Google Translate Premium Hide ── */
+.skiptranslate, iframe.skiptranslate, #google_translate_element {
+  display: none !important;
+}
+body {
+  top: 0 !important;
+  position: static !important;
+}
+.goog-te-banner-frame, .goog-te-balloon-frame, .goog-tooltip, .goog-tooltip:hover {
+  display: none !important;
+}
+.goog-text-highlight {
+  background-color: transparent !important;
+  box-shadow: none !important;
+}

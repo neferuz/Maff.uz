@@ -51,34 +51,45 @@ function CatalogProductsContent() {
     setSelectedThicknesses([]);
   }, [categoryParam]);
 
+  // Fetch categories once on mount
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchCategories = async () => {
+      try {
+        const catRes = await fetch(`/api/v1/categories/?t=${Date.now()}`, { cache: "no-store", headers: { "Cache-Control": "no-cache" } });
+        const catData = await catRes.json();
+        const safeCategories = Array.isArray(catData) ? catData : [];
+        setCategories(safeCategories);
+      } catch (err) {
+        console.error("Fetch categories failed", err);
+      }
+    };
+    fetchCategories();
+  }, []);
+
+  // Fetch products when selectedCategoryId changes
+  useEffect(() => {
+    const fetchProducts = async () => {
       try {
         setLoading(true);
-        const [prodRes, catRes] = await Promise.all([
-          fetch(`/api/v1/products/?t=${Date.now()}`, { cache: "no-store", headers: { "Cache-Control": "no-cache" } }),
-          fetch(`/api/v1/categories/?t=${Date.now()}`, { cache: "no-store", headers: { "Cache-Control": "no-cache" } })
-        ]);
+        const url = selectedCategoryId
+          ? `/api/v1/products/?category_id=${selectedCategoryId}&t=${Date.now()}`
+          : `/api/v1/products/?t=${Date.now()}`;
+        const prodRes = await fetch(url, { cache: "no-store", headers: { "Cache-Control": "no-cache" } });
         const prodData = await prodRes.json();
-        const catData = await catRes.json();
-        
         const safeProducts = Array.isArray(prodData) ? prodData : [];
-        const safeCategories = Array.isArray(catData) ? catData : [];
-        
         setProducts(safeProducts);
-        setCategories(safeCategories);
 
         const uniqueBrands = Array.from(new Set(safeProducts.map((p: any) => p.brand).filter(Boolean))) as string[];
         const cleanBrands = uniqueBrands.filter(b => typeof b === 'string' && !/^[0-9a-f-]{36}$/.test(b)).sort();
         setAvailableBrands(cleanBrands);
       } catch (err) {
-        console.error("Fetch failed", err);
+        console.error("Fetch products failed", err);
       } finally {
         setLoading(false);
       }
     };
-    fetchData();
-  }, []);
+    fetchProducts();
+  }, [selectedCategoryId]);
 
   const getAllChildIds = (catId: number, cats: any[], depth = 0): number[] => {
     if (depth > 10) return [catId];
@@ -92,6 +103,9 @@ function CatalogProductsContent() {
 
   const filteredProducts = useMemo(() => {
     let result = isCatalogMode ? [...products] : products.filter(p => p.price_outlet && p.price_outlet > 0);
+    // Исключаем товары без категории (промо-продукцию)
+    result = result.filter(p => p.category_id !== null && p.category_id !== undefined);
+    
     if (selectedCategoryId) {
       const allRelatedIds = getAllChildIds(selectedCategoryId, categories);
       result = result.filter(p => p.category_id && allRelatedIds.includes(p.category_id));
@@ -131,6 +145,21 @@ function CatalogProductsContent() {
     return categories.find(c => c.id === cat.parent_id);
   }, [selectedCategoryId, categories]);
 
+  const categoryPath = useMemo(() => {
+    if (!selectedCategoryId || categories.length === 0) return [];
+    const path = [];
+    let current = categories.find(c => c.id === selectedCategoryId);
+    while (current) {
+      path.unshift(current);
+      if (current.parent_id) {
+        current = categories.find(c => c.id === current.parent_id);
+      } else {
+        break;
+      }
+    }
+    return path;
+  }, [selectedCategoryId, categories]);
+
   const subCategories = useMemo(() => {
     if (!selectedCategoryId) return [];
     return categories.filter(c => c && c.parent_id === selectedCategoryId);
@@ -160,6 +189,7 @@ function CatalogProductsContent() {
         // Resolve category order-only recursively
         let isOrderOnly = false;
         let isPreorder = false;
+        let orderLink = "";
         let currentCat = categories.find(c => c.id === p.category_id);
         const visited = new Set();
         while (currentCat && !visited.has(currentCat.id)) {
@@ -169,6 +199,9 @@ function CatalogProductsContent() {
           }
           if (currentCat.is_preorder) {
             isPreorder = true;
+          }
+          if (!orderLink && currentCat.order_link) {
+            orderLink = currentCat.order_link;
           }
           if (currentCat.parent_id) {
             currentCat = categories.find(c => c.id === currentCat.parent_id);
@@ -190,6 +223,7 @@ function CatalogProductsContent() {
           isDoor: allDoorIds.includes(p.category_id),
           isOrderOnly: isOrderOnly,
           isPreorder: isPreorder,
+          orderLink: orderLink,
           image: (p.image_url && typeof p.image_url === 'string')
             ? (p.image_url.startsWith('http') 
                 ? `${p.image_url}?v=3`
@@ -259,10 +293,27 @@ function CatalogProductsContent() {
               ))
             ) : (
               <>
-                <button onClick={() => setSelectedCategoryId(null)} className={cn("w-full text-left px-3 py-2 rounded-xl text-[11px] font-bold transition-colors", !selectedCategoryId ? "bg-blue-50 dark:bg-blue-900/30 text-[#2c3b6e] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50")}>Все товары</button>
-                {mainCategories.map(cat => (
-                  <button key={cat.id} onClick={() => setSelectedCategoryId(cat.id)} className={cn("w-full text-left px-3 py-2 rounded-xl text-[11px] font-bold transition-colors", selectedCategoryId === cat.id ? "bg-blue-50 dark:bg-blue-900/30 text-[#2c3b6e] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50")}>{cat.name}</button>
-                ))}
+                <Link 
+                  href="/catalog/products" 
+                  className={cn("block w-full text-left px-3 py-2 rounded-xl text-[11px] font-bold transition-colors", !selectedCategoryId ? "bg-blue-50 dark:bg-blue-900/30 text-[#2c3b6e] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50")}
+                >
+                  Все товары
+                </Link>
+                {mainCategories.map(cat => {
+                  const catHasSubs = categories.some(c => c.parent_id === cat.id);
+                  const catHref = catHasSubs 
+                    ? `/catalog?category=${cat.id}` 
+                    : `/catalog/products?category=${cat.id}`;
+                  return (
+                    <Link 
+                      key={cat.id} 
+                      href={catHref} 
+                      className={cn("block w-full text-left px-3 py-2 rounded-xl text-[11px] font-bold transition-colors", selectedCategoryId === cat.id ? "bg-blue-50 dark:bg-blue-900/30 text-[#2c3b6e] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50")}
+                    >
+                      {cat.name}
+                    </Link>
+                  );
+                })}
               </>
             )}
          </div>
@@ -405,14 +456,28 @@ function CatalogProductsContent() {
             )}
             {loading && categoryParam ? (
               <>
-                <ChevronRight className="w-3 h-3" />
+                <ChevronRight className="w-3.5 h-3.5" />
                 <span className="inline-block w-20 h-3.5 bg-slate-200 dark:bg-slate-800/40 rounded animate-pulse" />
               </>
-            ) : selectedCategoryName ? (
-              <>
-                <ChevronRight className="w-3 h-3" />
-                <span className="text-slate-900 dark:text-white">{selectedCategoryName}</span>
-              </>
+            ) : categoryPath.length > 0 ? (
+              categoryPath.map((cat, idx) => {
+                const isLast = idx === categoryPath.length - 1;
+                const hasSubs = categories.some(c => c.parent_id === cat.id);
+                const href = hasSubs ? `/catalog?category=${cat.id}` : `/catalog/products?category=${cat.id}`;
+                
+                return (
+                  <React.Fragment key={cat.id}>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                    {isLast ? (
+                      <span className="text-slate-900 dark:text-white">{cat.name.replace(/\sMAFF$/i, '')}</span>
+                    ) : (
+                      <Link href={href} className="hover:text-[#2c3b6e] dark:hover:text-blue-400 transition-colors">
+                        {cat.name.replace(/\sMAFF$/i, '')}
+                      </Link>
+                    )}
+                  </React.Fragment>
+                );
+              })
             ) : null}
           </nav>
         </div>
@@ -426,7 +491,7 @@ function CatalogProductsContent() {
                 <span className="inline-block w-48 h-8 bg-slate-200 dark:bg-slate-800/40 rounded animate-pulse" />
               ) : (
                 <>
-                  {selectedCategoryName || "Все товары"} <span className="text-[#2c3b6e] dark:text-blue-500">MAFF</span>
+                  {selectedCategoryName || "Все товары"}
                 </>
               )}
             </h1>
@@ -455,24 +520,36 @@ function CatalogProductsContent() {
 
           {!loading && selectedCategoryId && (
             <div className="mt-6 flex flex-wrap gap-2 items-center">
-              {parentCategory && (
-                <button
-                  onClick={() => setSelectedCategoryId(parentCategory.id)}
-                  className="px-4 py-2 rounded-full border border-slate-200 dark:border-white/10 hover:border-slate-800 dark:hover:border-white bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 text-xs font-bold transition-all flex items-center gap-1.5"
-                >
-                  <ChevronLeft className="w-3.5 h-3.5" />
-                  Назад к {parentCategory.name}
-                </button>
-              )}
-              {subCategories.map(sub => (
-                <button
-                  key={sub.id}
-                  onClick={() => setSelectedCategoryId(sub.id)}
-                  className="px-4 py-2 rounded-full border border-slate-200 dark:border-white/10 hover:border-[#2c3b6e] dark:hover:border-blue-500 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold transition-all"
-                >
-                  {sub.name}
-                </button>
-              ))}
+              {parentCategory && (() => {
+                const parentHasSubs = categories.some(c => c.parent_id === parentCategory.id);
+                const parentHref = parentHasSubs 
+                  ? `/catalog?category=${parentCategory.id}` 
+                  : `/catalog/products?category=${parentCategory.id}`;
+                return (
+                  <Link
+                    href={parentHref}
+                    className="px-4 py-2 rounded-full border border-slate-200 dark:border-white/10 hover:border-[#2c3b6e] dark:hover:border-blue-500 bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 text-xs font-bold transition-all flex items-center gap-1.5"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                    Назад к {parentCategory.name}
+                  </Link>
+                );
+              })()}
+              {subCategories.map(sub => {
+                const subHasSubs = categories.some(c => c.parent_id === sub.id);
+                const subHref = subHasSubs 
+                  ? `/catalog?category=${sub.id}` 
+                  : `/catalog/products?category=${sub.id}`;
+                return (
+                  <Link
+                    key={sub.id}
+                    href={subHref}
+                    className="px-4 py-2 rounded-full border border-slate-200 dark:border-white/10 hover:border-[#2c3b6e] dark:hover:border-blue-500 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold transition-all"
+                  >
+                    {sub.name}
+                  </Link>
+                );
+              })}
             </div>
           )}
 

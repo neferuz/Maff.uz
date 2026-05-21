@@ -177,6 +177,7 @@ export default function Home() {
     fetchRecommended();
   }, [pageData]);
 
+  const [allCategories, setAllCategories] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
 
   const [isCategoriesLoading, setIsCategoriesLoading] = useState(true);
@@ -188,6 +189,7 @@ export default function Home() {
         const res = await fetch("/api/v1/categories", { cache: "no-store", mode: "cors" });
         if (res.ok) {
           const allCats = await res.json();
+          setAllCategories(allCats);
           const mainCats = allCats.filter((c: any) => !c.parent_id).slice(0, 10);
           setCategories(mainCats);
         }
@@ -320,16 +322,30 @@ export default function Home() {
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3 lg:gap-4">
             {!isCategoriesLoading && categories.length > 0 ? (
               categories.map((cat, idx) => {
-                const Icon = categoryIcons[idx % categoryIcons.length];
                 const color = categoryColors[idx % categoryColors.length];
+                
+                const renderIconContent = () => {
+                  const url = cat.image_url;
+                  if (url && (url.startsWith("http") || url.startsWith("/"))) {
+                    return <img src={url} alt={cat.name} className="w-full h-full object-cover rounded-lg" />;
+                  }
+                  if (url && lucideMap[url]) {
+                    const IconComp = lucideMap[url];
+                    return <IconComp className="w-4 h-4 text-slate-700 dark:text-slate-300" />;
+                  }
+                  // Fallback
+                  const IconComp = categoryIcons[idx % categoryIcons.length];
+                  return <IconComp className="w-4 h-4 text-slate-700 dark:text-slate-300" />;
+                };
+
                 return (
                   <Link 
                     key={cat.id} 
                     href={`/catalog?category=${cat.id}`}
                     className="group flex items-center gap-3 p-4 rounded-xl lg:rounded-2xl border border-slate-100 dark:border-white/5 bg-white dark:bg-[#161d2f] hover:border-[#2c3b6e] dark:hover:border-blue-500 transition-all duration-300 cursor-pointer shadow-none"
                   >
-                    <div className={cn(color, "dark:bg-slate-800/50 w-8 h-8 lg:w-9 lg:h-9 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform")}>
-                        <Icon className="w-4 h-4 text-slate-700 dark:text-slate-300" />
+                    <div className={cn(color, "dark:bg-slate-800/50 w-8 h-8 lg:w-9 lg:h-9 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform overflow-hidden")}>
+                        {renderIconContent()}
                     </div>
                     <span className="text-[10px] lg:text-[11px] font-bold text-slate-900 dark:text-slate-300">{cat.name}</span>
                   </Link>
@@ -388,16 +404,23 @@ export default function Home() {
              ) : (
                recommendedProducts.map((p) => {
                   let isOrderOnly = false;
-                  let currentCat = categories.find(c => c.id === p.category_id);
+                  let isPreorder = false;
+                  let orderLink = "";
+                  let currentCat = allCategories.find(c => c.id === p.category_id);
                   const visited = new Set();
                   while (currentCat && !visited.has(currentCat.id)) {
                     visited.add(currentCat.id);
                     if (currentCat.is_order_only) {
                       isOrderOnly = true;
-                      break;
+                    }
+                    if (currentCat.is_preorder) {
+                      isPreorder = true;
+                    }
+                    if (!orderLink && currentCat.order_link) {
+                      orderLink = currentCat.order_link;
                     }
                     if (currentCat.parent_id) {
-                      currentCat = categories.find(c => c.id === currentCat.parent_id);
+                      currentCat = allCategories.find(c => c.id === currentCat.parent_id);
                     } else {
                       break;
                     }
@@ -415,6 +438,8 @@ export default function Home() {
                       priceOutlet={p.price_outlet ? Number(p.price_outlet) : undefined}
                       inStock={p.stock > 0} 
                       isOrderOnly={isOrderOnly}
+                      isPreorder={isPreorder}
+                      orderLink={orderLink}
                       image={p.image_url || "/kam-idris-U39FPHKfDu0-unsplash.jpg"} 
                     />
                   );

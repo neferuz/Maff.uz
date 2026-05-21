@@ -112,7 +112,7 @@ function CatalogContent() {
                    <span className="inline-block w-48 h-6 lg:h-8 bg-slate-200 dark:bg-slate-800 animate-pulse rounded-xl" />
                  ) : currentCategory ? (
                    <>
-                     {currentCategory.name} <span className="text-[#2c3b6e] dark:text-blue-500">MAFF</span>
+                     {currentCategory.name}
                    </>
                  ) : (
                    <>

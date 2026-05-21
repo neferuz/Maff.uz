@@ -48,34 +48,45 @@ function OutletContent() {
     }
   }, [categoryParam]);
 
+  // Fetch categories once on mount
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchCategories = async () => {
+      try {
+        const catRes = await fetch(`/api/v1/categories/?t=${Date.now()}`, { cache: "no-store", headers: { "Cache-Control": "no-cache" } });
+        const catData = await catRes.json();
+        const safeCategories = Array.isArray(catData) ? catData : [];
+        setCategories(safeCategories);
+      } catch (err) {
+        console.error("Fetch categories failed", err);
+      }
+    };
+    fetchCategories();
+  }, []);
+
+  // Fetch products when selectedCategoryId changes
+  useEffect(() => {
+    const fetchProducts = async () => {
       try {
         setLoading(true);
-        const [prodRes, catRes] = await Promise.all([
-          fetch(`/api/v1/products/?t=${Date.now()}`, { cache: "no-store", headers: { "Cache-Control": "no-cache" } }),
-          fetch(`/api/v1/categories/?t=${Date.now()}`, { cache: "no-store", headers: { "Cache-Control": "no-cache" } })
-        ]);
+        const url = selectedCategoryId
+          ? `/api/v1/products/?category_id=${selectedCategoryId}&t=${Date.now()}`
+          : `/api/v1/products/?t=${Date.now()}`;
+        const prodRes = await fetch(url, { cache: "no-store", headers: { "Cache-Control": "no-cache" } });
         const prodData = await prodRes.json();
-        const catData = await catRes.json();
-        
         const safeProducts = Array.isArray(prodData) ? prodData : [];
-        const safeCategories = Array.isArray(catData) ? catData : [];
-        
         setProducts(safeProducts);
-        setCategories(safeCategories);
 
         const uniqueBrands = Array.from(new Set(safeProducts.map((p: any) => p.brand).filter(Boolean))) as string[];
         const cleanBrands = uniqueBrands.filter(b => typeof b === 'string' && !/^[0-9a-f-]{36}$/.test(b)).sort();
         setAvailableBrands(cleanBrands);
       } catch (err) {
-        console.error("Fetch failed", err);
+        console.error("Fetch products failed", err);
       } finally {
         setLoading(false);
       }
     };
-    fetchData();
-  }, []);
+    fetchProducts();
+  }, [selectedCategoryId]);
 
   const getAllChildIds = (catId: number, cats: any[], depth = 0): number[] => {
     if (depth > 10) return [catId];
@@ -127,6 +138,7 @@ function OutletContent() {
         // Resolve category order-only recursively
         let isOrderOnly = false;
         let isPreorder = false;
+        let orderLink = "";
         let currentCat = categories.find(c => c.id === p.category_id);
         const visited = new Set();
         while (currentCat && !visited.has(currentCat.id)) {
@@ -136,6 +148,9 @@ function OutletContent() {
           }
           if (currentCat.is_preorder) {
             isPreorder = true;
+          }
+          if (!orderLink && currentCat.order_link) {
+            orderLink = currentCat.order_link;
           }
           if (currentCat.parent_id) {
             currentCat = categories.find(c => c.id === currentCat.parent_id);
@@ -157,6 +172,7 @@ function OutletContent() {
           isDoor: allDoorIds.includes(p.category_id),
           isOrderOnly: isOrderOnly,
           isPreorder: isPreorder,
+          orderLink: orderLink,
           image: (p.image_url && typeof p.image_url === 'string')
             ? (p.image_url.startsWith('http') 
                 ? `${p.image_url}?v=3`

@@ -127,6 +127,51 @@ const navLinks = [
 
 
 
+const RuFlag = () => (
+  <svg viewBox="0 0 100 100" className="w-4 h-4 rounded-full overflow-hidden inline-block align-middle border border-white/20">
+    <rect y="0" width="100" height="33.3" fill="#FFFFFF" />
+    <rect y="33.3" width="100" height="33.4" fill="#0039A6" />
+    <rect y="66.7" width="100" height="33.3" fill="#D52B1E" />
+  </svg>
+);
+
+const UzFlag = () => (
+  <svg viewBox="0 0 100 100" className="w-4 h-4 rounded-full overflow-hidden inline-block align-middle border border-white/20">
+    <rect y="0" width="100" height="30" fill="#0099B5" />
+    <rect y="30" width="100" height="5" fill="#DA291C" />
+    <rect y="35" width="100" height="30" fill="#FFFFFF" />
+    <rect y="65" width="100" height="5" fill="#DA291C" />
+    <rect y="70" width="100" height="30" fill="#1EB53A" />
+    <circle cx="20" cy="15" r="7" fill="#FFFFFF" />
+    <circle cx="23" cy="15" r="7" fill="#0099B5" />
+    <circle cx="34" cy="9" r="1.5" fill="#FFFFFF" />
+    <circle cx="40" cy="9" r="1.5" fill="#FFFFFF" />
+    <circle cx="46" cy="9" r="1.5" fill="#FFFFFF" />
+    <circle cx="34" cy="15" r="1.5" fill="#FFFFFF" />
+    <circle cx="40" cy="15" r="1.5" fill="#FFFFFF" />
+    <circle cx="46" cy="15" r="1.5" fill="#FFFFFF" />
+    <circle cx="34" cy="21" r="1.5" fill="#FFFFFF" />
+    <circle cx="40" cy="21" r="1.5" fill="#FFFFFF" />
+    <circle cx="46" cy="21" r="1.5" fill="#FFFFFF" />
+  </svg>
+);
+
+const EnFlag = () => (
+  <svg viewBox="0 0 100 100" className="w-4 h-4 rounded-full overflow-hidden inline-block align-middle border border-white/20">
+    <rect width="100" height="100" fill="#012169" />
+    <path d="M0,0 L100,100 M100,0 L0,100" stroke="#FFFFFF" strokeWidth="12" />
+    <path d="M0,0 L100,100 M100,0 L0,100" stroke="#C8102E" strokeWidth="4" />
+    <path d="M50,0 L50,100 M0,50 L100,50" stroke="#FFFFFF" strokeWidth="20" />
+    <path d="M50,0 L50,100 M0,50 L100,50" stroke="#C8102E" strokeWidth="12" />
+  </svg>
+);
+
+const languages = [
+  { code: "ru", name: "Русский", flag: <RuFlag /> },
+  { code: "uz", name: "O'zbekcha", flag: <UzFlag /> },
+  { code: "en", name: "English", flag: <EnFlag /> }
+];
+
 export function Header() {
   const { cart, favorites, compare } = useShop();
   const [isScrolled, setIsScrolled] = useState(false);
@@ -146,9 +191,60 @@ export function Header() {
   
   const headerRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
+  const langDropdownRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const router = useRouter();
   const user: any = null;
+
+  const [currentLang, setCurrentLang] = useState("ru");
+  const [isLangOpen, setIsLangOpen] = useState(false);
+
+  useEffect(() => {
+    const getCookie = (name: string) => {
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop()?.split(';').shift();
+      return null;
+    };
+    const googtrans = getCookie("googtrans");
+    if (googtrans) {
+      const parts = googtrans.split("/");
+      const lang = parts[parts.length - 1];
+      if (["ru", "uz", "en"].includes(lang)) {
+        setCurrentLang(lang);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    (window as any).googleTranslateElementInit = () => {
+      new (window as any).google.translate.TranslateElement({
+        pageLanguage: 'ru',
+        includedLanguages: 'ru,uz,en',
+        autoDisplay: false
+      }, 'google_translate_element');
+    };
+
+    if (!document.getElementById("google-translate-script")) {
+      const script = document.createElement("script");
+      script.id = "google-translate-script";
+      script.src = "//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit";
+      script.async = true;
+      document.body.appendChild(script);
+    }
+  }, []);
+
+  const handleLangChange = (lang: string) => {
+    document.cookie = "googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    document.cookie = "googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=" + window.location.hostname;
+    
+    if (lang !== "ru") {
+      document.cookie = `googtrans=/ru/${lang}; path=/;`;
+      document.cookie = `googtrans=/ru/${lang}; path=/; domain=${window.location.hostname}`;
+    }
+    
+    window.location.reload();
+  };
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
@@ -177,7 +273,14 @@ export function Header() {
         const data = await res.json();
         const mainCats = data.filter((c: any) => !c.parent_id);
         const mappedData = mainCats.map((cat: any, idx: number) => {
-          const subs = data.filter((c: any) => c.parent_id === cat.id).map((c: any) => c.name);
+          const subs = data.filter((c: any) => c.parent_id === cat.id).map((c: any) => {
+            const hasChildren = data.some((child: any) => child.parent_id === c.id);
+            return {
+              id: c.id,
+              name: c.name,
+              hasChildren
+            };
+          });
           return { 
             id: cat.id, 
             title: cat.name, 
@@ -219,6 +322,9 @@ export function Header() {
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
         setSearchFocused(false);
       }
+      if (langDropdownRef.current && !langDropdownRef.current.contains(event.target as Node)) {
+        setIsLangOpen(false);
+      }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -255,15 +361,48 @@ export function Header() {
               </Link>
             </div>
             <div className="flex items-center gap-6">
-               <div className="flex items-center gap-1.5 cursor-pointer hover:text-white transition-colors">
+               <div className="flex items-center gap-1.5 cursor-pointer hover:text-white transition-colors notranslate" translate="no">
                  <MapPin className="w-3.5 h-3.5" />
                  <span className="text-[11px] font-medium">Ташкент</span>
                </div>
                <div className="w-px h-3 bg-white/10" />
-               <Link href="tel:+998712055454" className="flex items-center gap-1.5 hover:text-white transition-colors">
+               <Link href="tel:+998712055454" className="flex items-center gap-1.5 hover:text-white transition-colors notranslate" translate="no">
                  <Phone className="w-3.5 h-3.5" />
                  <span className="text-[11px] font-black text-white">+998 (71) 205-54-54</span>
                </Link>
+               <div className="w-px h-3 bg-white/10" />
+               <div className="relative" ref={langDropdownRef}>
+                 <button 
+                   onClick={() => setIsLangOpen(!isLangOpen)}
+                   className="flex items-center gap-1.5 text-[11px] font-medium hover:text-white transition-colors cursor-pointer notranslate"
+                   translate="no"
+                 >
+                   <span>{languages.find(l => l.code === currentLang)?.flag}</span>
+                   <span className="uppercase">{currentLang}</span>
+                   <ChevronDown className="w-3 h-3 opacity-60" />
+                 </button>
+                 {isLangOpen && (
+                   <div className="absolute right-0 top-full mt-2 w-28 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl py-1.5 shadow-2xl z-[10002] animate-slide-down">
+                     {languages.map((lang) => (
+                       <button
+                         key={lang.code}
+                         onClick={() => {
+                           handleLangChange(lang.code);
+                           setIsLangOpen(false);
+                         }}
+                         className={cn(
+                           "w-full flex items-center gap-2 px-3 py-1.5 text-[11px] font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-left notranslate",
+                           currentLang === lang.code && "text-[#2c3b6e] dark:text-blue-400 font-bold"
+                         )}
+                         translate="no"
+                       >
+                         <span>{lang.flag}</span>
+                         <span>{lang.name}</span>
+                       </button>
+                     ))}
+                   </div>
+                 )}
+               </div>
             </div>
           </div>
         </div>
@@ -271,7 +410,7 @@ export function Header() {
         <div className="w-full bg-white dark:bg-[#0f172a] border-b border-[#f3f4f6] dark:border-slate-800 shadow-none relative h-16 lg:h-20">
           <div className="max-w-7xl mx-auto px-4 lg:px-6 h-full flex items-center justify-between gap-4">
             <button onClick={() => setIsMobileMenuOpen(true)} className="lg:hidden p-2 -ml-2"><CustomBurgerIcon /></button>
-            <Link href="/" className="flex-shrink-0 group lg:relative absolute left-1/2 -translate-x-1/2 lg:left-0 lg:translate-x-0">
+            <Link href="/" translate="no" className="flex-shrink-0 group lg:relative absolute left-1/2 -translate-x-1/2 lg:left-0 lg:translate-x-0 notranslate">
                <img src="/maff-brand-logo.png" alt="MAFF" className="w-auto h-12 lg:h-14 object-contain dark:invert" />
             </Link>
             
@@ -307,7 +446,9 @@ export function Header() {
                                  </div>
                                  <div className="flex-grow flex flex-col justify-center min-w-0">
                                     <span className="text-[12px] font-bold text-slate-900 dark:text-white group-hover:text-[#2c3b6e] dark:group-hover:text-blue-400 transition-colors truncate">{item.name}</span>
-                                    <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tight truncate">{item.brand || "Maff"} • {item.price?.toLocaleString()} сум</span>
+                                    <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tight truncate">
+                                       <span className="notranslate" translate="no">{item.brand || "Maff"}</span> • <span className="notranslate" translate="no">{item.price?.toLocaleString()} сум</span>
+                                    </span>
                                  </div>
                                  <div className="flex-shrink-0 w-6 h-6 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center group-hover:bg-[#2c3b6e] dark:group-hover:bg-blue-600 transition-all">
                                    <ChevronRight className="w-3 h-3 text-slate-400 group-hover:text-white transition-colors" />
@@ -412,8 +553,18 @@ export function Header() {
                        </div>
                        <div className="flex-1 overflow-y-auto px-10 py-8 no-scrollbar shadow-none">
                          <div className="grid grid-cols-3 gap-x-8 gap-y-6 shadow-none">
-                           {realSubs.map((sub: string, sidx: number) => (
-                             <Link key={sidx} href={`/catalog?category=${cat?.id}`} className="group flex flex-col gap-1 shadow-none"><span className="text-[11px] font-black text-slate-900 dark:text-white uppercase tracking-tight group-hover:text-[#2c3b6e] dark:group-hover:text-blue-500 transition-colors">{sub}</span><div className="w-4 h-0.5 bg-[#2c3b6e] scale-x-0 group-hover:scale-x-100 transition-transform origin-left" /></Link>
+                           {realSubs.map((sub: any, sidx: number) => (
+                             <Link 
+                               key={sidx} 
+                               href={sub.hasChildren ? `/catalog?category=${sub.id}` : `/catalog/products?category=${sub.id}`} 
+                               onClick={() => setIsCatalogOpen(false)}
+                               className="group flex flex-col gap-1 shadow-none"
+                             >
+                               <span className="text-[11px] font-black text-slate-900 dark:text-white uppercase tracking-tight group-hover:text-[#2c3b6e] dark:group-hover:text-blue-500 transition-colors">
+                                 {sub.name}
+                               </span>
+                               <div className="w-4 h-0.5 bg-[#2c3b6e] scale-x-0 group-hover:scale-x-100 transition-transform origin-left" />
+                             </Link>
                            ))}
                          </div>
                        </div>
@@ -433,7 +584,7 @@ export function Header() {
       <div className={cn("fixed inset-0 z-[10000] lg:hidden transition-all duration-300", isMobileMenuOpen ? "pointer-events-auto" : "pointer-events-none shadow-none")}>
          <div className={cn("absolute top-0 left-0 bottom-0 w-full bg-white dark:bg-[#0f172a] transition-transform duration-300 flex flex-col overflow-y-auto shadow-none", isMobileMenuOpen ? "translate-x-0" : "-translate-x-full")}>
             <div className="flex items-center justify-between p-4 border-b border-slate-50 dark:border-slate-800 sticky top-0 bg-white dark:bg-[#0f172a] z-10 shadow-none">
-            <div className="flex items-center"><img src="/maff-brand-logo.png" alt="MAFF" className="w-auto h-9 object-contain shadow-none dark:invert" /></div>
+              <div className="flex items-center notranslate" translate="no"><img src="/maff-brand-logo.png" alt="MAFF" className="w-auto h-9 object-contain shadow-none dark:invert" /></div>
                 <button onClick={() => setIsMobileMenuOpen(false)} className="w-10 h-10 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-900 dark:text-white shadow-none"><X className="w-5 h-5 shadow-none" strokeWidth={1.5} /></button>
             </div>
 
@@ -476,19 +627,42 @@ export function Header() {
             </div>
 
             <div className="p-5 bg-slate-50 dark:bg-slate-950 border-t border-slate-100 dark:border-slate-800 mt-auto space-y-4 shadow-none">
+              {/* Mobile Language Selector */}
+              <div className="flex flex-col gap-2 p-3 bg-slate-100/50 dark:bg-slate-800 rounded-xl">
+                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider pl-1 notranslate" translate="no">Выбор языка / Language</span>
+                <div className="flex gap-2">
+                  {languages.map((lang) => (
+                    <button
+                      key={lang.code}
+                      onClick={() => handleLangChange(lang.code)}
+                      className={cn(
+                        "flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-[11px] font-bold transition-all border notranslate",
+                        currentLang === lang.code 
+                          ? "bg-white dark:bg-slate-700 text-[#2c3b6e] dark:text-white border-[#2c3b6e]/20 dark:border-slate-600 shadow-sm"
+                          : "bg-transparent text-slate-600 dark:text-slate-400 border-transparent hover:bg-slate-100 dark:hover:bg-slate-700"
+                      )}
+                      translate="no"
+                    >
+                      <span>{lang.flag}</span>
+                      <span className="uppercase">{lang.code}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <ThemeToggle showLabel={true} />
               
               <div className="flex items-center gap-4 px-1 py-2">
-                 <div className="flex items-center gap-4">
-                    <a href="/socials" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 px-5 py-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl transition-all group border border-slate-100 dark:border-slate-800" title="Наши соцсети">
-                       <InstagramIcon className="w-5 h-5 text-slate-400 group-hover:text-[#2c3b6e] dark:group-hover:text-white" />
-                       <span className="text-[11px] font-black uppercase tracking-widest text-slate-400 group-hover:text-[#2c3b6e] dark:group-hover:text-white">Мы в соцсетях</span>
-                    </a>
-                 </div>
+                  <div className="flex items-center gap-4">
+                     <a href="/socials" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 px-5 py-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl transition-all group border border-slate-100 dark:border-slate-800 notranslate" translate="no" title="Наши соцсети">
+                        <InstagramIcon className="w-5 h-5 text-slate-400 group-hover:text-[#2c3b6e] dark:group-hover:text-white" />
+                        <span className="text-[11px] font-black uppercase tracking-widest text-slate-400 group-hover:text-[#2c3b6e] dark:group-hover:text-white">Мы в соцсетях</span>
+                     </a>
+                  </div>
               </div>
 
               <div className="space-y-2 shadow-none px-1">
-                <Link href="tel:+998712055454" className="flex items-center gap-3 text-lg font-black text-slate-900 dark:text-white shadow-none">
+                <Link href="tel:+998712055454" className="flex items-center gap-3 text-lg font-black text-slate-900 dark:text-white shadow-none notranslate" translate="no">
                    <Phone className="w-4 h-4 text-[#2c3b6e]" />+998 71 205 54 54
                 </Link>
                 <div className="flex items-center justify-between shadow-none">
@@ -499,6 +673,7 @@ export function Header() {
             </div>
          </div>
        </div>
+       <div id="google_translate_element" style={{ display: 'none' }} />
     </>
   );
 }

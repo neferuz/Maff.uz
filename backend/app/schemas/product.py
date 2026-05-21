@@ -39,7 +39,6 @@ class Category(CategoryBase):
 
 class ProductBase(BaseModel):
     name: str
-    description: Optional[str] = None
     price: float
     price_rub: Optional[float] = None
     price_outlet: Optional[float] = None
@@ -79,18 +78,13 @@ class ProductBase(BaseModel):
         return data
 
 class ProductCreate(ProductBase):
-    pass
+    description: Optional[str] = None
 
 class ProductUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     price: Optional[float] = None
     price_rub: Optional[float] = None
-    price_outlet: Optional[float] = None
-    price_outlet_usd: Optional[float] = None
-    price_outlet_wholesale: Optional[float] = None
-    price_outlet_usd: Optional[float] = None
-    price_outlet_wholesale: Optional[float] = None
     price_outlet: Optional[float] = None
     price_outlet_usd: Optional[float] = None
     price_outlet_wholesale: Optional[float] = None
@@ -120,3 +114,6 @@ class Product(ProductBase):
 
     class Config:
         from_attributes = True
+
+class ProductDetail(Product):
+    description: Optional[str] = None

@@ -1,62 +1,10 @@
+import asyncio
 import re
+from app.db.session import AsyncSessionLocal
+from app.models.product import Product, Category
+from sqlalchemy import select
 
-BRAND_MAPPING = {
-    "0f86afa8-b97c-11e5-80c8-002590ec5d5d": "KRONO",
-    "ALSAFLOOR_EPI": "Alsafloor (EPI)",
-    "russkiy-profil": "Русский Профиль",
-    "JUTEKS": "Juteks",
-    "TARKETT": "Tarkett",
-    "KRONOSPAN": "Kronospan",
-    "BERRY_ALLOC": "BerryAlloc",
-    "QUICK_STEP": "Quick-Step",
-    "cBxINZEo": "Art House", # Mapping based on name 'Art House Glue'
-}
-
-COUNTRY_MAPPING = {
-    "GERMANY": "Германия",
-    "FRANCE": "Франция",
-    "RUSSIA": "Россия",
-    "BELARUS": "Беларусь",
-    "SOUTH_KOREA": "Южная Корея",
-    "UZBEKISTAN": "Узбекистан",
-    "CHINA": "Китай",
-    "TURKEY": "Турция",
-    "POLAND": "Польша",
-    "BELGIUM": "Бельгия",
-    "ESTONIA": "Эстония",
-    "SERBIA": "Сербия",
-    "AUSTRIA": "Австрия",
-}
-
-def sanitize_brand(brand: str) -> str:
-    if not brand:
-        return "MAFF"
-    
-    # Check direct mapping
-    if brand in BRAND_MAPPING:
-        return BRAND_MAPPING[brand]
-    
-    # Check if it's a GUID
-    if re.match(r'^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$', brand.lower().strip()):
-        return "Бренд из 1С" # Placeholder or keep it if unknown
-    
-    # Clean up underscore/kebab case
-    clean = brand.replace("_", " ").replace("-", " ")
-    # Title Case
-    return " ".join(w.capitalize() for w in clean.split())
-
-def sanitize_country(country: str) -> str:
-    if not country:
-        return ""
-    
-    upper_country = country.upper().strip()
-    if upper_country in COUNTRY_MAPPING:
-        return COUNTRY_MAPPING[upper_country]
-    
-    return country.capitalize()
-
-
-# Comprehensive Brand and Collection mappings for parsing
+# Define brand and country lists/mappings
 BRANDS_MAP = {
     "joss beaumont": ("Joss Beaumont", "Россия"),
     "jossbeaumont": ("Joss Beaumont", "Россия"),
@@ -186,6 +134,7 @@ COUNTRIES_MAP = {
     "италия": "Италия", "italy": "Италия"
 }
 
+# Collection default values for grade & thickness
 COLLECTION_DEFAULTS = {
     "gusto": ("33/АС5", "8"),
     "liberte": ("32/АС4", "8"),
@@ -211,10 +160,7 @@ COLLECTION_DEFAULTS = {
     "амазон": ("33/АС5", "10"),
 }
 
-def parse_product_characteristics(name: str, category_brand: str = None, category_country: str = None):
-    """
-    Parse brand, country, grade, and thickness from product name and default category lineage.
-    """
+def parse_characteristics(name: str, category_brand=None, category_country=None):
     if not name:
         return category_brand, category_country, None, None
         
@@ -283,3 +229,47 @@ def parse_product_characteristics(name: str, category_brand: str = None, categor
             
     return brand, country, grade, thickness
 
+async def main():
+    async with AsyncSessionLocal() as session:
+        # 1. Load categories and build ancestor maps
+        cat_result = await session.execute(select(Category))
+        categories = cat_result.scalars().all()
+        cat_by_id = {c.id: c for c in categories}
+        
+        # Traverse parent chain to assign brand/country defaults to categories
+        cat_defaults = {}
+        for c in categories:
+            # Climb up
+            curr = c
+            brand, country = None, None
+            visited = set()
+            while curr and curr.id not in visited:
+                visited.add(curr.id)
+                curr_name_lower = curr.name.lower()
+                # Check if this category name contains any brand names
+                for kw, (b, co) in BRANDS_MAP.items():
+                    if kw in curr_name_lower:
+                        brand = b
+                        country = co
+                        break
+                if brand:
+                    break
+                curr = cat_by_id.get(curr.parent_id) if curr.parent_id else None
+            cat_defaults[c.id] = (brand, country)
+            
+        # 2. Query products
+        prod_result = await session.execute(select(Product).limit(100))
+        products = prod_result.scalars().all()
+        
+        print(f"{'Original Name':<45} | {'Category ID/Name':<20} | {'Brand':<15} | {'Country':<15} | {'Grade':<10} | {'Thickness':<5}")
+        print("=" * 125)
+        for p in products:
+            c_brand, c_country = cat_defaults.get(p.category_id, (None, None))
+            b, co, g, t = parse_characteristics(p.name, c_brand, c_country)
+            trunc_name = (p.name[:42] + "...") if len(p.name) > 45 else p.name
+            cat_name = cat_by_id.get(p.category_id).name if p.category_id and p.category_id in cat_by_id else "None"
+            trunc_cat = (cat_name[:17] + "...") if len(cat_name) > 20 else cat_name
+            print(f"{trunc_name:<45} | {trunc_cat:<20} | {str(b):<15} | {str(co):<15} | {str(g):<10} | {str(t):<5}")
+
+if __name__ == "__main__":
+    asyncio.run(main())

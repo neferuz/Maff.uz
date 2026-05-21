@@ -109,33 +109,27 @@ export default function CategoryPageClient() {
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [productsLoading, setProductsLoading] = useState(true);
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState("Популярные");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
 
+  // Fetch categories once on mount
   useEffect(() => {
-    async function fetchData() {
+    async function fetchCategories() {
       try {
-        setLoading(true);
-        const [prodRes, catRes] = await Promise.all([
-          fetch("/api/v1/products/"),
-          fetch("/api/v1/categories/")
-        ]);
-        if (prodRes.ok && catRes.ok) {
-          const prodData = await prodRes.json();
+        const catRes = await fetch(`/api/v1/categories/?t=${Date.now()}`, { cache: "no-store", headers: { "Cache-Control": "no-cache" } });
+        if (catRes.ok) {
           const catData = await catRes.json();
-          setProducts(Array.isArray(prodData) ? prodData : []);
           setCategories(Array.isArray(catData) ? catData : []);
         }
       } catch (err) {
-        console.error("Failed to fetch data", err);
-      } finally {
-        setLoading(false);
+        console.error("Failed to fetch categories", err);
       }
     }
-    fetchData();
+    fetchCategories();
   }, []);
 
   const currentCategory = useMemo(() => {
@@ -143,6 +137,35 @@ export default function CategoryPageClient() {
     const cleanSlug = decodeURIComponent(slug).toLowerCase().replace(/-/g, " ");
     return categories.find(c => c && c.name.toLowerCase().replace(/-/g, " ") === cleanSlug) || null;
   }, [categories, slug]);
+
+  // Fetch products reactively when currentCategory changes
+  useEffect(() => {
+    if (!currentCategory) return;
+    async function fetchProducts() {
+      try {
+        setProductsLoading(true);
+        const prodRes = await fetch(`/api/v1/products/?category_id=${currentCategory.id}&t=${Date.now()}`, { cache: "no-store", headers: { "Cache-Control": "no-cache" } });
+        if (prodRes.ok) {
+          const prodData = await prodRes.json();
+          setProducts(Array.isArray(prodData) ? prodData : []);
+        }
+      } catch (err) {
+        console.error("Failed to fetch products for category", err);
+      } finally {
+        setProductsLoading(false);
+        setLoading(false);
+      }
+    }
+    fetchProducts();
+  }, [currentCategory]);
+
+  // If categories are loaded but currentCategory couldn't be resolved, stop loading
+  useEffect(() => {
+    if (categories.length > 0 && !currentCategory) {
+      setLoading(false);
+      setProductsLoading(false);
+    }
+  }, [categories, currentCategory]);
 
   const getAllChildIds = (catId: number, cats: any[], depth = 0): number[] => {
     if (depth > 10) return [catId];
@@ -182,6 +205,31 @@ export default function CategoryPageClient() {
     return filteredProducts.map(p => {
       const name = p.name || "Безымянный товар";
       const nameParts = name.split(' ');
+      
+      // Resolve category order-only/preorder recursively
+      let isOrderOnly = false;
+      let isPreorder = false;
+      let orderLink = "";
+      let currentCat = categories.find(c => c.id === p.category_id);
+      const visited = new Set();
+      while (currentCat && !visited.has(currentCat.id)) {
+        visited.add(currentCat.id);
+        if (currentCat.is_order_only) {
+          isOrderOnly = true;
+        }
+        if (currentCat.is_preorder) {
+          isPreorder = true;
+        }
+        if (!orderLink && currentCat.order_link) {
+          orderLink = currentCat.order_link;
+        }
+        if (currentCat.parent_id) {
+          currentCat = categories.find(c => c.id === currentCat.parent_id);
+        } else {
+          break;
+        }
+      }
+
       return {
         id: p.id,
         title: name,
@@ -192,6 +240,9 @@ export default function CategoryPageClient() {
         price: Number(p.price || 0),
         priceOutlet: p.price_outlet ? Number(p.price_outlet) : undefined,
         inStock: p.stock > 0,
+        isOrderOnly: isOrderOnly,
+        isPreorder: isPreorder,
+        orderLink: orderLink,
         image: (p.image_url && typeof p.image_url === 'string')
           ? (p.image_url.startsWith('http') 
               ? p.image_url 
@@ -199,7 +250,7 @@ export default function CategoryPageClient() {
           : ""
       };
     });
-  }, [filteredProducts]);
+  }, [filteredProducts, categories]);
 
   const sortedProducts = useMemo(() => {
     let productsList = [...mappedProducts];
@@ -399,7 +450,7 @@ export default function CategoryPageClient() {
             <div className="flex flex-wrap items-center justify-between gap-4 mb-8 bg-white border border-slate-100 p-2 rounded-2xl">
                <div className="flex items-center gap-2 pl-2">
                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Найдено:</span>
-                  <span className="text-[11px] font-black text-slate-900">{products.length} товаров</span>
+                  <span className="text-[11px] font-black text-slate-900">{filteredProducts.length} {filteredProducts.length % 10 === 1 && filteredProducts.length % 100 !== 11 ? "товар" : [2, 3, 4].includes(filteredProducts.length % 10) && ![12, 13, 14].includes(filteredProducts.length % 100) ? "товара" : "товаров"}</span>
                </div>
                
                <div className="flex items-center gap-3">

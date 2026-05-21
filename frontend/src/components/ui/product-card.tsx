@@ -4,6 +4,7 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { Heart, BarChart2, ShoppingBag, Image as ImageIcon, Zap } from "lucide-react";
 import { useShop } from "@/context/shop-context";
+import { getProductUnit } from "@/lib/units";
 
 interface ProductCardProps {
   id: number;
@@ -19,6 +20,7 @@ interface ProductCardProps {
   isDoor?: boolean;
   isOrderOnly?: boolean;
   isPreorder?: boolean;
+  orderLink?: string;
 }
 
 export function ProductCard({
@@ -35,6 +37,7 @@ export function ProductCard({
   isDoor: isDoorProp,
   isOrderOnly,
   isPreorder,
+  orderLink,
 }: ProductCardProps) {
   const { 
     isInFavorites, addToFavorites, removeFromFavorites, 
@@ -51,6 +54,8 @@ export function ProductCard({
     isDoorKeywords.some(k => title.toLowerCase().includes(k)) ||
     isDoorBrands.some(b => brand.toLowerCase().includes(b))
   );
+
+  const unit = isDoor ? "шт" : getProductUnit(title, brand);
 
   const getNumericPrice = (p: string | number) => {
     if (typeof p === 'number') return p;
@@ -90,6 +95,12 @@ export function ProductCard({
     }
   };
 
+  const handleOrderClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    window.open(orderLink || "https://t.me/maff_uz", "_blank");
+  };
+
   return (
     <Link 
       href={`/product/${id}`}
@@ -97,15 +108,17 @@ export function ProductCard({
     >
       {/* Image Area */}
       <div className="relative aspect-square rounded-xl lg:rounded-[2rem] overflow-hidden bg-slate-50 dark:bg-slate-900/50 mb-3 lg:mb-4 group-hover:bg-slate-100 dark:group-hover:bg-slate-800 transition-colors duration-500">
-        <div className="absolute top-2 left-2 flex flex-col items-start gap-1.5 z-10">
+        <div className="absolute top-3 left-3 lg:top-4 lg:left-4 flex flex-col items-start gap-1.5 z-10">
           {isPreorder && (
-            <div className="px-2 py-0.5 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md text-[#2c3b6e] dark:text-blue-400 rounded-md border border-slate-100 dark:border-slate-800 text-[7px] lg:text-[8px] font-black uppercase tracking-widest">
-               Под заказ
-            </div>
+            <>
+              <div className="px-2 py-1 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md text-[#2c3b6e] dark:text-blue-400 rounded-md border border-slate-100 dark:border-slate-800 text-[8px] lg:text-[9px] font-black uppercase tracking-widest">
+                 Под заказ
+              </div>
+              <div className="px-2 py-1 bg-white/95 dark:bg-slate-900/95 text-slate-900 dark:text-slate-100 backdrop-blur-md rounded-md border border-slate-200/80 dark:border-slate-800/80 text-[8px] lg:text-[10px] font-black tracking-wider">
+                 От {Math.round(priceOutlet || getNumericPrice(price)).toLocaleString('ru-RU')} сум
+              </div>
+            </>
           )}
-          <div className="px-2 py-0.5 bg-emerald-500/90 text-white backdrop-blur-md rounded-md border border-emerald-500/50 text-[7px] lg:text-[8px] font-black tracking-widest">
-             От {Math.round((priceOutlet || getNumericPrice(price)) / 12).toLocaleString('ru-RU')} сум/мес
-          </div>
         </div>
         {image ? (
           <img
@@ -180,15 +193,16 @@ export function ProductCard({
         </div>
 
         <div className="mt-auto space-y-1.5 lg:space-y-2">
-          {isOrderOnly ? (
+          {(isOrderOnly || isPreorder) ? (
             <div 
+              onClick={handleOrderClick}
               className={cn(
                 "w-full py-1.5 lg:py-2.5 rounded-xl lg:rounded-full text-[8px] lg:text-[10px] font-black uppercase tracking-widest text-center transition-all cursor-pointer flex items-center justify-center gap-2",
                 "bg-[#1a1a1a] dark:bg-white text-white dark:text-slate-900 hover:bg-[#2c3b6e] dark:hover:bg-blue-50"
               )}
             >
                <Zap className="w-3 lg:w-3.5 h-3 lg:h-3.5 text-current" />
-               Заказать
+               {isPreorder ? "Под заказ" : "Заказать"}
             </div>
           ) : (
             <div 
@@ -216,12 +230,10 @@ export function ProductCard({
                   <span className="text-[11px] lg:text-[13px] font-black text-[#e11d48] dark:text-rose-400 leading-none">{getDisplayPrice(priceOutlet)} сум</span>
                   <span className="text-[7px] lg:text-[9px] font-bold text-slate-400 line-through leading-none">{getDisplayPrice(price)} сум</span>
                 </div>
-                <span className="text-[6px] lg:text-[8px] font-bold text-slate-400 dark:text-slate-500 mt-0.5 uppercase tracking-widest">за 1 м²</span>
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center">
                 <span className="text-[11px] lg:text-[13px] font-black text-slate-900 dark:text-white leading-none">{getDisplayPrice(price)} сум</span>
-                <span className="text-[6px] lg:text-[8px] font-bold text-slate-400 dark:text-slate-500 mt-0.5 uppercase tracking-widest">за 1 м²</span>
               </div>
             )}
           </div>

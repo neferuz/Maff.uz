@@ -85,6 +85,17 @@ async def seed_pages():
                     "title": "Сертификаты",
                     "description": "Наши сертификаты качества."
                 }
+            },
+            {
+                "slug": "footer",
+                "content": {
+                    "description": "Ведущий дистрибьютор напольных покрытий и дверей в Узбекистане. 20 лет опыта, 17 международных брендов и безупречный сервис.",
+                    "phone": "+998 71 205 54 54",
+                    "address": "г. Ташкент, ул. Уста Ширин",
+                    "telegram": "https://t.me/maffuzbekistan",
+                    "instagram": "https://www.instagram.com/maff.uz?igsh=MTJ5b2VwbHl1eTBodQ%3D%3D&utm_source=qr",
+                    "facebook": "https://www.facebook.com/maff.uzb/?locale=ru_RU"
+                }
             }
         ]
         

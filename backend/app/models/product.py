@@ -34,7 +34,7 @@ class Product(Base):
     ref_key = Column(String, unique=True, index=True, nullable=True)  # 1C UUID
     is_active = Column(Boolean, default=True)
     image_url = Column(String, nullable=True)
-    category_id = Column(Integer, ForeignKey("category.id"))
+    category_id = Column(Integer, ForeignKey("category.id"), index=True)
     
     brand = Column(String, nullable=True)
     country = Column(String, nullable=True)

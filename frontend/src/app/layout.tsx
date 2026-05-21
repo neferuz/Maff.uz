@@ -111,6 +111,22 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{
           __html: `
             (function() {
+              if (typeof window !== 'undefined') {
+                var originalRemove = Node.prototype.removeChild;
+                Node.prototype.removeChild = function(child) {
+                  if (child.parentNode !== this) {
+                    return child;
+                  }
+                  return originalRemove.call(this, child);
+                };
+                var originalInsert = Node.prototype.insertBefore;
+                Node.prototype.insertBefore = function(newNode, referenceNode) {
+                  if (referenceNode && referenceNode.parentNode !== this) {
+                    return this.appendChild(newNode);
+                  }
+                  return originalInsert.call(this, newNode, referenceNode);
+                };
+              }
               try {
                 var theme = localStorage.getItem('theme');
                 var supportDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches === true;

@@ -15,6 +15,35 @@ import {
 
 export function Footer() {
   const currentYear = new Date().getFullYear();
+  const [data, setData] = React.useState({
+    description: "Ведущий дистрибьютор напольных покрытий и дверей в Узбекистане. 20 лет опыта, 17 международных брендов и безупречный сервис.",
+    phone: "+998 71 205 54 54",
+    address: "г. Ташкент, ул. Уста Ширин",
+    telegram: "https://t.me/maffuzbekistan",
+    instagram: "https://www.instagram.com/maff.uz?igsh=MTJ5b2VwbHl1eTBodQ%3D%3D&utm_source=qr",
+    facebook: "https://www.facebook.com/maff.uzb/?locale=ru_RU"
+  });
+
+  React.useEffect(() => {
+    fetch("/api/v1/pages/footer")
+      .then(res => {
+        if (res.ok) return res.json();
+        throw new Error("Failed to fetch footer content");
+      })
+      .then(d => {
+        if (d.content) {
+          setData(prev => ({
+            ...prev,
+            ...d.content
+          }));
+        }
+      })
+      .catch(err => {
+        console.error("Error loading footer content dynamically:", err);
+      });
+  }, []);
+
+  const phoneUrl = `tel:${data.phone.replace(/[^\d+]/g, "")}`;
 
   return (
     <footer className="w-full bg-[#2c3b6e] dark:bg-[#0f172a] text-white pt-16 pb-8 rounded-t-[2.5rem] lg:rounded-t-[3.5rem] shadow-none border-t border-white/5 transition-colors duration-300">
@@ -23,27 +52,27 @@ export function Footer() {
           
           {/* Logo & Vision Area */}
           <div className="lg:w-4/12">
-            <h2 className="text-2xl font-black tracking-tighter mb-4 text-white">MAFF.</h2>
+            <h2 translate="no" className="notranslate text-2xl font-black tracking-tighter mb-4 text-white">MAFF.</h2>
             <p className="text-xs font-medium text-white/60 leading-relaxed max-w-sm mb-6">
-              Ведущий дистрибьютор напольных покрытий и дверей в Узбекистане. 20 лет опыта, 17 международных брендов и безупречный сервис.
+              {data.description}
             </p>
             <div className="flex gap-2">
               <Link 
-                href="https://t.me/maffuzbekistan"
+                href={data.telegram}
                 target="_blank"
                 className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center text-white/70 hover:bg-white hover:text-[#2c3b6e] transition-all duration-300"
               >
                 <Send className="w-4 h-4" />
               </Link>
               <Link 
-                href="https://www.instagram.com/maff.uz?igsh=MTJ5b2VwbHl1eTBodQ%3D%3D&utm_source=qr"
+                href={data.instagram}
                 target="_blank"
                 className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center text-white/70 hover:bg-white hover:text-[#2c3b6e] transition-all duration-300"
               >
                 <Globe className="w-4 h-4" />
               </Link>
               <Link 
-                href="https://www.facebook.com/maff.uzb/?locale=ru_RU"
+                href={data.facebook}
                 target="_blank"
                 className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center text-white/70 hover:bg-white hover:text-[#2c3b6e] transition-all duration-300"
               >
@@ -77,13 +106,13 @@ export function Footer() {
             <div className="col-span-2 sm:col-span-1">
               <h4 className="text-[10px] font-black uppercase text-white/40 tracking-[0.2em] mb-5">Контакты</h4>
               <div className="space-y-4">
-                <Link href="tel:+998712055454" className="block">
+                <Link href={phoneUrl} className="block">
                   <div className="text-[9px] font-bold text-white/30 uppercase mb-0.5">Телефон</div>
-                  <div className="text-sm font-black text-white hover:text-white/80 transition-colors">+998 71 205 54 54</div>
+                  <div translate="no" className="notranslate text-sm font-black text-white hover:text-white/80 transition-colors">{data.phone}</div>
                 </Link>
                 <Link href="/contacts" className="block">
                   <div className="text-[9px] font-bold text-white/30 uppercase mb-0.5">Адрес</div>
-                  <div className="text-[11px] font-bold text-white/80 hover:text-white transition-colors">г. Ташкент, ул. Уста Ширин</div>
+                  <div className="text-[11px] font-bold text-white/80 hover:text-white transition-colors">{data.address}</div>
                 </Link>
               </div>
             </div>
