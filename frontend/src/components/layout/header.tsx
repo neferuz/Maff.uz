@@ -200,18 +200,33 @@ export function Header() {
   const [isLangOpen, setIsLangOpen] = useState(false);
 
   useEffect(() => {
+    // 1. Try localStorage first for extremely reliable state persistence
+    const storedLang = typeof window !== 'undefined' ? localStorage.getItem("maff_lang") : null;
+    if (storedLang && ["ru", "uz", "en"].includes(storedLang)) {
+      setCurrentLang(storedLang);
+      return;
+    }
+
+    // 2. Fallback to robust parsing of googtrans cookie (handles multiple cookies, quotes, and URL encoding)
     const getCookie = (name: string) => {
       const value = `; ${document.cookie}`;
       const parts = value.split(`; ${name}=`);
-      if (parts.length === 2) return parts.pop()?.split(';').shift();
+      if (parts.length >= 2) {
+        const raw = parts.pop()?.split(';').shift();
+        if (raw) {
+          return decodeURIComponent(raw).replace(/['"]/g, "").trim();
+        }
+      }
       return null;
     };
+
     const googtrans = getCookie("googtrans");
     if (googtrans) {
       const parts = googtrans.split("/");
       const lang = parts[parts.length - 1];
       if (["ru", "uz", "en"].includes(lang)) {
         setCurrentLang(lang);
+        localStorage.setItem("maff_lang", lang);
       }
     }
   }, []);
@@ -235,14 +250,22 @@ export function Header() {
   }, []);
 
   const handleLangChange = (lang: string) => {
+    const host = window.location.hostname;
+    const dotDomain = host.startsWith(".") ? host : "." + host;
+
+    // Delete existing googtrans cookies on all possible domains and paths
     document.cookie = "googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    document.cookie = "googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=" + window.location.hostname;
+    document.cookie = `googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${host};`;
+    document.cookie = `googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${dotDomain};`;
     
     if (lang !== "ru") {
       document.cookie = `googtrans=/ru/${lang}; path=/;`;
-      document.cookie = `googtrans=/ru/${lang}; path=/; domain=${window.location.hostname}`;
+      document.cookie = `googtrans=/ru/${lang}; path=/; domain=${host};`;
+      document.cookie = `googtrans=/ru/${lang}; path=/; domain=${dotDomain};`;
     }
     
+    // Persist in localStorage to ensure the selector matches the actual choice
+    localStorage.setItem("maff_lang", lang);
     window.location.reload();
   };
 
