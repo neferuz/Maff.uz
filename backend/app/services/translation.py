@@ -268,6 +268,9 @@ async def translate_text_claude(text: str, target_lang: str, api_key: str) -> st
     if local_val is not None:
         return local_val
         
+    if target_lang == "ru":
+        return text
+        
     lang_instruction = get_lang_instruction(target_lang)
         
     prompt = f"""Локализуй следующий текст на целевой язык естественным и профессиональным образом.
@@ -398,7 +401,7 @@ async def translate_page_content(db, slug: str, content: dict | list, locale: st
     return translated_dict
 
 async def get_translations_bulk(db, entity_type: str, entities: list, fields: list[str], locale: str, api_key: str):
-    if locale == "ru" or not locale or not entities:
+    if not locale or not entities:
         return
         
     entity_ids = []
@@ -450,6 +453,9 @@ async def get_translations_bulk(db, entity_type: str, entities: list, fields: li
                     )
                     db.add(new_trans)
                     cache_map[(ent_id, field)] = new_trans
+                continue
+                
+            if locale == "ru":
                 continue
 
             if not cached or cached.original_text != orig_text:
