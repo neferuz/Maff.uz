@@ -16,12 +16,13 @@ class OneCService:
             "$format": "json",
             "$top": top,
             "$skip": skip,
-            "$select": "Ref_Key,Description,НаименованиеПолное,Артикул,IsFolder,Parent_Key,ФайлКартинки_Key"
+            "$select": "Ref_Key,Description,НаименованиеПолное,Артикул,IsFolder,Parent_Key,ФайлКартинки_Key,Описание",
+            "$orderby": "Ref_Key"
         }
         if is_folder is not None:
             params["$filter"] = f"IsFolder eq {'true' if is_folder else 'false'}"
             
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.get(url, headers=self.headers, params=params)
             response.raise_for_status()
             data = response.json()
@@ -36,7 +37,7 @@ class OneCService:
             "$format": "json",
             "$select": "Номенклатура_Key,Склад_Key,ВНаличииBalance"
         }
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.get(url, headers=self.headers, params=params)
             response.raise_for_status()
             data = response.json()
@@ -51,7 +52,7 @@ class OneCService:
             "$format": "json",
             "$select": "Ref_Key,Description"
         }
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.get(url, headers=self.headers, params=params)
             response.raise_for_status()
             data = response.json()
@@ -68,7 +69,7 @@ class OneCService:
             "$filter": f"ВидЦены_Key eq guid'{price_type_uuid}'",
             "$select": "Номенклатура_Key,Цена"
         }
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.get(url, headers=self.headers, params=params)
             response.raise_for_status()
             data = response.json()

@@ -2,6 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
+import { useTranslation } from "@/context/translation-context";
 import { 
   Globe, 
   MessageCircle, 
@@ -14,6 +15,7 @@ import {
 } from "lucide-react";
 
 export function Footer() {
+  const { t } = useTranslation();
   const currentYear = new Date().getFullYear();
   const [data, setData] = React.useState({
     description: "Ведущий дистрибьютор напольных покрытий и дверей в Узбекистане. 20 лет опыта, 17 международных брендов и безупречный сервис.",
@@ -84,34 +86,34 @@ export function Footer() {
           {/* Nav Links Grid */}
           <div className="lg:w-7/12 grid grid-cols-2 sm:grid-cols-3 gap-8">
             <div>
-              <h4 className="text-[10px] font-black uppercase text-white/40 tracking-[0.2em] mb-5">Каталог</h4>
+              <h4 className="text-[10px] font-black uppercase text-white/40 tracking-[0.2em] mb-5">{t("catalog", "Каталог")}</h4>
               <ul className="space-y-3">
-                <li><Link href="/catalog" className="text-[12px] font-bold text-white/70 hover:text-white transition-colors">Ламинат</Link></li>
-                <li><Link href="/catalog" className="text-[12px] font-bold text-white/70 hover:text-white transition-colors">Паркетная доска</Link></li>
-                <li><Link href="/catalog" className="text-[12px] font-bold text-white/70 hover:text-white transition-colors">Двери</Link></li>
-                <li><Link href="/catalog" className="text-[12px] font-bold text-white/70 hover:text-white transition-colors">Плинтус</Link></li>
+                <li><Link href="/catalog" className="text-[12px] font-bold text-white/70 hover:text-white transition-colors">{t("laminate", "Ламинат")}</Link></li>
+                <li><Link href="/catalog" className="text-[12px] font-bold text-white/70 hover:text-white transition-colors">{t("parquet_board", "Паркетная доска")}</Link></li>
+                <li><Link href="/catalog" className="text-[12px] font-bold text-white/70 hover:text-white transition-colors">{t("doors", "Двери")}</Link></li>
+                <li><Link href="/catalog" className="text-[12px] font-bold text-white/70 hover:text-white transition-colors">{t("plinth", "Плинтус")}</Link></li>
               </ul>
             </div>
             <div>
-              <h4 className="text-[10px] font-black uppercase text-white/40 tracking-[0.2em] mb-5">Компания</h4>
+              <h4 className="text-[10px] font-black uppercase text-white/40 tracking-[0.2em] mb-5">{t("company", "Компания")}</h4>
               <ul className="space-y-3">
-                <li><Link href="/about" className="text-[12px] font-bold text-white/70 hover:text-white transition-colors">О нас</Link></li>
-                <li><Link href="/showrooms" className="text-[12px] font-bold text-white/70 hover:text-white transition-colors">Шоу-румы</Link></li>
-                <li><Link href="/delivery" className="text-[12px] font-bold text-white/70 hover:text-white transition-colors">Доставка и оплата</Link></li>
-                <li><Link href="/warranty" className="text-[12px] font-bold text-white/70 hover:text-white transition-colors">Гарантия и возврат</Link></li>
-                <li><Link href="/installment" className="text-[12px] font-bold text-white/70 hover:text-white transition-colors">Рассрочка</Link></li>
-                <li><Link href="/faq" className="text-[12px] font-bold text-white/70 hover:text-white transition-colors">Вопросы и ответы</Link></li>
+                <li><Link href="/about" className="text-[12px] font-bold text-white/70 hover:text-white transition-colors">{t("about_us", "О нас")}</Link></li>
+                <li><Link href="/showrooms" className="text-[12px] font-bold text-white/70 hover:text-white transition-colors">{t("showrooms", "Шоу-румы")}</Link></li>
+                <li><Link href="/delivery" className="text-[12px] font-bold text-white/70 hover:text-white transition-colors">{t("delivery_payment", "Доставка и оплата")}</Link></li>
+                <li><Link href="/warranty" className="text-[12px] font-bold text-white/70 hover:text-white transition-colors">{t("warranty_return", "Гарантия и возврат")}</Link></li>
+                <li><Link href="/installment" className="text-[12px] font-bold text-white/70 hover:text-white transition-colors">{t("installment", "Рассрочка")}</Link></li>
+                <li><Link href="/faq" className="text-[12px] font-bold text-white/70 hover:text-white transition-colors">{t("faq_qa", "Вопросы и ответы")}</Link></li>
               </ul>
             </div>
             <div className="col-span-2 sm:col-span-1">
-              <h4 className="text-[10px] font-black uppercase text-white/40 tracking-[0.2em] mb-5">Контакты</h4>
+              <h4 className="text-[10px] font-black uppercase text-white/40 tracking-[0.2em] mb-5">{t("contacts", "Контакты")}</h4>
               <div className="space-y-4">
                 <Link href={phoneUrl} className="block">
-                  <div className="text-[9px] font-bold text-white/30 uppercase mb-0.5">Телефон</div>
+                  <div className="text-[9px] font-bold text-white/30 uppercase mb-0.5">{t("phone", "Телефон")}</div>
                   <div translate="no" className="notranslate text-sm font-black text-white hover:text-white/80 transition-colors">{data.phone}</div>
                 </Link>
                 <Link href="/contacts" className="block">
-                  <div className="text-[9px] font-bold text-white/30 uppercase mb-0.5">Адрес</div>
+                  <div className="text-[9px] font-bold text-white/30 uppercase mb-0.5">{t("our_address", "Адрес")}</div>
                   <div className="text-[11px] font-bold text-white/80 hover:text-white transition-colors">{data.address}</div>
                 </Link>
               </div>
@@ -122,13 +124,13 @@ export function Footer() {
         {/* Minimal Bottom Bar */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="text-[10px] font-bold text-white/30">
-            © {currentYear} MAFF. Все права защищены.
+            © {currentYear} {t("copyright", "MAFF. Все права защищены.")}
           </div>
           <Link 
             href="#" 
             className="group flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 transition-all border border-white/5"
           >
-            <span className="text-[10px] font-bold text-white/30 group-hover:text-white transition-colors">Development by Pixel Studio</span>
+            <span className="text-[10px] font-bold text-white/30 group-hover:text-white transition-colors">{t("site_development", "Разработка сайта")} by Pixel Studio</span>
             <ArrowUpRight className="w-3 h-3 text-white/40 group-hover:text-white" />
           </Link>
         </div>

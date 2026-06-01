@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import localFont from "next/font/local";
 import "./globals.css";
 import { APP_CONFIG } from "@/constants";
@@ -6,6 +7,8 @@ import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { ShopProvider } from "@/context/shop-context";
 import { ThemeProvider } from "@/context/theme-context";
+import { TranslationProvider } from "@/context/translation-context";
+import { cookies } from "next/headers";
 
 const evolventa = localFont({
   src: [
@@ -100,13 +103,16 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const cookieStore = await cookies();
+  const lang = cookieStore.get("maff_lang")?.value || "ru";
+
   return (
-    <html lang="ru" className={evolventa.variable} suppressHydrationWarning data-scroll-behavior="smooth">
+    <html lang={lang} className={evolventa.variable} suppressHydrationWarning data-scroll-behavior="smooth">
       <head>
         <script dangerouslySetInnerHTML={{
           __html: `
@@ -138,17 +144,46 @@ export default function RootLayout({
             })();
           `,
         }} />
+
+        {/* Yandex.Metrika */}
+        <Script id="yandex-metrika" strategy="afterInteractive">
+          {`
+            (function(m,e,t,r,i,k,a){
+              m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+              m[i].l=1*new Date();
+              for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
+              k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)
+            })(window, document,'script','https://mc.webvisor.org/metrika/tag_ww.js', 'ym');
+            ym(55899643, 'init', {webvisor:true, clickmap:true, ecommerce:"dataLayer", referrer: document.referrer, url: location.href, accurateTrackBounce:true, trackLinks:true});
+          `}
+        </Script>
+        <noscript>
+          <div><img src="https://mc.yandex.ru/watch/55899643" style={{position:'absolute', left:'-9999px'}} alt="" /></div>
+        </noscript>
+
+        {/* Google Analytics */}
+        <Script src="https://www.googletagmanager.com/gtag/js?id=G-ERYZCEFEJS" strategy="afterInteractive" />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-ERYZCEFEJS');
+          `}
+        </Script>
       </head>
       <body className="antialiased transition-colors duration-300 bg-[var(--bg)] text-[var(--text-primary)]">
-        <ThemeProvider>
-          <ShopProvider>
-            <Header />
-            <main>
-              {children}
-            </main>
-            <Footer />
-          </ShopProvider>
-        </ThemeProvider>
+        <TranslationProvider>
+          <ThemeProvider>
+            <ShopProvider>
+              <Header />
+              <main>
+                {children}
+              </main>
+              <Footer />
+            </ShopProvider>
+          </ThemeProvider>
+        </TranslationProvider>
       </body>
     </html>
   );

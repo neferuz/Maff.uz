@@ -251,8 +251,8 @@ export default function ProductPageClient({ params }: { params: { slug: string }
   }
 
   const doorLeafPrice = product.price_outlet || product.price || 0;
-  const boxPrice = (includeBox && selectedBox) ? (selectedBox.price || 234000) : (accessories.boxes && accessories.boxes.length > 0 ? accessories.boxes[0].price : 234000);
-  const trimPrice = (includeTrim && selectedTrim) ? (selectedTrim.price || 143000) : (accessories.trims && accessories.trims.length > 0 ? accessories.trims[0].price : 143000);
+  const boxPrice = (includeBox && selectedBox) ? (selectedBox.price || 0) : (accessories.boxes && accessories.boxes.length > 0 ? accessories.boxes[0].price : 0);
+  const trimPrice = (includeTrim && selectedTrim) ? (selectedTrim.price || 0) : (accessories.trims && accessories.trims.length > 0 ? accessories.trims[0].price : 0);
 
   const packSize = product.packSize;
   const pricePerM2 = product.pricePerM2;

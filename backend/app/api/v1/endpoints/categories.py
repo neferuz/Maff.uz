@@ -1,5 +1,5 @@
 from typing import Any, List
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api import deps
@@ -11,6 +11,7 @@ router = APIRouter()
 
 @router.get("", response_model=List[Category])
 async def read_categories(
+    request: Request,
     db: AsyncSession = Depends(deps.get_db),
     skip: int = 0,
     limit: int = 1000,
@@ -73,6 +74,12 @@ async def read_categories(
         }
         result.append(c_dict)
         
+    from app.services.translation import get_locale_from_request, get_translations_bulk
+    from app.core.config import settings
+    lang = get_locale_from_request(request)
+    if lang and lang != "ru":
+        await get_translations_bulk(db, "category", result, ["name", "description"], lang, settings.CLAUDE_API_KEY)
+
     return result
 
 @router.post("/sync")

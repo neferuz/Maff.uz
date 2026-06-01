@@ -57,6 +57,23 @@ export function ProductCard({
 
   const unit = isDoor ? "шт" : getProductUnit(title, brand);
 
+  // Dynamic specifications builder
+  const specs = [];
+  if (brand && brand.trim() !== "" && brand.trim() !== "MAFF" && !/^[0-9a-f-]{36}$/.test(brand)) {
+    specs.push({ label: "Бренд", value: brand });
+  }
+  if (country && country.trim() !== "" && country.trim() !== "Европа") {
+    specs.push({ label: "Страна", value: country });
+  }
+  if (!isDoor) {
+    if (grade && grade.trim() !== "" && grade.trim() !== "Premium" && grade.trim() !== "Premium класс") {
+      specs.push({ label: "Класс", value: grade });
+    }
+    if (thickness && thickness.trim() !== "" && thickness.trim() !== "8мм") {
+      specs.push({ label: "Толщина", value: thickness });
+    }
+  }
+
   const getNumericPrice = (p: string | number) => {
     if (typeof p === 'number') return p;
     return parseInt(p.replace(/\s/g, "")) || 0;
@@ -115,7 +132,7 @@ export function ProductCard({
                  Под заказ
               </div>
               <div className="px-2 py-1 bg-white/95 dark:bg-slate-900/95 text-slate-900 dark:text-slate-100 backdrop-blur-md rounded-md border border-slate-200/80 dark:border-slate-800/80 text-[8px] lg:text-[10px] font-black tracking-wider">
-                 От {Math.round(priceOutlet || getNumericPrice(price)).toLocaleString('ru-RU')} сум
+                 {(priceOutlet || getNumericPrice(price)) > 0 ? `От ${Math.round(priceOutlet || getNumericPrice(price)).toLocaleString('ru-RU')} сум` : "Цена по запросу"}
               </div>
             </>
           )}
@@ -177,20 +194,26 @@ export function ProductCard({
       <div className="px-1 lg:px-2 pb-1 lg:pb-2 flex flex-col flex-grow">
         <h3 className="text-[11px] lg:text-sm font-black text-slate-900 dark:text-white mb-2 lg:mb-4 leading-tight truncate">{title}</h3>
         
-        <div className="space-y-1 lg:space-y-1.5 mb-3 lg:mb-6">
-          <div className="flex items-center justify-between text-[8px] lg:text-[10px]">
-            <span className="text-slate-400 dark:text-slate-500 font-medium tracking-tight">Страна:</span>
-            <span className="text-slate-900 dark:text-slate-300 font-black">{country}</span>
+        {specs.length > 0 ? (
+          <div className="space-y-1 lg:space-y-1.5 mb-3 lg:mb-6">
+            {specs.slice(0, 3).map((spec, idx) => (
+              <div key={idx} className="flex items-center justify-between text-[8px] lg:text-[10px]">
+                <span className="text-slate-400 dark:text-slate-500 font-medium tracking-tight">{spec.label}:</span>
+                <span className="text-slate-900 dark:text-slate-300 font-black truncate max-w-[125px]" title={spec.value}>{spec.value}</span>
+              </div>
+            ))}
+            {/* Filler lines to keep card heights visually aligned when specs are fewer than 3 */}
+            {specs.length < 3 && Array.from({ length: 3 - specs.length }).map((_, i) => (
+              <div key={`filler-${i}`} className="h-3 lg:h-3.5 opacity-0 select-none pointer-events-none" />
+            ))}
           </div>
-          <div className="flex items-center justify-between text-[8px] lg:text-[10px]">
-            <span className="text-slate-400 dark:text-slate-500 font-medium tracking-tight">Бренд:</span>
-            <span className="text-slate-900 dark:text-slate-300 font-black">{brand}</span>
+        ) : (
+          <div className="space-y-1 lg:space-y-1.5 mb-3 lg:mb-6">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={`filler-${i}`} className="h-3 lg:h-3.5 opacity-0 select-none pointer-events-none" />
+            ))}
           </div>
-          <div className="flex items-center justify-between text-[8px] lg:text-[10px]">
-            <span className="text-slate-400 dark:text-slate-500 font-medium tracking-tight">Класс:</span>
-            <span className="text-slate-900 dark:text-slate-300 font-black">{grade}</span>
-          </div>
-        </div>
+        )}
 
         <div className="mt-auto space-y-1.5 lg:space-y-2">
           {(isOrderOnly || isPreorder) ? (
@@ -233,7 +256,9 @@ export function ProductCard({
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center">
-                <span className="text-[11px] lg:text-[13px] font-black text-slate-900 dark:text-white leading-none">{getDisplayPrice(price)} сум</span>
+                <span className="text-[11px] lg:text-[13px] font-black text-slate-900 dark:text-white leading-none">
+                  {price > 0 ? `${getDisplayPrice(price)} сум` : "Цена по запросу"}
+                </span>
               </div>
             )}
           </div>

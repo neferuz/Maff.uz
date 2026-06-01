@@ -27,6 +27,8 @@ class Settings(BaseSettings):
 
     ONE_C_BASE_URL: str
     ONE_C_API_TOKEN: str
+    CLAUDE_API_KEY: str
+    CLAUDE_MODEL: str = "claude-sonnet-4-6"
 
     model_config = SettingsConfigDict(case_sensitive=True, env_file=".env")
 

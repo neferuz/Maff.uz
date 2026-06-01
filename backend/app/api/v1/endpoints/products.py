@@ -1,5 +1,5 @@
 from typing import Any, List
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api import deps
 from app.schemas.product import Product, ProductCreate, ProductUpdate, ProductDetail
@@ -11,6 +11,7 @@ router = APIRouter()
 
 @router.get("", response_model=List[Product])
 async def read_products(
+    request: Request,
     db: AsyncSession = Depends(deps.get_db),
     skip: int = 0,
     limit: int = 10000,
@@ -51,11 +52,27 @@ async def read_products(
         query = query.filter(ProductModel.is_active != False)
         
     result = await db.execute(query.offset(skip).limit(limit))
-    return result.scalars().all()
+    products = result.scalars().all()
+    
+    from app.services.translation import get_locale_from_request, get_translations_bulk
+    from app.core.config import settings
+    lang = get_locale_from_request(request)
+    if lang and lang != "ru":
+        await get_translations_bulk(
+            db, 
+            "product", 
+            products, 
+            ["name", "unit", "brand", "country", "grade", "thickness"], 
+            lang, 
+            settings.CLAUDE_API_KEY
+        )
+        
+    return products
 
 @router.get("/{id}", response_model=ProductDetail)
 async def read_product(
     id: int,
+    request: Request,
     db: AsyncSession = Depends(deps.get_db),
 ) -> Any:
     """
@@ -64,6 +81,20 @@ async def read_product(
     product = await product_crud.get(db, id=id)
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
+        
+    from app.services.translation import get_locale_from_request, get_translations_bulk
+    from app.core.config import settings
+    lang = get_locale_from_request(request)
+    if lang and lang != "ru":
+        await get_translations_bulk(
+            db, 
+            "product", 
+            [product], 
+            ["name", "description", "unit", "brand", "country", "grade", "thickness"], 
+            lang, 
+            settings.CLAUDE_API_KEY
+        )
+        
     return product
 
 @router.post("/sync")
@@ -289,14 +320,321 @@ async def perform_sync(db: AsyncSession):
             
         stock = max(0.0, stock_map.get(ref_key, 0))
         category_id = cat_map.get(parent_key)
-        if not category_id:
-            name_upper = (name or "").upper()
+        
+        # Override for EGGER products: map to leaf categories instead of generic categories 101/397 or None
+        name_upper = (name or "").upper()
+        sku_upper = (sku or "").upper()
+        desc_val = item.get("Описание") or ""
+        desc_upper = desc_val.upper()
+        
+        is_egger = (
+            "EGGER" in name_upper or "EGER" in name_upper or 
+            "EGGER" in desc_upper or "EGER" in desc_upper or
+            sku_upper.startswith("EPL") or sku_upper.startswith("EHL") or 
+            sku_upper.startswith("EBL") or sku_upper.startswith("EL") or
+            " lp_8mm_34kl_faska_el" in (" " + sku_upper.lower())
+        )
+        
+        if is_egger or category_id in (101, 397):
+            # Rule 1: EverSense (category ID 370)
+            if "EVERSENSE" in name_upper or "EVERSENSE" in desc_upper or sku_upper.startswith("EL") or "EL10" in sku_upper or "EL21" in sku_upper or "EL750" in sku_upper or " lp_8mm_34kl_faska_el" in (" " + sku_upper.lower()):
+                category_id = 370
+            # Rule 2: Basic (category ID 102)
+            elif "EBL" in sku_upper or "BASIC" in name_upper or "BASIC" in desc_upper:
+                category_id = 102
+            # Rule 3: EGGER Home (category ID 397)
+            elif "EHL" in sku_upper or "EGGER HOME" in desc_upper or "EGER HOME" in desc_upper:
+                category_id = 397
+            # Rule 4: EGGER Pro (EPL)
+            elif "EPL" in sku_upper or "EGGER PRO" in desc_upper or "EGER PRO" in desc_upper:
+                is_aqua = "AQUA" in name_upper or "AQUA" in desc_upper or "АКВА" in name_upper or "АКВА" in desc_upper or "AKVA" in name_upper or "AKVA" in desc_upper
+                is_large = "LARGE" in name_upper or "LARGE" in desc_upper or "ЛАРДЖ" in name_upper or "ЛАРДЖ" in desc_upper or "ЛАДЖ" in name_upper or "ЛАДЖ" in desc_upper
+                
+                if is_aqua:
+                    if is_large:
+                        category_id = 103  # Large Aqua
+                    else:
+                        category_id = 105  # Classic Aqua
+                else:
+                    if is_large:
+                        category_id = 106  # Large
+                    else:
+                        category_id = 104  # Classic
+            else:
+                if not category_id or category_id == 101:
+                    category_id = 397
+        
+        # Override for Door products: map to specific leaf collections instead of Zadoor or None
+        is_door = any(kw in name_upper for kw in [
+            'ПОЛОТНО', 'ДВЕРЬ', 'ДВЕРН', 'КОРОБ', 'НАЛИЧНИК', 'ДОБОР', 'СТОЕВ', 'ПРИТВОРН',
+            'ФАЛЬШ-ФРАМУГА', 'СТОЙКИ ДЛЯ ДВЕРЕЙ', 'ФРАМУГА', 'FILOMURO', 'КВАДРО', 
+            'ВЕНЕЦИЯ', 'НЕАПОЛЬ', 'ТУРИН', 'ПОРТА', 'ZADOOR', 'PORTIKA', 'ВОЛХОВЕЦ', 'КВАЛИТЕТ', 'KVALITET'
+        ])
+        is_flooring_sample = any(kw in name_upper for kw in [
+            'ЩИТ РЕКЛ', 'ПЛАНШЕТ РЕКЛАМНЫЙ', 'СТЕНД TAR', 'СТЕНД SWISS', 'СТЕНД KRONO', 
+            'СТЕНД AGT', 'СТЕНД JB', 'СТЕНД EGGER', 'КАТАЛОГ ПАРКЕТА', 'ОБРАЗЦЫ TAR', 'ОБРАЗЦЫ COS'
+        ])
+        is_door = is_door and not is_flooring_sample
+
+        if is_door and (not category_id or category_id in (174, 176, 323, 328, 357)):
+            import re
+            model_match = re.search(r'(?:ПОЛОТНО ДВ\.|ПОЛОТНО)\s+(\d{3,4})', name_upper)
+            model_num = model_match.group(1) if model_match else ""
             
+            is_volkhovets = False
+            v_cat_id = None
+            
+            # 1. Rocca (ID 337)
+            if "ROCCA" in name_upper or (model_num and model_num.startswith("83")):
+                v_cat_id = 337
+                is_volkhovets = True
+            # 2. Antique (ID 335)
+            elif "ANTIQUE" in name_upper or (model_num and (model_num.startswith("73") or model_num.startswith("71"))):
+                v_cat_id = 335
+                is_volkhovets = True
+            # 3. Mascot (ID 334)
+            elif "MASCOT" in name_upper or (model_num and (model_num.startswith("84") or model_num.startswith("85"))):
+                v_cat_id = 334
+                is_volkhovets = True
+            # 4. Neo Classic (ID 344)
+            elif "NEO CLASSIC" in name_upper or "NEOCLASSICO" in name_upper:
+                v_cat_id = 344
+                is_volkhovets = True
+            # 5. Neo (ID 340)
+            elif "NEO" in name_upper or (model_num and model_num.startswith("21")):
+                v_cat_id = 340
+                is_volkhovets = True
+            # 6. Galant (ID 345)
+            elif "GALANT" in name_upper or (model_num and model_num.startswith("14")):
+                v_cat_id = 345
+                is_volkhovets = True
+            # 7. Paris (ID 331)
+            elif "PARIS" in name_upper or (model_num and model_num.startswith("81")):
+                v_cat_id = 331
+                is_volkhovets = True
+            # 8. Centro (ID 349)
+            elif "CENTRO" in name_upper or (model_num and model_num.startswith("25")):
+                v_cat_id = 349
+                is_volkhovets = True
+            # 9. Toscana (ID 329)
+            elif "TOSCANA" in name_upper or (model_num and model_num.startswith("6")):
+                v_cat_id = 329
+                is_volkhovets = True
+            # 10. Wall-door (ID 353)
+            elif "WALL DOOR" in name_upper or "WALL-DOOR" in name_upper:
+                v_cat_id = 353
+                is_volkhovets = True
+            # 11. Planum Pro (ID 330)
+            elif "PLANUM PRO" in name_upper:
+                v_cat_id = 330
+                is_volkhovets = True
+            # 12. Planum (ID 346)
+            elif "PLANUM" in name_upper or model_num in ("0010", "0015", "0020"):
+                v_cat_id = 346
+                is_volkhovets = True
+            # 13. Charm (ID 350)
+            elif "CHARM" in name_upper or (model_num and model_num.startswith("80")):
+                v_cat_id = 350
+                is_volkhovets = True
+            # 14. Ego (ID 341)
+            elif "EGO" in name_upper or (model_num and model_num.startswith("42")):
+                v_cat_id = 341
+                is_volkhovets = True
+            # 15. Esse (ID 332)
+            elif "ESSE" in name_upper or (model_num and model_num.startswith("33")):
+                v_cat_id = 332
+                is_volkhovets = True
+            # 16. Formato (ID 333)
+            elif "FORMATO" in name_upper or (model_num and model_num.startswith("040")):
+                v_cat_id = 333
+                is_volkhovets = True
+            # 17. Freedom (ID 336)
+            elif "FREEDOM" in name_upper or (model_num and model_num.startswith("77")):
+                v_cat_id = 336
+                is_volkhovets = True
+            # 18. Imperial (ID 338)
+            elif "IMPERIAL" in name_upper or (model_num and model_num.startswith("38")):
+                v_cat_id = 338
+                is_volkhovets = True
+            # 19. Lignum (ID 339)
+            elif "LIGNUM" in name_upper or (model_num and model_num.startswith("39")):
+                v_cat_id = 339
+                is_volkhovets = True
+            # 20. Linea (ID 342)
+            elif "LINEA" in name_upper or (model_num and model_num.startswith("34")):
+                v_cat_id = 342
+                is_volkhovets = True
+            # 21. Rift (ID 343)
+            elif "RIFT" in name_upper or (model_num and model_num.startswith("43")):
+                v_cat_id = 343
+                is_volkhovets = True
+            # 22. Velvet (ID 347)
+            elif "VELVET" in name_upper:
+                v_cat_id = 347
+                is_volkhovets = True
+            # 23. Generic Волховец
+            elif "ВОЛХОВЕЦ" in name_upper:
+                v_cat_id = 328
+                is_volkhovets = True
+                
+            if is_volkhovets:
+                category_id = v_cat_id
+            else:
+                # Zadoor / Portika / other doors rules
+                is_portika = "PORTIKA" in name_upper or "ПОРТИКА" in name_upper or "ПОРТА-" in name_upper or "ПОРТА " in name_upper or "PORTA" in name_upper
+                
+                if is_portika:
+                    category_id = 323  # Portika
+                elif "SP51" in name_upper:
+                    category_id = 212
+                elif "SP57" in name_upper:
+                    category_id = 213
+                elif "SP64" in name_upper:
+                    category_id = 214
+                elif "SP66" in name_upper:
+                    category_id = 183
+                elif "SP63" in name_upper or "SP67" in name_upper or "SP" in name_upper:
+                    category_id = 355
+                elif "ELEN" in name_upper:
+                    category_id = 190
+                elif "FILOMURO" in name_upper:
+                    category_id = 189
+                elif "КВАЛИТЕТ" in name_upper or "TOPAN" in name_upper or "TOPPAN" in name_upper or "KVALITET" in name_upper:
+                    if "K11 ALU BLACK" in name_upper or "К11 ALU BLACK" in name_upper or ("K11" in name_upper and "BLACK" in name_upper) or ("К11" in name_upper and "BLACK" in name_upper):
+                        category_id = 185
+                    elif "K11" in name_upper or "К11" in name_upper:
+                        category_id = 184
+                    elif "K2" in name_upper or "К2" in name_upper:
+                        category_id = 186
+                    elif "K7" in name_upper or "К7" in name_upper:
+                        category_id = 187
+                    elif "K15" in name_upper or "К15" in name_upper:
+                        category_id = 380
+                    elif "K14" in name_upper or "К14" in name_upper:
+                        category_id = 381
+                    elif "K13" in name_upper or "К13" in name_upper:
+                        category_id = 382
+                    else:
+                        category_id = 357
+                elif "ВЕНЕЦИЯ" in name_upper or "VENICE" in name_upper:
+                    if any(k in name_upper for k in ["ПГ В4", "ПГ В-4", "ПГ B4", "ПГ B-4"]):
+                        category_id = 194
+                    elif any(k in name_upper for k in ["ПГ В5.3", "ПГ В-5.3", "ПГ B5.3", "ПГ B-5.3"]):
+                        category_id = 195
+                    elif any(k in name_upper for k in ["ПО В5.3", "ПО В-5.3", "ПО B5.3", "ПО B-5.3"]):
+                        category_id = 197
+                    elif "ПО САТИНАТО С РАМКОЙ" in name_upper or "САТИНАТО С РАМКОЙ" in name_upper or "САТИНАТО" in name_upper:
+                        category_id = 196
+                    else:
+                        category_id = 191
+                elif "НЕАПОЛЬ" in name_upper or "NEAPOL" in name_upper:
+                    if any(k in name_upper for k in ["ПГ В1", "ПГ В-1", "ПГ B1", "ПГ B-1"]):
+                        category_id = 385
+                    elif any(k in name_upper for k in ["ПГ В3", "ПГ В-3", "ПГ B3", "ПГ B-3"]):
+                        category_id = 198
+                    elif any(k in name_upper for k in ["ПО АК2", "ПО АК-2", "ПО AK2", "ПО AK-2", "ПО АК 2", "ПО AK 2"]):
+                        category_id = 384
+                    elif "ПО АНГЛИЙСКАЯ КЛАССИКА 2" in name_upper or "АК2" in name_upper or "АК 2" in name_upper:
+                        category_id = 202
+                    elif "ПО АНГЛИЙСКАЯ КЛАССИКА" in name_upper or "АК" in name_upper:
+                        category_id = 203
+                    elif any(k in name_upper for k in ["ПО В3", "ПО В-3", "ПО B3", "ПО B-3"]):
+                        category_id = 199
+                    else:
+                        category_id = 192
+                elif "ТУРИН" in name_upper or "TURIN" in name_upper:
+                    if any(k in name_upper for k in ["ПО В4", "ПО В-4", "ПО B4", "ПО B-4"]):
+                        category_id = 201
+                    elif any(k in name_upper for k in ["ПГ В4", "ПГ В-4", "ПГ B4", "ПГ B-4"]):
+                        category_id = 200
+                    else:
+                        category_id = 200
+                elif "BAGUETTE" in name_upper or "БАГЕТ" in name_upper:
+                    category_id = 191
+                elif "ZADOOR-S" in name_upper or "ZADOOR S" in name_upper or "S-21" in name_upper or "S -21" in name_upper or "S-23" in name_upper or "S-25" in name_upper or "S-26" in name_upper:
+                    category_id = 383
+                else:
+                    category_id = 176 # Generic Zadoor
+
+        if not category_id:
+            # 0.5 Swiss Krono & Bosco & Kronopol keyword overrides
+            if 'CASPIAN' in name_upper:
+                category_id = 318
+            elif 'ECOLOGIK' in name_upper:
+                category_id = 319
+            elif 'FANAT' in name_upper:
+                category_id = 320
+            elif 'SYNCHROPOLIS' in name_upper:
+                category_id = 407
+            elif 'ARTO' in name_upper:
+                category_id = 65
+            elif 'BOSCO' in name_upper:
+                category_id = 131
+            elif 'GROTESK' in name_upper:
+                category_id = 371
+            elif 'COMPLIMENT' in name_upper:
+                category_id = 386
+            elif 'HOMESTANDART' in name_upper or 'HOMESTANDARD' in name_upper:
+                category_id = 387
+            elif 'BIOM' in name_upper:
+                # Exclude Biomio floor cleaning agent
+                if 'BIOMIO' not in name_upper and 'СРЕДСТВО' not in name_upper:
+                    category_id = 401
+            elif 'MAGISTER' in name_upper:
+                category_id = 321
+            elif 'INFINITY' in name_upper:
+                category_id = 392
+            elif 'VOLO' in name_upper:
+                category_id = 393
+            elif 'HERRINGBONE' in name_upper and 'ХЕРРИНГБОН' not in name_upper:
+                category_id = 358
+            elif 'WPC' in name_upper:
+                category_id = 399
+            elif 'STIMUL' in name_upper:
+                category_id = 377
+            
+            # 0.7 Specific handles and thresholds mapping (runs before general name matching to avoid false name hits like Arbiton "VEGA" plinths)
+            if any(kw in name_upper for kw in ['Д.РУЧКА', 'ДВЕРНАЯ РУЧКА', 'РУЧК', 'РУЧКА', 'РУЧКИ']):
+                system_models = {
+                    'PIXAR': 144, 'AXEL': 145, 'AGATE': 146, 'MIMAS': 147, 'METIS': 148,
+                    'CONCORDIA': 149, 'SARP': 150, 'MARVEL': 151, 'AKIK': 152, 'DESPINA': 155,
+                    'ODIN': 156, 'ZETTA': 157, 'GAMMA': 158, 'VEGA': 159, 'SINUS': 160,
+                    'ROCCA': 161, 'PRIZMA': 162, 'RODIN': 163, 'ROCKET': 164, 'SPINAL': 165,
+                    'MAJA': 166, 'CARME': 167, 'LINEAR': 168, 'STARK': 169, 'JASPER': 170,
+                    'VISION': 171, 'LIBRA': 172
+                }
+                model_cid = None
+                for model_kw, cid in system_models.items():
+                    if model_kw in name_upper:
+                        model_cid = cid
+                        break
+                category_id = model_cid or cat_name_map.get('РУЧКИ SYSTEM') or cat_name_map.get('РУЧКИ')
+            elif any(kw in name_upper for kw in ['СТЫК', 'УГОЛ', 'КАНТ ', 'ПОРОГ', 'ПОР0', 'КРЕПЕЖ']):
+                if 'КАНТ' in name_upper and 'ПОЛУК' in name_upper:
+                    if '0,9' in name_upper or '0.9' in name_upper:
+                        category_id = 219
+                    elif '1,8' in name_upper or '1.8' in name_upper:
+                        category_id = 220
+                elif 'КРЕПЕЖ' in name_upper and ('2,7' in name_upper or '2.7' in name_upper):
+                    category_id = 222
+                elif 'СТЫК' in name_upper and 'Т-ОБРАЗН' in name_upper and '20' in name_upper:
+                    if '0,9' in name_upper or '0.9' in name_upper:
+                        category_id = 230
+                elif 'УГОЛ' in name_upper and '25' in name_upper:
+                    if '0,9' in name_upper or '0.9' in name_upper:
+                        category_id = 233
+                    elif '1,8' in name_upper or '1.8' in name_upper:
+                        category_id = 234
+                
+                if not category_id:
+                    category_id = cat_name_map.get('РУССКИЙ ПРОФИЛЬ') or cat_name_map.get(' ПОРОГИ')
+
             # 1. Try Russian synonym matching first (most specific first)
-            for syn_keyword, syn_cat_id in sorted_synonyms:
-                if syn_keyword in name_upper:
-                    category_id = syn_cat_id
-                    break
+            if not category_id:
+                for syn_keyword, syn_cat_id in sorted_synonyms:
+                    if syn_keyword in name_upper:
+                        category_id = syn_cat_id
+                        break
             
             # 2. Try comprehensive name-based matching (most specific category name first)
             if not category_id:
@@ -371,34 +709,23 @@ async def perform_sync(db: AsyncSession):
                 # "Коробка" / "Наличник" / "Доборный" / "Полотно" / "Стоевая" / "Притворная" -> Двери ZADOOR (accessories/leaves)
                 elif any(kw in name_upper for kw in ['КОРОБКА', 'НАЛИЧНИК', 'ДОБОРНЫЙ', 'ПОЛОТНО', 'СТОЕВ', 'ПРИТВОРН', 'НЕОКЛАССИКО', 'NEOCLASSICO', 'НЕАПОЛЬ', 'ФАЛЬШ-ФРАМУГА', 'СТОЙКИ ДЛЯ ДВЕРЕЙ', 'ФРАМУГА']):
                     category_id = cat_name_map.get('ДВЕРИ ZADOOR') or cat_name_map.get('ДВЕРИ')
-                
-                # --- Handles / Door Hardware ---
-                elif any(kw in name_upper for kw in ['Д.РУЧКА', 'ДВЕРНАЯ РУЧКА', 'РУЧК', 'РУЧКА', 'РУЧКИ']):
-                    category_id = cat_name_map.get('РУЧКИ SYSTEM') or cat_name_map.get('РУЧКИ')
-                elif any(kw in name_upper for kw in ['ПЕТЛ', 'ПЕТЛИ', 'ПЕТЛЯ', 'ЗАМОК', 'ЗАВЕРТКА', 'ЦИЛИНДР', 'ДВЕРНОЙ СТОППЕР', 'СТОППЕР', 'УПОР', 'МАГНИТНЫЙ МЕХАНИЗМ', 'ОТВЕТНАЯ ПЛАНКА', 'НАКЛАДКА', 'STOPPINO', 'ЗАЩЕЛК', 'ЗАЩЁЛК', 'КОРПУС', 'ОГРАНИЧИТЕЛ']):
-                    category_id = cat_name_map.get('РУЧКИ') or cat_name_map.get('ДВЕРИ')
-                elif 'AGB' in name_upper and any(kw in name_upper for kw in ['KNOB', 'KEY', 'СЕРДЦЕВИНА', 'ЗАМОК', 'ПЕТЛ', 'РУЧК', 'НАКЛАДКА', 'ЗАЩЕЛК', 'КОРПУС']):
-                    category_id = cat_name_map.get('РУЧКИ')
-                elif 'CK ' in name_upper or 'CK-' in name_upper:
-                    category_id = cat_name_map.get('РУЧКИ')
-                
-                # --- Thresholds / Profiles ---
-                elif any(kw in name_upper for kw in ['СТЫК', 'УГОЛ ', 'КАНТ ПОЛУК', 'ШИРОКИЙ СТЫК', 'ПОРОГ', 'ПОР0']):
-                    category_id = cat_name_map.get('РУССКИЙ ПРОФИЛЬ') or cat_name_map.get(' ПОРОГИ')
-                elif name_upper.startswith('38ММ ') or name_upper.startswith('ПРОФИЛЬ') or name_upper.startswith('ПОРОГ ') or name_upper.startswith('ПОР0 '):
-                    category_id = cat_name_map.get('РУССКИЙ ПРОФИЛЬ') or cat_name_map.get(' ПОРОГИ')
-                
                 # --- Underlay ---
                 elif 'ПОДЛОЖКА' in name_upper:
-                    category_id = cat_name_map.get('ПОДЛОЖКА ПОД ПАРКЕТ И ЛАМИНАТ ') or cat_name_map.get('ПОДЛОЖКА ПОД ПАРКЕТ И ЛАМИНАТ')
+                    if 'ПРОБКА' in name_upper or 'ПРОБКОВ' in name_upper:
+                        category_id = 215  # Подложка под паркет и ламинат Экопробка
+                    else:
+                        category_id = 126  # SOLID underlayment
                 
                 # --- OSB ---
                 elif 'OSB' in name_upper:
                     category_id = cat_name_map.get('OSB')
                 
                 # --- Parquet boards ---
-                elif 'ДОСКА ПАРКЕТНАЯ' in name_upper:
-                    category_id = cat_name_map.get('ПАРКЕТНАЯ ДОСКА')
+                elif 'ДОСКА ПАРКЕТНАЯ' in name_upper or 'ПАРКЕТНАЯ ДОСКА' in name_upper:
+                    if 'TARWOOD' in name_upper or 'ТАРВУД' in name_upper:
+                        category_id = 112
+                    else:
+                        category_id = 406
                     
                 # --- Plinths & Plinth Accessories ---
                 elif any(kw in name_upper for kw in ['ПЛИНТУС', 'АНТИПЛИНТУС', 'Модель-L', 'MODEL-L', 'МОДЕЛ-L', 'МОДЕЛЬ L']):
@@ -461,7 +788,7 @@ async def perform_sync(db: AsyncSession):
                     elif 'COSWICK' in name_upper:
                         category_id = 406
                     elif any(k in name_upper for k in ['ПАРКЕТ', 'ДУБ', 'ОРЕХ']):
-                        category_id = 8  # Паркетная доска
+                        category_id = 406  # Coswick
             
             # 7. Last resort: "ЛП" prefix -> general Laminate category
             if not category_id and name_upper.startswith('ЛП ') and laminate_cat_id:
@@ -512,6 +839,7 @@ async def perform_sync(db: AsyncSession):
                 db_obj.name = name
             if not db_obj.image_url:
                 db_obj.image_url = image_url
+            db_obj.is_active = True
             db.add(db_obj)
         else:
             # Create a new product object and add to session
@@ -565,6 +893,7 @@ async def delete_product(
 @router.get("/{id}/accessories")
 async def get_product_accessories(
     id: int,
+    request: Request,
     db: AsyncSession = Depends(deps.get_db),
 ) -> Any:
     """
@@ -637,6 +966,13 @@ async def get_product_accessories(
     trim_result = await db.execute(trim_query)
     trims = trim_result.scalars().all()
     
+    from app.services.translation import get_locale_from_request, get_translations_bulk
+    from app.core.config import settings
+    lang = get_locale_from_request(request)
+    if lang and lang != "ru":
+        await get_translations_bulk(db, "product", boxes, ["name"], lang, settings.CLAUDE_API_KEY)
+        await get_translations_bulk(db, "product", trims, ["name"], lang, settings.CLAUDE_API_KEY)
+
     return {
         "color": extracted_color,
         "boxes": [{"id": p.id, "name": p.name, "price": p.price, "sku": p.sku} for p in boxes],

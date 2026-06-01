@@ -20,6 +20,7 @@ import { CartDrawer } from "./cart-drawer";
 import { FavoritesDrawer } from "./favorites-drawer";
 import { useShop } from "@/context/shop-context";
 import { useTheme } from "@/context/theme-context";
+import { useTranslation } from "@/context/translation-context";
 import { usePathname, useRouter } from "next/navigation";
 
 /* ── Custom Social Icons (Safe for any Lucide version) ── */
@@ -196,58 +197,49 @@ export function Header() {
   const router = useRouter();
   const user: any = null;
 
-  const [currentLang, setCurrentLang] = useState("ru");
+  const { locale: currentLang, changeLanguage, t } = useTranslation();
   const [isLangOpen, setIsLangOpen] = useState(false);
 
-  useEffect(() => {
-    // 1. Try localStorage first for extremely reliable state persistence
-    const storedLang = typeof window !== 'undefined' ? localStorage.getItem("maff_lang") : null;
-    if (storedLang && ["ru", "uz", "en"].includes(storedLang)) {
-      setCurrentLang(storedLang);
-      return;
+  const uiKeys: Record<string, string> = {
+    "О компании": "about_company",
+    "Блог": "blog",
+    "Доставка и оплата": "delivery_payment",
+    "Гарантия и возврат": "warranty_return",
+    "Рассрочка": "installment",
+    "3D Визуализатор": "3d_visualizer",
+    "Каталог": "catalog",
+    "Шоурумы": "showrooms",
+    "Партнерам": "partners",
+    "Архитекторам": "architects",
+    "Дизайнерам": "designers",
+    "Застройщикам": "developers",
+    "Оптовикам": "wholesalers",
+    "Вопросы и ответы": "faq_qa",
+    "Аутлет": "outlet",
+    "Сертификаты": "certificates",
+    "Все категории": "all_categories",
+    "Поиск товаров...": "search_placeholder",
+    "Соцсети": "socials",
+    "Личный кабинет": "profile",
+    "Войти": "login",
+    "Смотреть всё": "view_all",
+    "Смотреть все": "view_all",
+    "категорий": "categories_count",
+    "Каталог товаров": "catalog_products",
+    "Сравнение товаров": "compare_products",
+    "Выберите категорию": "select_category",
+    "Сравнение": "compare",
+    "Избранное": "favorites",
+    "Корзина": "cart",
+  };
+
+  const getTranslation = (text: string) => {
+    const key = uiKeys[text];
+    if (key) {
+      return t(key, text);
     }
-
-    // 2. Fallback to robust parsing of googtrans cookie (handles multiple cookies, quotes, and URL encoding)
-    const getCookie = (name: string) => {
-      const value = `; ${document.cookie}`;
-      const parts = value.split(`; ${name}=`);
-      if (parts.length >= 2) {
-        const raw = parts.pop()?.split(';').shift();
-        if (raw) {
-          return decodeURIComponent(raw).replace(/['"]/g, "").trim();
-        }
-      }
-      return null;
-    };
-
-    const googtrans = getCookie("googtrans");
-    if (googtrans) {
-      const parts = googtrans.split("/");
-      const lang = parts[parts.length - 1];
-      if (["ru", "uz", "en"].includes(lang)) {
-        setCurrentLang(lang);
-        localStorage.setItem("maff_lang", lang);
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    (window as any).googleTranslateElementInit = () => {
-      new (window as any).google.translate.TranslateElement({
-        pageLanguage: 'ru',
-        includedLanguages: 'ru,uz,en',
-        autoDisplay: false
-      }, 'google_translate_element');
-    };
-
-    if (!document.getElementById("google-translate-script")) {
-      const script = document.createElement("script");
-      script.id = "google-translate-script";
-      script.src = "//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit";
-      script.async = true;
-      document.body.appendChild(script);
-    }
-  }, []);
+    return text;
+  };
 
   const handleLangChange = (lang: string) => {
     const host = window.location.hostname;
@@ -258,15 +250,7 @@ export function Header() {
     document.cookie = `googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${host};`;
     document.cookie = `googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${dotDomain};`;
     
-    if (lang !== "ru") {
-      document.cookie = `googtrans=/ru/${lang}; path=/;`;
-      document.cookie = `googtrans=/ru/${lang}; path=/; domain=${host};`;
-      document.cookie = `googtrans=/ru/${lang}; path=/; domain=${dotDomain};`;
-    }
-    
-    // Persist in localStorage to ensure the selector matches the actual choice
-    localStorage.setItem("maff_lang", lang);
-    window.location.reload();
+    changeLanguage(lang);
   };
 
   useEffect(() => {
@@ -376,11 +360,11 @@ export function Header() {
             <div className="flex items-center gap-6">
               {serviceLinks.map((link) => (
                 <Link key={link.label} href={link.href} className="text-[11px] font-medium hover:text-white transition-colors">
-                  {link.label}
+                  {getTranslation(link.label)}
                 </Link>
               ))}
               <Link href="/socials" className="text-[11px] font-medium hover:text-white transition-colors">
-                Соцсети
+                {getTranslation("Соцсети")}
               </Link>
             </div>
             <div className="flex items-center gap-6">
@@ -439,13 +423,13 @@ export function Header() {
             
             <div className="hidden lg:flex flex-grow items-center gap-4 max-w-3xl relative" ref={searchRef}>
               <button onClick={() => setIsCatalogOpen(!isCatalogOpen)} className={cn("flex items-center gap-3 px-6 py-3 rounded-full font-bold text-[14px] transition-all active:scale-95 shadow-none", isCatalogOpen ? "bg-[#1a1a1a] text-white" : "bg-[#2c3b6e] text-white")}>
-                {isCatalogOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}Каталог
+                {isCatalogOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}{getTranslation("Каталог")}
               </button>
               
               <div className="relative flex-grow group shadow-none">
                 <input 
                   type="text" 
-                  placeholder="Искать мебель, декор..." 
+                  placeholder={getTranslation("Поиск товаров...")} 
                   className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-full py-3.5 pl-12 pr-16 text-sm outline-none focus:bg-white dark:focus:bg-slate-800 focus:ring-4 focus:ring-[#2c3b6e]/5 transition-all shadow-none" 
                   onFocus={() => setSearchFocused(true)} 
                   value={searchQuery} 
@@ -501,28 +485,28 @@ export function Header() {
                   <BarChart2 className="w-5 h-5 lg:w-6 lg:h-6 text-slate-400 group-hover:text-[#2c3b6e] dark:group-hover:text-white transition-colors" strokeWidth={1.5} />
                   {compare.length > 0 && <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-[16px] bg-[#2c3b6e] text-white text-[9px] font-bold rounded-full flex items-center justify-center border-2 border-white dark:border-slate-900 shadow-none">{compare.length}</span>}
                 </div>
-                <div className="hidden lg:flex flex-col text-left"><span className="text-[9px] font-bold text-slate-400 group-hover:text-[#2c3b6e] dark:group-hover:text-white leading-none mb-0.5">Сравнение</span><span className={cn("text-[11px] font-bold leading-none", compare.length > 0 ? "text-slate-900 dark:text-white" : "text-slate-300 dark:text-slate-600")}>{compare.length > 0 ? `${compare.length}` : "—"}</span></div>
+                <div className="hidden lg:flex flex-col text-left"><span className="text-[9px] font-bold text-slate-400 group-hover:text-[#2c3b6e] dark:group-hover:text-white leading-none mb-0.5">{getTranslation("Сравнение")}</span><span className={cn("text-[11px] font-bold leading-none", compare.length > 0 ? "text-slate-900 dark:text-white" : "text-slate-300 dark:text-slate-600")}>{compare.length > 0 ? `${compare.length}` : "—"}</span></div>
               </Link>
               <button onClick={() => setIsFavoritesOpen(true)} className="group flex items-center gap-2.5 relative px-2 py-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-none">
                 <div className="relative">
                   <Heart className="w-5 h-5 lg:w-6 lg:h-6 text-slate-400 group-hover:text-[#2c3b6e] dark:group-hover:text-white transition-colors" strokeWidth={1.5} />
                   {favorites.length > 0 && <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-[16px] bg-[#2c3b6e] text-white text-[9px] font-bold rounded-full flex items-center justify-center border-2 border-white dark:border-slate-900 shadow-none">{favorites.length}</span>}
                 </div>
-                <div className="hidden lg:flex flex-col text-left"><span className="text-[9px] font-bold text-slate-400 group-hover:text-[#2c3b6e] dark:group-hover:text-white leading-none mb-0.5">Избранное</span><span className={cn("text-[11px] font-bold leading-none", favorites.length > 0 ? "text-slate-900 dark:text-white" : "text-slate-300 dark:text-slate-600")}>{favorites.length > 0 ? `${favorites.length}` : "—"}</span></div>
+                <div className="hidden lg:flex flex-col text-left"><span className="text-[9px] font-bold text-slate-400 group-hover:text-[#2c3b6e] dark:group-hover:text-white leading-none mb-0.5">{getTranslation("Избранное")}</span><span className={cn("text-[11px] font-bold leading-none", favorites.length > 0 ? "text-slate-900 dark:text-white" : "text-slate-300 dark:text-slate-600")}>{favorites.length > 0 ? `${favorites.length}` : "—"}</span></div>
               </button>
               <button onClick={() => setIsCartOpen(true)} className="group flex items-center gap-2.5 relative px-2 py-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-none">
                 <div className="relative">
                   <ShoppingBag className="w-5 h-5 lg:w-6 lg:h-6 text-slate-400 group-hover:text-[#2c3b6e] dark:group-hover:text-white transition-colors" strokeWidth={1.5} />
                   {cart.length > 0 && <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-[16px] bg-[#2c3b6e] text-white text-[9px] font-bold rounded-full flex items-center justify-center border-2 border-white dark:border-slate-900 shadow-none">{cart.length}</span>}
                 </div>
-                <div className="hidden lg:flex flex-col text-left"><span className="text-[9px] font-bold text-slate-400 group-hover:text-[#2c3b6e] dark:group-hover:text-white leading-none mb-0.5">Корзина</span><span className={cn("text-[11px] font-bold leading-none", cart.length > 0 ? "text-slate-900 dark:text-white" : "text-slate-300 dark:text-slate-600")}>{cart.length > 0 ? `${cart.length} ед.` : "—"}</span></div>
+                <div className="hidden lg:flex flex-col text-left"><span className="text-[9px] font-bold text-slate-400 group-hover:text-[#2c3b6e] dark:group-hover:text-white leading-none mb-0.5">{getTranslation("Корзина")}</span><span className={cn("text-[11px] font-bold leading-none", cart.length > 0 ? "text-slate-900 dark:text-white" : "text-slate-300 dark:text-slate-600")}>{cart.length > 0 ? `${cart.length} ед.` : "—"}</span></div>
               </button>
               <div className="hidden lg:block w-px h-10 bg-slate-100 dark:bg-slate-800 mx-1" />
               <div className="hidden lg:block"><ThemeToggle /></div>
               <div className="hidden lg:block w-px h-10 bg-slate-100 dark:bg-slate-800 mx-1" />
               <Link href={user?.isLoggedIn ? "/profile" : "/login"} className="group flex items-center gap-2.5 relative px-2 py-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-none">
                  <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-full lg:bg-slate-100 dark:lg:bg-slate-800 flex items-center justify-center group-hover:bg-[#2c3b6e] transition-colors"><User className="w-5 h-5 text-slate-400 group-hover:text-white" strokeWidth={1.5} /></div>
-                 <div className="hidden lg:flex flex-col text-left"><span className="text-[9px] font-bold text-slate-400 group-hover:text-[#2c3b6e] leading-none mb-0.5">Личный кабинет</span><span className="text-[11px] font-bold text-slate-900 dark:text-white leading-none">{user?.isLoggedIn ? user.name : "Войти"}</span></div>
+                 <div className="hidden lg:flex flex-col text-left"><span className="text-[9px] font-bold text-slate-400 group-hover:text-[#2c3b6e] leading-none mb-0.5">{getTranslation("Личный кабинет")}</span><span className="text-[11px] font-bold text-slate-900 dark:text-white leading-none">{user?.isLoggedIn ? user.name : getTranslation("Войти")}</span></div>
               </Link>
             </div>
           </div>
@@ -535,7 +519,7 @@ export function Header() {
                 <div key={item.label} className="relative h-full flex items-center group shadow-none" onMouseEnter={() => setHoveredLink(item.label)} onMouseLeave={() => setHoveredLink(null)}>
                   <Link href={item.href} className="flex items-center gap-2 text-[12px] font-medium text-slate-600 dark:text-slate-400 hover:text-[#2c3b6e] dark:hover:text-white px-2 py-1.5 transition-all tracking-tight shadow-none">
                     <item.icon className="w-4 h-4 text-slate-400 group-hover:text-[#2c3b6e] dark:group-hover:text-blue-500" strokeWidth={2} />
-                    {item.label}
+                    {getTranslation(item.label)}
                     {item.dropdown && <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", hoveredLink === item.label && "rotate-180")} />}
                   </Link>
                   {item.dropdown && (
@@ -543,7 +527,7 @@ export function Header() {
                       {item.dropdown.map((sub) => (
                         <Link key={sub.label} href={sub.href} className="flex items-center gap-3 px-4 py-2.5 text-[12px] font-bold text-slate-600 dark:text-slate-400 hover:text-[#2c3b6e] dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors first:rounded-t-xl last:rounded-b-xl shadow-none group/sub">
                           <sub.icon className="w-4 h-4 opacity-50 group-hover/sub:text-[#2c3b6e] dark:group-hover/sub:text-blue-500" />
-                          {sub.label}
+                          {getTranslation(sub.label)}
                         </Link>
                       ))}
                     </div>
@@ -571,8 +555,8 @@ export function Header() {
                    return (
                      <>
                        <div className="px-10 py-6 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between shadow-none">
-                         <div><h4 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tighter leading-none mb-1">{cat?.title}</h4><p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{realSubs.length} категорий</p></div>
-                         <Link href={`/catalog?category=${cat?.id}`} className="flex items-center gap-1 text-[10px] font-black text-[#2c3b6e] dark:text-white hover:text-blue-600 uppercase tracking-widest transition-colors shadow-none">Смотреть всё <ChevronRight className="w-3 h-3" /></Link>
+                         <div><h4 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tighter leading-none mb-1">{cat?.title}</h4><p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{realSubs.length} {getTranslation("категорий")}</p></div>
+                         <Link href={`/catalog?category=${cat?.id}`} className="flex items-center gap-1 text-[10px] font-black text-[#2c3b6e] dark:text-white hover:text-blue-600 uppercase tracking-widest transition-colors shadow-none">{getTranslation("Смотреть всё")} <ChevronRight className="w-3 h-3" /></Link>
                        </div>
                        <div className="flex-1 overflow-y-auto px-10 py-8 no-scrollbar shadow-none">
                          <div className="grid grid-cols-3 gap-x-8 gap-y-6 shadow-none">
@@ -593,7 +577,7 @@ export function Header() {
                        </div>
                      </>
                    );
-                })() : <div className="flex-grow flex items-center justify-center text-slate-300 dark:text-slate-700 text-[10px] font-black uppercase tracking-widest shadow-none">Выберите категорию</div>}
+                })() : <div className="flex-grow flex items-center justify-center text-slate-300 dark:text-slate-700 text-[10px] font-black uppercase tracking-widest shadow-none">{getTranslation("Выберите категорию")}</div>}
              </div>
           </div>
         </div>
@@ -616,7 +600,7 @@ export function Header() {
                  <button onClick={() => setIsMobileCatalogExpanded(!isMobileCatalogExpanded)} className="w-full flex items-center justify-between px-5 py-4 font-bold text-slate-900 dark:text-white uppercase tracking-tight hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors shadow-none">
                    <div className="flex items-center gap-3 shadow-none">
                      <div className="w-9 h-9 rounded-lg bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center shadow-none text-[#2c3b6e] dark:text-blue-400"><Grid3X3 className="w-4.5 h-4.5" /></div>
-                     <span className="text-[14px]">Каталог товаров</span>
+                     <span className="text-[14px]">{getTranslation("Каталог товаров")}</span>
                    </div>
                    <ChevronDown className={cn("w-5 h-5 transition-transform duration-300 opacity-40", isMobileCatalogExpanded && "rotate-180")} />
                  </button>
@@ -636,14 +620,14 @@ export function Header() {
                 <Link href="/compare" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center justify-between py-2.5 px-2 rounded-xl text-[13px] font-bold text-slate-600 dark:text-slate-400 hover:text-[#2c3b6e] dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition-all group/moblink">
                   <div className="flex items-center gap-4">
                     <BarChart2 className="w-4.5 h-4.5 opacity-30 shadow-none group-hover/moblink:text-[#2c3b6e] dark:group-hover/moblink:text-blue-500" />
-                    Сравнение товаров
+                    {getTranslation("Сравнение товаров")}
                   </div>
                   {compare.length > 0 && <span className="px-2 py-0.5 bg-[#2c3b6e] text-white text-[10px] rounded-full">{compare.length}</span>}
                 </Link>
                 {navLinks.map((item) => (
                   <Link key={item.label} href={item.href} onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-4 py-2.5 px-2 rounded-xl text-[13px] font-bold text-slate-600 dark:text-slate-400 hover:text-[#2c3b6e] dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition-all group/moblink">
                     <item.icon className="w-4.5 h-4.5 opacity-30 shadow-none group-hover/moblink:text-[#2c3b6e] dark:group-hover/moblink:text-blue-500" />
-                    {item.label}
+                    {getTranslation(item.label)}
                   </Link>
                 ))}
               </div>
