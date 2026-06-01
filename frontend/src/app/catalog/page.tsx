@@ -127,7 +127,10 @@ function CatalogContent() {
         c.name.toLowerCase().includes('tarkett') ||
         c.name.toLowerCase().includes('salsa') ||
         c.name.toLowerCase().includes('s.classic') ||
-        c.name.toLowerCase().includes('silkwood')
+        c.name.toLowerCase().includes('silkwood') ||
+        c.name.toLowerCase().includes('stimul') ||
+        c.name.toLowerCase().includes('ручк') ||
+        c.name.toLowerCase().includes('петл')
       )
     );
     let ids: number[] = [];
@@ -260,7 +263,7 @@ function CatalogContent() {
       }
       
       const rawCountry = p.country || (name.toLowerCase().includes('турц') ? "Турция" : name.toLowerCase().includes('росс') ? "Россия" : "");
-      const rawBrand = p.brand || (nameParts[0] && nameParts[0].length > 2 && !/^[0-9a-f-]{36}$/.test(nameParts[0]) ? nameParts[0] : "");
+      const rawBrand = p.brand || "";
       const parsedGrade = p.grade || (name.includes('33') ? "33 класс" : name.includes('32') ? "32 класс" : "");
       const parsedThickness = p.thickness || name.match(/\d+\s*мм/i)?.[0] || name.match(/\d+мм/)?.[0] || "";
 

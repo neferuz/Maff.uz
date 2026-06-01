@@ -30,7 +30,7 @@ COUNTRY_MAPPING = {
 
 def sanitize_brand(brand: str) -> str:
     if not brand:
-        return "MAFF"
+        return ""
     
     # Check direct mapping
     if brand in BRAND_MAPPING:

@@ -454,7 +454,7 @@ export function Header() {
                                  <div className="flex-grow flex flex-col justify-center min-w-0">
                                     <span className="text-[12px] font-bold text-slate-900 dark:text-white group-hover:text-[#2c3b6e] dark:group-hover:text-blue-400 transition-colors truncate">{item.name}</span>
                                     <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tight truncate">
-                                       <span className="notranslate" translate="no">{item.brand || "Maff"}</span> • <span className="notranslate" translate="no">{item.price?.toLocaleString()} сум</span>
+                                       <span className="notranslate" translate="no">{item.brand ? item.brand : ""}</span> {item.brand ? "• " : ""}<span className="notranslate" translate="no">{item.price?.toLocaleString()} сум</span>
                                     </span>
                                  </div>
                                  <div className="flex-shrink-0 w-6 h-6 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center group-hover:bg-[#2c3b6e] dark:group-hover:bg-blue-600 transition-all">
