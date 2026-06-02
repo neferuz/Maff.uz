@@ -26,14 +26,7 @@ async def read_products(
     from sqlalchemy.orm import defer
     from app.models.product import Product as ProductModel
     
-    query = select(ProductModel).options(
-        defer(ProductModel.description),
-        defer(ProductModel.images),
-        defer(ProductModel.price_rub),
-        defer(ProductModel.price_outlet_usd),
-        defer(ProductModel.price_outlet_wholesale),
-        defer(ProductModel.ref_key)
-    )
+    query = select(ProductModel).options(defer(ProductModel.description))
     
     if q:
         query = query.filter(
