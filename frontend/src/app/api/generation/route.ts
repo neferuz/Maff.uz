@@ -3,26 +3,34 @@ import { NextResponse } from "next/server";
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { prompt, modelId, width, height, num_images, apiKey } = body;
+    const { prompt } = body;
 
-    const key = apiKey || process.env.LEONARDO_API_KEY;
+    const key = process.env.LEONARDO_API_KEY;
 
     if (!key) {
       return NextResponse.json(
-        { error: "API key is required. Please set it in the field or .env file." },
-        { status: 400 }
+        { error: "API key is not configured on the server." },
+        { status: 500 }
       );
     }
 
+    // Set model, nested parameters, and 1:1 ratio size (1024x1024)
     const payload = {
-      height: height || 1024,
-      width: width || 1024,
-      modelId: modelId || "gemini-3.1-flash-image-preview",
-      num_images: num_images || 1,
-      prompt: prompt
+      model: "nano-banana-2",
+      parameters: {
+        width: 1024,
+        height: 1024,
+        prompt: prompt,
+        quantity: 1,
+        style_ids: [
+          "111dc692-d470-4eec-b791-3475abac4c46" // Dynamic style preset
+        ],
+        prompt_enhance: "OFF"
+      },
+      public: false
     };
 
-    const response = await fetch("https://cloud.leonardo.ai/api/rest/v1/generations", {
+    const response = await fetch("https://cloud.leonardo.ai/api/rest/v2/generations", {
       method: "POST",
       headers: {
         "accept": "application/json",
@@ -33,7 +41,17 @@ export async function POST(req: Request) {
     });
 
     const data = await response.json();
-    return NextResponse.json(data, { status: response.status });
+    
+    // Convert v2 response keys to format expected by frontend
+    // v2 returns: {"generate":{"generationId":"..."}}
+    // v1 returns: {"sdGenerationJob":{"generationId":"..."}}
+    const mappedData = {
+      sdGenerationJob: {
+        generationId: data.generate?.generationId || data.sdGenerationJob?.generationId
+      }
+    };
+    
+    return NextResponse.json(mappedData, { status: response.status });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
@@ -43,9 +61,7 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
-    const apiKey = searchParams.get("apiKey");
-
-    const key = apiKey || process.env.LEONARDO_API_KEY;
+    const key = process.env.LEONARDO_API_KEY;
 
     if (!id) {
       return NextResponse.json(
@@ -56,8 +72,8 @@ export async function GET(req: Request) {
 
     if (!key) {
       return NextResponse.json(
-        { error: "API key is required" },
-        { status: 400 }
+        { error: "API key is not configured on the server." },
+        { status: 500 }
       );
     }
 
