@@ -7,12 +7,8 @@ import subprocess
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 async def main():
-    print("=== SEARCHING PHYSICAL FILES FOR 'silkwood' IN UPLOADS ===")
-    cmd = "find /home/bitrix/www/upload -iname '*silkwood*'"
-    subprocess.run(cmd, shell=True)
-
-    print("\n=== SEARCHING PHYSICAL FILES FOR '1029', 'R505', 'R509' IN UPLOADS ===")
-    cmd = "find /home/bitrix/www/upload -name '*1029*' -o -name '*R505*' -o -name '*R509*' | head -n 30"
+    print("=== OLD BITRIX ELEMENTS MATCHING BAIKAL, ONEGA, VOLGA, KAMA, LADOGA ===")
+    cmd = "mysql -u bitrix0 -p'-2W)m3-qIayyedwgiiif' sitemanager -B -e \"SELECT ID, NAME, XML_ID, DETAIL_PICTURE, PREVIEW_PICTURE FROM b_iblock_element WHERE NAME LIKE '%Baikal%' OR NAME LIKE '%Байкал%' OR NAME LIKE '%Onega%' OR NAME LIKE '%Онега%' OR NAME LIKE '%Volga%' OR NAME LIKE '%Волга%' OR NAME LIKE '%Kama%' OR NAME LIKE '%Кама%' OR NAME LIKE '%Ladoga%' OR NAME LIKE '%Ладога%' LIMIT 100\""
     subprocess.run(cmd, shell=True)
 
 if __name__ == "__main__":
