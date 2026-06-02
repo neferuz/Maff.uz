@@ -1,0 +1,30 @@
+#!/usr/bin/expect -f
+
+set timeout 300
+match_max 100000
+
+spawn ssh root@192.168.183.35
+expect {
+    "yes/no" { send "yes\r"; exp_continue }
+    "assword:" { send "rJhj,rf2@\r" }
+}
+
+expect {
+    "Enter your choice:" { send "0\r"; exp_continue }
+    -re {.*#.*} { send "cd /var/www/new-maff-website\r" }
+}
+
+expect -re {.*#.*}
+send "mkdir -p /var/www/new-maff-website/backups\r"
+expect -re {.*#.*}
+send "pg_dump postgres://postgres:postgres@127.0.0.1/maff_db > /var/www/new-maff-website/backups/maff_db_\$(date +%Y%m%d_%H%M%S).sql\r"
+expect -re {.*#.*}
+send "git pull origin main\r"
+expect -re {.*#.*}
+send "pm2 restart maff-backend\r"
+expect -re {.*#.*}
+send "cd backend\r"
+expect -re {.*#.*}
+send "./venv/bin/python run_sync.py\r"
+expect -re {.*#.*}
+send "exit\r"

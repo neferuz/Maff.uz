@@ -45,11 +45,12 @@ async def seed_home():
             ]
         }
         
-        if home_page:
-            home_page.content = content
-        else:
+        if not home_page:
+            print("Seeding home page...")
             home_page = PageContent(slug="home", content=content)
             session.add(home_page)
+        else:
+            print("Skipping home page, already exists.")
         
         await session.commit()
     print("Home page seeded successfully!")

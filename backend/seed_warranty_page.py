@@ -39,11 +39,12 @@ async def seed_warranty():
             ]
         }
         
-        if page:
-            page.content = content
-        else:
+        if not page:
+            print("Seeding warranty page...")
             page = PageContent(slug="warranty", content=content)
             session.add(page)
+        else:
+            print("Skipping warranty page, already exists.")
         
         await session.commit()
     print("Warranty page content seeded successfully in DB!")

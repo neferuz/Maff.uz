@@ -104,10 +104,11 @@ async def seed_pages():
             result = await session.execute(stmt)
             existing = result.scalar_one_or_none()
             
-            if existing:
-                existing.content = p["content"]
-            else:
+            if not existing:
+                print(f"Seeding {p['slug']}...")
                 session.add(PageContent(slug=p["slug"], content=p["content"]))
+            else:
+                print(f"Skipping {p['slug']}, already exists.")
         
         await session.commit()
     print("Additional pages seeded successfully!")
