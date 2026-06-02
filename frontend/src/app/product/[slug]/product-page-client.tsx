@@ -999,18 +999,38 @@ export default function ProductPageClient({ params }: { params: { slug: string }
 
             {activeTab === "specs" && (
                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-2 lg:gap-y-4 animate-in fade-in duration-500">
-                  {[
-                     { l: "Бренд", v: product.brand || "MAFF" },
-                     { l: "Страна производства", v: product.country || "Европа" },
-                     { l: "Класс износостойкости", v: product.grade || "Premium" },
-                     { l: "Толщина", v: product.thickness || "8 мм" },
-                     { l: "Артикул / SKU", v: product.sku || "-" },
-                  ].map(s => (
-                     <div key={s.l} className="flex items-center justify-between py-2 lg:py-3 border-b border-slate-50 dark:border-slate-800">
+                  {(() => {
+                    const specs: { l: string; v: string }[] = [];
+                    if (product.specifications && typeof product.specifications === 'object') {
+                      Object.entries(product.specifications).forEach(([key, value]) => {
+                        specs.push({ l: key, v: String(value || "-") });
+                      });
+                    }
+                    if (!specs.find(s => s.l === "Бренд") && product.brand) {
+                      specs.unshift({ l: "Бренд", v: product.brand });
+                    }
+                    if (!specs.find(s => s.l === "Страна производства") && product.country) {
+                      specs.unshift({ l: "Страна производства", v: product.country });
+                    }
+                    if (!specs.find(s => s.l === "Артикул / SKU") && product.sku) {
+                      specs.push({ l: "Артикул / SKU", v: product.sku });
+                    }
+                    if (specs.length === 0) {
+                      specs.push(
+                        { l: "Бренд", v: product.brand || "MAFF" },
+                        { l: "Страна производства", v: product.country || "Европа" },
+                        { l: "Класс износостойкости", v: product.grade || "Premium" },
+                        { l: "Толщина", v: product.thickness || "8 мм" },
+                        { l: "Артикул / SKU", v: product.sku || "-" }
+                      );
+                    }
+                    return specs.map(s => (
+                      <div key={s.l} className="flex items-center justify-between py-2 lg:py-3 border-b border-slate-50 dark:border-slate-800">
                         <span className="text-[8px] lg:text-[9px] font-bold text-slate-500 dark:text-slate-500 uppercase tracking-widest">{s.l}</span>
                         <span className="text-[9px] lg:text-[10px] font-black text-slate-900 dark:text-slate-300 uppercase">{s.v}</span>
-                     </div>
-                  ))}
+                      </div>
+                    ));
+                  })()}
                </div>
             )}
 
