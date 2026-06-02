@@ -1,10 +1,17 @@
-import sqlite3
+import asyncio
 import csv
 import os
 import subprocess
+import sys
 
-def main():
-    print("=== STARTING PRODUCT PHOTO SYNCHRONIZATION FROM OLD SITE ===")
+# Ensure backend folder is in path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+from app.db.session import AsyncSessionLocal
+from sqlalchemy import text
+
+async def main():
+    print("=== STARTING PRODUCT PHOTO SYNCHRONIZATION FROM OLD SITE (POSTGRESQL) ===")
     
     # 1. Run mysql queries to dump data to TSV
     print("Exporting element and file mappings from old Bitrix sitemanager MySQL database...")
@@ -79,75 +86,64 @@ def main():
 
     print(f"Loaded {len(old_products_by_xml_id)} XML_ID/UUID mappings and {len(old_products_by_name)} name mappings.")
 
-    # 4. Connect to SQLite database
-    sqlite_db_path = "/var/www/new-maff-website/backend/maff.db"
-    if not os.path.exists(sqlite_db_path):
-        # Fallback to local path for development testing
-        sqlite_db_path = "backend/maff.db"
-        if not os.path.exists(sqlite_db_path):
-            sqlite_db_path = "maff.db"
+    # 4. Connect to PostgreSQL and update
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(text("SELECT id, name, ref_key, image_url, category_id FROM product"))
+        products = result.fetchall()
+        print(f"Found {len(products)} products in the new PostgreSQL database.")
 
-    print(f"Connecting to SQLite database: {sqlite_db_path}")
-    if not os.path.exists(sqlite_db_path):
-        print("SQLite database not found!")
-        return
+        updated_count = 0
+        match_by_ref_key = 0
+        match_by_name = 0
 
-    conn = sqlite3.connect(sqlite_db_path)
-    cursor = conn.cursor()
-
-    # Get all products
-    cursor.execute("SELECT id, name, ref_key, image_url FROM product")
-    products = cursor.fetchall()
-    print(f"Found {len(products)} products in the new SQLite database.")
-
-    updated_count = 0
-    match_by_ref_key = 0
-    match_by_name = 0
-
-    for p in products:
-        p_id, p_name, p_ref_key, p_img = p
-        
-        # Check if the product has no image (null, empty, or placeholder)
-        needs_img = not p_img or p_img == 'None' or 'unsplash' in p_img.lower() or p_img.strip() == ''
-        
-        if not needs_img:
-            continue
-
-        matched_prod = None
-        match_method = None
-
-        # 1. Try matching by ref_key (1C UUID)
-        if p_ref_key:
-            matched_prod = old_products_by_xml_id.get(p_ref_key)
-            if matched_prod:
-                match_method = "ref_key"
-                match_by_ref_key += 1
-
-        # 2. Try matching by exact name (case-insensitive) as a fallback
-        if not matched_prod and p_name:
-            norm_name = p_name.strip().lower()
-            # Try exact match, and match without " (Образец)"
-            norm_name_clean = norm_name.replace(" (образец)", "").strip()
+        for p in products:
+            p_id, p_name, p_ref_key, p_img, p_cat_id = p
             
-            matched_prod = old_products_by_name.get(norm_name) or old_products_by_name.get(norm_name_clean)
-            if matched_prod:
-                match_method = "name"
-                match_by_name += 1
+            # Check if product needs an image
+            is_placeholder = not p_img or p_img == 'None' or 'unsplash' in p_img.lower() or p_img.strip() == '' or 'placeholder' in p_img.lower()
+            is_silkwood = (p_cat_id == 418) or (p_name and 'silkwood' in p_name.lower())
+            
+            needs_update = is_placeholder or is_silkwood
+            
+            if not needs_update:
+                continue
 
-        if matched_prod:
-            new_img_path = matched_prod["image_path"]
-            # Ensure it has a leading slash
-            if not new_img_path.startswith('/'):
-                new_img_path = '/' + new_img_path
+            matched_prod = None
+            match_method = None
+
+            # 1. Try matching by ref_key (1C UUID)
+            if p_ref_key:
+                matched_prod = old_products_by_xml_id.get(p_ref_key)
+                if matched_prod:
+                    match_method = "ref_key"
+                    match_by_ref_key += 1
+
+            # 2. Try matching by exact name (case-insensitive) as a fallback
+            if not matched_prod and p_name:
+                norm_name = p_name.strip().lower()
+                norm_name_clean = norm_name.replace(" (образец)", "").strip()
                 
-            cursor.execute("UPDATE product SET image_url = ? WHERE id = ?", (new_img_path, p_id))
-            updated_count += 1
-            
-            if updated_count <= 25:
-                print(f"  [Match by {match_method}]: SQLite '{p_name}' -> Old Site '{matched_prod['name']}' ({new_img_path})")
+                matched_prod = old_products_by_name.get(norm_name) or old_products_by_name.get(norm_name_clean)
+                if matched_prod:
+                    match_method = "name"
+                    match_by_name += 1
 
-    conn.commit()
-    conn.close()
+            if matched_prod:
+                new_img_path = matched_prod["image_path"]
+                # Ensure it has a leading slash
+                if not new_img_path.startswith('/'):
+                    new_img_path = '/' + new_img_path
+                    
+                await session.execute(
+                    text("UPDATE product SET image_url = :image_url WHERE id = :id"),
+                    {"image_url": new_img_path, "id": p_id}
+                )
+                updated_count += 1
+                
+                if updated_count <= 25:
+                    print(f"  [Match by {match_method}]: SQLite '{p_name}' -> Old Site '{matched_prod['name']}' ({new_img_path})")
+
+        await session.commit()
 
     print("\n=== SYNCHRONIZATION SUMMARY ===")
     print(f"  Total products updated with old site images: {updated_count}")
@@ -164,4 +160,4 @@ def main():
                 pass
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
