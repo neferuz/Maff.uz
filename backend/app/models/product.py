@@ -17,6 +17,7 @@ class Category(Base):
     price_prefix = Column(String, nullable=True)
     order_link = Column(String, nullable=True)
     recommended_accessories = Column(JSON, nullable=True)
+    attributes = Column(JSON, nullable=True, default=list)  # [{"name": "Класс износостойкости", "type": "text"}]
     
     products = relationship("Product", back_populates="category")
     children = relationship("Category", backref="parent", remote_side=[id])
@@ -44,5 +45,6 @@ class Product(Base):
     thickness = Column(String, nullable=True)
     pack_size = Column(Float, default=1.0)
     images = Column(JSON, nullable=True) # List of URLs
+    specifications = Column(JSON, nullable=True, default=dict)  # {"Класс износостойкости": "Premium"}
 
     category = relationship("Category", back_populates="products")

@@ -1,0 +1,18 @@
+#!/usr/bin/expect -f
+set timeout 60
+
+# 1. SCP the script to the server
+spawn scp /Users/apple/Desktop/Maff.uz-main/update_nginx_webhook.py root@192.168.183.35:/tmp/update_nginx_webhook.py
+expect {
+    "yes/no" { send "yes\r"; exp_continue }
+    "assword:" { send "rJhj,rf2@\r" }
+}
+expect eof
+
+# 2. SSH and run the script
+spawn ssh root@192.168.183.35 "python3 /tmp/update_nginx_webhook.py && rm -f /tmp/update_nginx_webhook.py"
+expect {
+    "yes/no" { send "yes\r"; exp_continue }
+    "assword:" { send "rJhj,rf2@\r" }
+}
+expect eof

@@ -1,0 +1,8 @@
+#!/usr/bin/expect -f
+set timeout 60
+spawn ssh root@192.168.183.35 "cd /var/www/new-maff-website && cp -f backend/.env backend/.env.bak && git checkout -- backend/.env && git pull origin main && mv -f backend/.env.bak backend/.env && pm2 restart maff-backend"
+expect {
+    "yes/no" { send "yes\r"; exp_continue }
+    "assword:" { send "rJhj,rf2@\r" }
+}
+expect eof

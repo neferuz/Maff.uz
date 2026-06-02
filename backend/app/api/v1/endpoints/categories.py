@@ -74,6 +74,7 @@ async def read_categories(
             "order_link": c.order_link,
             "sort_order": c.sort_order,
             "recommended_accessories": c.recommended_accessories,
+            "attributes": c.attributes or [],
         }
         result.append(c_dict)
         
@@ -374,6 +375,7 @@ async def create_category(
         order_link=created.order_link,
         sort_order=created.sort_order,
         recommended_accessories=created.recommended_accessories,
+        attributes=created.attributes or [],
         product_count=0
     )
 
@@ -424,5 +426,6 @@ async def update_category(
         order_link=updated.order_link,
         sort_order=updated.sort_order,
         recommended_accessories=updated.recommended_accessories,
+        attributes=updated.attributes or [],
         product_count=0
     )

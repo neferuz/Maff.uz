@@ -73,6 +73,7 @@ export default function CategoriesPage() {
     category_ids: [],
     product_ids: []
   });
+  const [editAttributes, setEditAttributes] = useState<any[]>([]);
   const [accProductSearch, setAccProductSearch] = useState("");
   const [accProductResults, setAccProductResults] = useState<any[]>([]);
   const [isSearchingAccProducts, setIsSearchingAccProducts] = useState(false);
@@ -336,6 +337,7 @@ export default function CategoriesPage() {
       setEditImageUrl(selectedCategory.image_url || "");
       setEditParentId(selectedCategory.parent_id || null);
       setEditRecommendedAccessories(selectedCategory.recommended_accessories || { category_ids: [], product_ids: [] });
+      setEditAttributes(selectedCategory.attributes || []);
       setAccProductSearch("");
       setAccProductResults([]);
 
@@ -430,6 +432,7 @@ export default function CategoriesPage() {
           order_link: editOrderLink,
           image_url: editImageUrl,
           recommended_accessories: editRecommendedAccessories,
+          attributes: editAttributes,
         }),
       });
       if (res.ok) {
@@ -1165,6 +1168,73 @@ export default function CategoriesPage() {
                                 <p className="text-[10px] text-slate-400 italic">Товары не выбраны</p>
                               )}
                            </div>
+                        </div>
+                     </div>
+                  )}
+
+                  {/* --- Category Attributes (Характеристики) --- */}
+                  {selectedCategory.id !== 'new' && (
+                     <div className="space-y-4 p-4 bg-white border border-[#e3e8ee] rounded-xl">
+                        <div>
+                           <p className="text-[13px] font-bold text-[#1a1f36]">Характеристики категории</p>
+                           <p className="text-[10px] text-[#4f566b] mt-0.5">Настройте характеристики, которые будут отображаться у всех товаров этой категории.</p>
+                        </div>
+
+                        <div className="space-y-2 pt-3 border-t border-[#f7f8f9]">
+                           {/* Existing attributes */}
+                           <div className="space-y-1.5">
+                              {editAttributes.map((attr: any, idx: number) => (
+                                <div key={idx} className="flex items-center gap-2 p-2 bg-[#f7f8f9] border border-slate-100 rounded-lg">
+                                   <input
+                                     type="text"
+                                     placeholder="Название характеристики"
+                                     value={attr.name || ""}
+                                     onChange={(e) => {
+                                       const next = [...editAttributes];
+                                       next[idx] = { ...next[idx], name: e.target.value };
+                                       setEditAttributes(next);
+                                     }}
+                                     className="flex-1 px-2 py-1.5 bg-white border border-[#e3e8ee] rounded-lg text-[12px] font-medium text-[#1a1f36] outline-none focus:border-[#2c3b6e]/30"
+                                   />
+                                   <select
+                                     value={attr.type || "text"}
+                                     onChange={(e) => {
+                                       const next = [...editAttributes];
+                                       next[idx] = { ...next[idx], type: e.target.value };
+                                       setEditAttributes(next);
+                                     }}
+                                     className="px-2 py-1.5 bg-white border border-[#e3e8ee] rounded-lg text-[11px] font-medium text-[#1a1f36] outline-none focus:border-[#2c3b6e]/30 w-[110px]"
+                                   >
+                                      <option value="text">Текст</option>
+                                      <option value="number">Число</option>
+                                   </select>
+                                   <button
+                                     type="button"
+                                     onClick={() => {
+                                       const next = editAttributes.filter((_, i) => i !== idx);
+                                       setEditAttributes(next);
+                                     }}
+                                     className="text-red-500 hover:text-red-600 transition-colors p-1"
+                                   >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                   </button>
+                                </div>
+                              ))}
+                              {editAttributes.length === 0 && (
+                                <p className="text-[10px] text-slate-400 italic">Характеристики не добавлены</p>
+                              )}
+                           </div>
+
+                           {/* Add new attribute */}
+                           <button
+                             type="button"
+                             onClick={() => {
+                               setEditAttributes([...editAttributes, { name: "", type: "text" }]);
+                             }}
+                             className="w-full py-2 border border-dashed border-[#e3e8ee] hover:border-[#2c3b6e]/40 rounded-xl text-[11px] font-bold text-[#2c3b6e] hover:bg-[#2c3b6e]/5 transition-all"
+                           >
+                              + Добавить характеристику
+                           </button>
                         </div>
                      </div>
                   )}

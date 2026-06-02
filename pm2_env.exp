@@ -1,0 +1,6 @@
+#!/usr/bin/expect -f
+spawn ssh root@192.168.183.35
+expect "assword:" { send "rJhj,rf2@\r" }
+expect "Enter your choice:" { send "0\r" }
+expect -re {.*#.*} { send "pm2 info maff-frontend\r" }
+expect -re {.*#.*} { send "exit\r" }

@@ -15,6 +15,7 @@ class CategoryBase(BaseModel):
     order_link: Optional[str] = None
     sort_order: Optional[int] = 0
     recommended_accessories: Optional[Any] = None
+    attributes: Optional[List[dict]] = None  # [{"name": "Класс износостойкости", "type": "text"}]
 
 class CategoryReorderItem(BaseModel):
     id: int
@@ -39,6 +40,7 @@ class CategoryUpdate(BaseModel):
     order_link: Optional[str] = None
     sort_order: Optional[int] = None
     recommended_accessories: Optional[Any] = None
+    attributes: Optional[List[dict]] = None
 
 class Category(CategoryBase):
     id: int
@@ -68,6 +70,7 @@ class ProductBase(BaseModel):
     thickness: Optional[str] = None
     pack_size: Optional[float] = 1.0
     images: Optional[List[str]] = None
+    specifications: Optional[dict] = None  # {"Класс износостойкости": "Premium"}
 
     @model_validator(mode='before')
     @classmethod
@@ -112,6 +115,7 @@ class ProductUpdate(BaseModel):
     thickness: Optional[str] = None
     pack_size: Optional[float] = None
     images: Optional[List[str]] = None
+    specifications: Optional[dict] = None
 
 class Product(ProductBase):
     id: int

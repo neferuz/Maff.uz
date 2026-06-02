@@ -1,0 +1,14 @@
+#!/usr/bin/expect -f
+
+set timeout 600
+match_max 100000
+
+# Execute commands on remote server non-interactively
+spawn ssh root@192.168.183.35 "cd /var/www/new-maff-website && cp -f backend/.env backend/.env.bak && git checkout -- backend/.env && git pull origin main && mv -f backend/.env.bak backend/.env && echo 'Code pulled successfully. Building projects...' && cd frontend && npm run build && cd ../admin-panel && npm run build && pm2 restart all"
+
+expect {
+    "yes/no" { send "yes\r"; exp_continue }
+    "assword:" { send "rJhj,rf2@\r" }
+}
+
+expect eof

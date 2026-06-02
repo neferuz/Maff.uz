@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #0f172a;
+      --bg-secondary: #1e293b;
+      --accent: #4f46e5;
+      --accent-hover: #6366f1;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --border-color: #334155;
+    }
+    
+    body {
+      width: 320px;
+      padding: 20px;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: var(--bg-primary);
+      color: var(--text-main);
+      margin: 0;
+      box-sizing: border-box;
+    }
+
+    .container {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 4px;
+    }
+
+    .logo-icon {
+      width: 28px;
+      height: 28px;
+      background: linear-gradient(135deg, #818cf8 0%, #4f46e5 100%);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: white;
+      font-size: 16px;
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+    }
+
+    h3 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 700;
+      background: linear-gradient(to right, #ffffff, #cbd5e1);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    input, select {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px 12px;
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      font-family: inherit;
+      font-size: 13px;
+      color: var(--text-main);
+      transition: all 0.2s ease;
+    }
+
+    input:focus, select:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-family: inherit;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+    }
+
+    button:hover {
+      background: linear-gradient(135deg, #818cf8 0%, #4f46e5 100%);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(79, 70, 229, 0.35);
+    }
+
+    button:active {
+      transform: translateY(1px);
+    }
+
+    #status {
+      font-size: 12px;
+      color: var(--text-muted);
+      text-align: center;
+      min-height: 18px;
+      transition: all 0.2s ease;
+      font-weight: 500;
+    }
+
+    .success-text {
+      color: #10b981 !important;
+    }
+
+    .error-text {
+      color: #ef4444 !important;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo-icon">U</div>
+      <h3>Uzbek Translator</h3>
+    </div>
+
+    <div class="field-group">
+      <label for="apiKey">API Ключ (Claude)</label>
+      <input type="password" id="apiKey" placeholder="sk-ant-api03-..." value="">
+    </div>
+
+    <div class="field-group">
+      <label for="alphabet">Алфавит</label>
+      <select id="alphabet">
+        <option value="cyrillic">Кириллица (Ўзбек)</option>
+        <option value="latin">Lotin (O'zbek)</option>
+      </select>
+    </div>
+
+    <button id="translateBtn">Перевести страницу</button>
+    <div id="status"></div>
+  </div>
+
+  <script>
+    chrome.storage.local.get(["apiKey", "alphabet"], (data) => {
+      if (data.apiKey) document.getElementById("apiKey").value = data.apiKey;
+      if (data.alphabet) document.getElementById("alphabet").value = data.alphabet;
+    });
+
+    document.getElementById("translateBtn").addEventListener("click", () => {
+      const apiKey = document.getElementById("apiKey").value.trim();
+      const alphabet = document.getElementById("alphabet").value;
+      const statusDiv = document.getElementById("status");
+
+      if (!apiKey) {
+        statusDiv.textContent = "Введи API ключ!";
+        statusDiv.className = "error-text";
+        return;
+      }
+
+      chrome.storage.local.set({ apiKey, alphabet });
+
+      statusDiv.textContent = "Переводим...";
+      statusDiv.className = "";
+
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (!tabs || tabs.length === 0) {
+          statusDiv.textContent = "Ошибка: вкладка не найдена";
+          statusDiv.className = "error-text";
+          return;
+        }
+
+        const url = tabs[0].url || "";
+        if (url.includes(":3001") || url.toLowerCase().includes("/admin") || url.toLowerCase().includes("/admin-maff")) {
+          statusDiv.textContent = "Перевод админ-панели отключен!";
+          statusDiv.className = "error-text";
+          return;
+        }
+
+        chrome.tabs.sendMessage(tabs[0].id, {
+          action: "startTranslation",
+          apiKey,
+          alphabet
+        }, (response) => {
+          if (chrome.runtime.lastError) {
+            statusDiv.textContent = "Обновите страницу перед переводом!";
+            statusDiv.className = "error-text";
+          } else {
+            statusDiv.textContent = "Перевод запущен!";
+            statusDiv.className = "success-text";
+          }
+        });
+      });
+    });
+  </script>
+</body>
+</html>

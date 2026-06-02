@@ -1,0 +1,11 @@
+#!/usr/bin/expect -f
+spawn ssh root@192.168.183.35
+expect "assword:" { send "rJhj,rf2@\r" }
+expect "Enter your choice:" { send "0\r" }
+expect -re {.*#.*} { send "cd /var/www/new-maff-website\r" }
+expect -re {.*#.*} { send "rm -f frontend/public/logo.png\r" }
+expect -re {.*#.*} { send "git pull origin main\r" }
+expect -re {.*#.*} { send "cd frontend\r" }
+expect -re {.*#.*} { send "npm run build\r" }
+expect -re {.*#.*} { send "pm2 restart all\r" }
+expect -re {.*#.*} { send "exit\r" }

@@ -1,0 +1,48 @@
+#!/usr/bin/expect -f
+
+set timeout 600
+match_max 100000
+
+spawn ssh root@192.168.183.35
+expect {
+    "yes/no" {
+        send "yes\r"
+        exp_continue
+    }
+    "assword:" {
+        send "rJhj,rf2@\r"
+    }
+    timeout {
+        puts "Connection to internal IP timed out"
+        exit 1
+    }
+    eof {
+        puts "Connection to internal IP failed"
+        exit 1
+    }
+}
+
+expect {
+    "Enter your choice:" {
+        send "0\r"
+        exp_continue
+    }
+    -re {.*#.*} {
+        send "cd /var/www/new-maff-website\r"
+    }
+}
+
+expect -re {.*#.*}
+send "cd frontend\r"
+expect -re {.*#.*}
+send "npm install\r"
+expect -re {.*#.*}
+send "npm run build\r"
+expect -re {.*#.*}
+send "pm2 restart maff-frontend\r"
+expect -re {.*#.*}
+send "cd ../backend\r"
+expect -re {.*#.*}
+send "pm2 restart maff-backend\r"
+expect -re {.*#.*}
+send "exit\r"
