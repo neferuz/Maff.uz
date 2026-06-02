@@ -172,7 +172,11 @@ export default function GenerationPage() {
 
     } catch (err: any) {
       console.error(err);
-      setError(err.message || "Произошла ошибка при запуске генерации.");
+      let errorMsg = err.message || "Произошла ошибка при запуске генерации.";
+      if (/credit|token|balance|limit|insufficient|payment/i.test(errorMsg)) {
+        errorMsg = "Баланс закончился, обратитесь к Ферузу разработчику";
+      }
+      setError(errorMsg);
       setIsGenerating(false);
     }
   };
@@ -233,7 +237,11 @@ export default function GenerationPage() {
 
       } catch (err: any) {
         clearInterval(interval);
-        setError(err.message || "Ошибка при получении результата.");
+        let errorMsg = err.message || "Ошибка при получении результата.";
+        if (/credit|token|balance|limit|insufficient|payment/i.test(errorMsg)) {
+          errorMsg = "Баланс закончился, обратитесь к Ферузу разработчику";
+        }
+        setError(errorMsg);
         setIsGenerating(false);
       }
     }, 2000);
@@ -264,56 +272,56 @@ export default function GenerationPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans pb-16 pt-28">
-      <div className="max-w-6xl mx-auto px-4">
+    <div className="min-h-screen bg-[var(--bg-alt)] text-slate-800 font-sans pb-10 pt-20">
+      <div className="max-w-5xl mx-auto px-4">
         
         {/* Header */}
-        <div className="text-center mb-10">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-600 text-xs font-semibold mb-4">
-            <Sparkles className="w-3.5 h-3.5" />
+        <div className="text-center mb-6">
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#f1f5f9] border border-slate-200 text-[#2c3b6e] text-[11px] font-semibold mb-3">
+            <Sparkles className="w-3 h-3 animate-pulse" />
             Внутренний инструмент
           </div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900 mb-2">
+          <h1 className="text-2xl font-bold tracking-tight text-[#2c3b6e] mb-1.5">
             Генератор декоров и текстур
           </h1>
-          <p className="text-slate-500 max-w-xl mx-auto text-sm">
+          <p className="text-slate-500 max-w-lg mx-auto text-xs">
             Введите текстовое описание текстуры ламината или двери, либо загрузите референс, для создания высококачественного эскиза 1:1.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
           
           {/* Controls Panel (Left) */}
-          <div className="lg:col-span-5 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-6">
+          <div className="lg:col-span-5 bg-white border border-slate-200 rounded-xl p-4.5 space-y-4">
             
-            <form onSubmit={handleGenerate} className="space-y-5">
+            <form onSubmit={handleGenerate} className="space-y-4">
               
               {/* Prompt */}
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-700 tracking-wider uppercase">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-slate-500 tracking-wider uppercase">
                   Описание текстуры (Промпт)
                 </label>
                 <textarea
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                   placeholder="Например: wood texture background, seamless oak laminate pattern, high resolution..."
-                  rows={4}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 transition-all resize-none"
+                  rows={3}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#2c3b6e] focus:ring-1 focus:ring-[#2c3b6e]/30 transition-all resize-none"
                 />
               </div>
 
               {/* Reference Image Upload */}
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-700 tracking-wider uppercase flex items-center gap-1.5">
-                  <ImageControl className="w-3.5 h-3.5 text-indigo-500" />
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-slate-500 tracking-wider uppercase flex items-center gap-1.5">
+                  <ImageControl className="w-3 h-3 text-[#2c3b6e]" />
                   Референсное изображение (Имидж-гайд / Опционально)
                 </label>
                 
                 {!refImagePreview ? (
-                  <label className="flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-xl p-4 bg-slate-50/50 hover:bg-slate-50 hover:border-indigo-300 transition-all cursor-pointer">
-                    <Upload className="w-6 h-6 text-slate-400 mb-1.5" />
+                  <label className="flex flex-col items-center justify-center border border-dashed border-slate-200 rounded-lg p-3 bg-slate-50/50 hover:bg-slate-50 hover:border-[#2c3b6e]/40 transition-all cursor-pointer">
+                    <Upload className="w-5 h-5 text-slate-400 mb-1" />
                     <span className="text-xs font-medium text-slate-600">Выберите файл изображения</span>
-                    <span className="text-[10px] text-slate-400 mt-0.5">JPG, PNG или WEBP (макс. 5MB)</span>
+                    <span className="text-[9px] text-slate-400 mt-0.5">JPG, PNG или WEBP (макс. 5MB)</span>
                     <input
                       type="file"
                       accept="image/png, image/jpeg, image/jpg, image/webp"
@@ -322,19 +330,19 @@ export default function GenerationPage() {
                     />
                   </label>
                 ) : (
-                  <div className="relative border border-slate-200 rounded-xl p-3 bg-slate-50 flex items-center gap-3">
-                    <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-slate-200 border border-slate-300 shrink-0">
+                  <div className="relative border border-slate-200 rounded-lg p-2 bg-slate-50 flex items-center gap-2.5">
+                    <div className="relative w-12 h-12 rounded bg-slate-200 border border-slate-300 overflow-hidden shrink-0">
                       <img src={refImagePreview} alt="Reference Preview" className="w-full h-full object-cover" />
                       {isUploadingRef && (
                         <div className="absolute inset-0 bg-slate-900/60 flex items-center justify-center">
-                          <Loader2 className="w-4 h-4 text-white animate-spin" />
+                          <Loader2 className="w-3.5 h-3.5 text-white animate-spin" />
                         </div>
                       )}
                     </div>
                     
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-semibold text-slate-700 truncate">{refImageFile?.name}</p>
-                      <p className="text-[10px] text-slate-400 mt-0.5">
+                      <p className="text-[9px] text-slate-400 mt-0.5">
                         {isUploadingRef ? "Загрузка на сервер..." : initImageId ? "Готов к генерации (сильное влияние)" : "Обработка..."}
                       </p>
                     </div>
@@ -342,10 +350,10 @@ export default function GenerationPage() {
                     <button
                       type="button"
                       onClick={removeRefImage}
-                      className="w-7 h-7 rounded-full bg-slate-200/80 hover:bg-red-50 hover:text-red-500 text-slate-500 flex items-center justify-center transition-colors shrink-0"
+                      className="w-6.5 h-6.5 rounded-full bg-slate-200/80 hover:bg-red-50 hover:text-red-500 text-slate-500 flex items-center justify-center transition-colors shrink-0"
                       title="Удалить референс"
                     >
-                      <X className="w-4 h-4" />
+                      <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 )}
@@ -353,8 +361,8 @@ export default function GenerationPage() {
 
               {/* Error Message */}
               {error && (
-                <div className="p-3 bg-red-50 border border-red-100 rounded-xl flex items-start gap-2.5 text-xs text-red-600 leading-relaxed animate-fade-in">
-                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <div className="p-2.5 bg-red-50 border border-red-100 rounded-lg flex items-start gap-2 text-xs text-red-600 leading-relaxed animate-fade-in">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                   <span>{error}</span>
                 </div>
               )}
@@ -363,7 +371,7 @@ export default function GenerationPage() {
               <button
                 type="submit"
                 disabled={isGenerating || isUploadingRef}
-                className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white font-medium rounded-xl text-sm transition-all shadow-md shadow-indigo-600/10 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full h-11 bg-[#2c3b6e] hover:bg-[#1a2544] active:scale-[0.99] text-white font-medium rounded-lg text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer"
               >
                 {isGenerating ? (
                   <>
@@ -383,31 +391,31 @@ export default function GenerationPage() {
           </div>
 
           {/* Results Gallery (Right) */}
-          <div className="lg:col-span-7 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm min-h-[440px] flex flex-col">
-            <h2 className="text-base font-bold text-slate-900 mb-4 flex items-center gap-2 border-b border-slate-100 pb-3">
-              <ImageIcon className="w-5 h-5 text-indigo-500" />
+          <div className="lg:col-span-7 bg-white border border-slate-200 rounded-xl p-4.5 min-h-[360px] flex flex-col">
+            <h2 className="text-sm font-bold text-[#2c3b6e] mb-3 flex items-center gap-1.5 border-b border-slate-100 pb-2">
+              <ImageIcon className="w-4.5 h-4.5 text-[#2c3b6e]" />
               Результат генерации (1:1)
             </h2>
 
             {/* Empty State / Loading State / Gallery */}
             {isGenerating && currentImages.length === 0 ? (
-              <div className="flex-1 flex flex-col items-center justify-center py-16 text-center space-y-4">
+              <div className="flex-1 flex flex-col items-center justify-center py-12 text-center space-y-3">
                 <div className="relative">
-                  <div className="w-14 h-14 rounded-full border-t-2 border-r-2 border-indigo-600 animate-spin"></div>
+                  <div className="w-12 h-12 rounded-full border-t-2 border-r-2 border-[#2c3b6e] animate-spin"></div>
                   <div className="absolute inset-1.5 bg-slate-50 rounded-full flex items-center justify-center">
-                    <Sparkles className="w-5 h-5 text-indigo-500 animate-pulse" />
+                    <Sparkles className="w-4 h-4 text-[#2c3b6e] animate-pulse" />
                   </div>
                 </div>
-                <div className="space-y-1">
-                  <p className="text-sm font-semibold text-slate-700">{generationStatus}</p>
-                  <p className="text-xs text-slate-400">Генерация обычно занимает около 10-15 секунд.</p>
+                <div className="space-y-0.5">
+                  <p className="text-xs font-semibold text-slate-700">{generationStatus}</p>
+                  <p className="text-[10px] text-slate-400">Генерация обычно занимает около 10-15 секунд.</p>
                 </div>
               </div>
             ) : currentImages.length > 0 ? (
-              <div className="flex-1 space-y-4">
-                <div className="grid grid-cols-1 gap-4">
+              <div className="flex-1 flex items-center justify-center">
+                <div className="w-full max-w-sm">
                   {currentImages.map((url, index) => (
-                    <div key={index} className="group relative bg-slate-100 rounded-xl overflow-hidden aspect-square border border-slate-200 shadow-sm max-w-md mx-auto w-full">
+                    <div key={index} className="group relative bg-slate-50 rounded-lg overflow-hidden aspect-square border border-slate-200 w-full mx-auto">
                       <img
                         src={url}
                         alt={prompt}
@@ -417,14 +425,14 @@ export default function GenerationPage() {
                       <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-3">
                         <button
                           onClick={() => setLightboxImage(url)}
-                          className="w-10 h-10 rounded-full bg-white text-slate-800 hover:bg-indigo-600 hover:text-white flex items-center justify-center transition-all hover:scale-110 shadow-sm"
+                          className="w-9 h-9 rounded-full bg-white text-slate-800 hover:bg-[#2c3b6e] hover:text-white flex items-center justify-center transition-all hover:scale-105"
                           title="Посмотреть в полный экран"
                         >
                           <Maximize2 className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => downloadImage(url, `texture-${index + 1}.jpg`)}
-                          className="w-10 h-10 rounded-full bg-white text-slate-800 hover:bg-indigo-600 hover:text-white flex items-center justify-center transition-all hover:scale-110 shadow-sm"
+                          className="w-9 h-9 rounded-full bg-white text-slate-800 hover:bg-[#2c3b6e] hover:text-white flex items-center justify-center transition-all hover:scale-105"
                           title="Скачать изображение"
                         >
                           <Download className="w-4 h-4" />
@@ -435,10 +443,10 @@ export default function GenerationPage() {
                 </div>
               </div>
             ) : (
-              <div className="flex-1 flex flex-col items-center justify-center py-20 text-center border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
-                <ImageIcon className="w-10 h-10 text-slate-300 mb-2" />
-                <p className="text-sm text-slate-500">Здесь появится сгенерированная текстура.</p>
-                <p className="text-xs text-slate-400 mt-1">Опишите текстуру слева и нажмите «Сгенерировать».</p>
+              <div className="flex-1 flex flex-col items-center justify-center py-16 text-center border border-dashed border-slate-200 rounded-lg bg-slate-50/50">
+                <ImageIcon className="w-8 h-8 text-slate-300 mb-1.5" />
+                <p className="text-xs text-slate-500">Здесь появится сгенерированная текстура.</p>
+                <p className="text-[10px] text-slate-400 mt-0.5">Опишите текстуру слева и нажмите «Сгенерировать».</p>
               </div>
             )}
 
@@ -448,42 +456,42 @@ export default function GenerationPage() {
 
         {/* History Section */}
         {history.length > 0 && (
-          <div className="mt-12 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-6">
-              <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <History className="w-4 h-4 text-indigo-500" />
+          <div className="mt-8 bg-white border border-slate-200 rounded-xl p-4.5">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2 mb-4">
+              <h2 className="text-xs font-bold text-[#2c3b6e] flex items-center gap-1.5">
+                <History className="w-3.5 h-3.5 text-[#2c3b6e]" />
                 История генераций
               </h2>
               <button
                 onClick={clearHistory}
-                className="text-xs text-red-500/70 hover:text-red-600 flex items-center gap-1 transition-colors font-medium"
+                className="text-[11px] text-red-500/70 hover:text-red-600 flex items-center gap-1 transition-colors font-medium cursor-pointer"
               >
-                <Trash2 className="w-3.5 h-3.5" />
+                <Trash2 className="w-3 h-3" />
                 Очистить историю
               </button>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
               {history.map((item, index) => (
-                <div key={`${item.id}-${index}`} className="group relative bg-slate-100 rounded-xl border border-slate-200 overflow-hidden aspect-square shadow-sm">
+                <div key={`${item.id}-${index}`} className="group relative bg-slate-100 rounded-lg border border-slate-200 overflow-hidden aspect-square">
                   <img
                     src={item.url}
                     alt={item.prompt}
                     className="w-full h-full object-cover"
                   />
-                  <div className="absolute inset-0 bg-slate-950/80 opacity-0 group-hover:opacity-100 transition-opacity duration-300 p-3 flex flex-col justify-between">
-                    <p className="text-[10px] text-slate-300 line-clamp-4 leading-relaxed">{item.prompt}</p>
-                    <div className="flex items-center justify-between border-t border-slate-800 pt-2 mt-2">
+                  <div className="absolute inset-0 bg-slate-950/80 opacity-0 group-hover:opacity-100 transition-opacity duration-300 p-2 flex flex-col justify-between">
+                    <p className="text-[9px] text-slate-300 line-clamp-3 leading-snug">{item.prompt}</p>
+                    <div className="flex items-center justify-between border-t border-slate-800 pt-1.5 mt-1.5">
                       <button
                         onClick={() => setLightboxImage(item.url)}
-                        className="text-slate-400 hover:text-indigo-400 transition-colors"
+                        className="text-slate-400 hover:text-white transition-colors cursor-pointer"
                         title="Посмотреть в полный экран"
                       >
                         <Maximize2 className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => downloadImage(item.url, `history-${item.id}.jpg`)}
-                        className="text-slate-400 hover:text-indigo-400 transition-colors"
+                        className="text-slate-400 hover:text-white transition-colors cursor-pointer"
                         title="Скачать изображение"
                       >
                         <Download className="w-3.5 h-3.5" />
@@ -503,15 +511,15 @@ export default function GenerationPage() {
         <div className="fixed inset-0 bg-slate-950/90 z-[9999] flex items-center justify-center p-4 animate-fade-in">
           <button
             onClick={() => setLightboxImage(null)}
-            className="absolute top-6 right-6 w-10 h-10 rounded-full bg-slate-900 border border-slate-800 text-slate-300 hover:text-white flex items-center justify-center transition-colors"
+            className="absolute top-4 right-4 w-9 h-9 rounded-full bg-slate-900 border border-slate-800 text-slate-300 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
-          <div className="max-w-4xl max-h-[85vh] overflow-hidden rounded-xl border border-slate-800 shadow-2xl bg-slate-950">
+          <div className="max-w-3xl max-h-[80vh] overflow-hidden rounded-lg border border-slate-800 bg-slate-950">
             <img
               src={lightboxImage}
               alt="Preview"
-              className="max-w-full max-h-[85vh] object-contain mx-auto"
+              className="max-w-full max-h-[80vh] object-contain mx-auto"
             />
           </div>
         </div>

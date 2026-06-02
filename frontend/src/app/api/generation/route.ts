@@ -58,6 +58,15 @@ export async function POST(req: Request) {
 
     const data = await response.json();
     
+    if (!response.ok) {
+      const errorMsg = data.error || data.message || JSON.stringify(data) || "";
+      const isBalanceError = /credit|token|balance|limit|insufficient|payment/i.test(errorMsg);
+      return NextResponse.json(
+        { error: isBalanceError ? "Баланс закончился, обратитесь к Ферузу разработчику" : errorMsg },
+        { status: response.status }
+      );
+    }
+
     // Convert v2 response keys to format expected by frontend
     // v2 returns: {"generate":{"generationId":"..."}}
     // v1 returns: {"sdGenerationJob":{"generationId":"..."}}
@@ -69,7 +78,12 @@ export async function POST(req: Request) {
     
     return NextResponse.json(mappedData, { status: response.status });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const errorMsg = error.message || "";
+    const isBalanceError = /credit|token|balance|limit|insufficient|payment/i.test(errorMsg);
+    return NextResponse.json(
+      { error: isBalanceError ? "Баланс закончился, обратитесь к Ферузу разработчику" : errorMsg },
+      { status: 500 }
+    );
   }
 }
 
