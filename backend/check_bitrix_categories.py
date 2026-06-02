@@ -7,16 +7,8 @@ import subprocess
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 async def main():
-    print("=== OLD BITRIX ELEMENT COUNTS BY IBLOCK ===")
-    cmd = "mysql -u bitrix0 -p'-2W)m3-qIayyedwgiiif' sitemanager -B -e \"SELECT IBLOCK_ID, COUNT(*) FROM b_iblock_element GROUP BY IBLOCK_ID\""
-    subprocess.run(cmd, shell=True)
-
-    print("\n=== OLD BITRIX ELEMENT COUNTS BY SECTION (IBLOCK 2) ===")
-    cmd = "mysql -u bitrix0 -p'-2W)m3-qIayyedwgiiif' sitemanager -B -e \"SELECT IBLOCK_SECTION_ID, COUNT(*) FROM b_iblock_element WHERE IBLOCK_ID = 2 GROUP BY IBLOCK_SECTION_ID\""
-    subprocess.run(cmd, shell=True)
-
-    print("\n=== OLD BITRIX SECTIONS LIST FOR IBLOCK 2 ===")
-    cmd = "mysql -u bitrix0 -p'-2W)m3-qIayyedwgiiif' sitemanager -B -e \"SELECT ID, NAME, IBLOCK_SECTION_ID FROM b_iblock_section WHERE IBLOCK_ID = 2\""
+    print("=== OLD BITRIX ELEMENTS IN IBLOCK 5 CONTAINING 'Silk', 'wood' or 'вуд' ===")
+    cmd = "mysql -u bitrix0 -p'-2W)m3-qIayyedwgiiif' sitemanager -B -e \"SELECT ID, NAME, XML_ID, DETAIL_PICTURE, PREVIEW_PICTURE FROM b_iblock_element WHERE IBLOCK_ID = 5 AND (NAME LIKE '%Silk%' OR NAME LIKE '%wood%' OR NAME LIKE '%вуд%' OR NAME LIKE '%Силк%') LIMIT 100\""
     subprocess.run(cmd, shell=True)
 
 if __name__ == "__main__":
