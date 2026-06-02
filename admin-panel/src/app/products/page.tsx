@@ -67,9 +67,10 @@ export default function ProductsPage() {
         "повербанк", "планшет", "подставка", "табличка", "рейка", "флаг", "холдер",
         "установка", "станок", "жидкий",
         "router", "роутер", "cpe",
+        "оперативная", "память", "мышь",
       ];
       allProducts = allProducts.filter((p: any) => {
-        const priceVal = p.price_outlet || p.price || 0;
+        const priceVal = Number(p.price_outlet || p.price || 0);
         if (priceVal === 0 || priceVal === null || priceVal === undefined) return false;
         const nameLower = (p.name || "").toLowerCase();
         for (const kw of nonProductKeywords) {

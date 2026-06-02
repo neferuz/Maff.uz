@@ -25,11 +25,12 @@ const NON_PRODUCT_KEYWORDS = [
   "установка", "станок",
   "жидкий",
   "router", "роутер", "cpe",
+  "оперативная", "память", "мышь",
 ];
 
 /** Check if a product is an actual sellable product (not accessory/sample/merchandise) */
 export function isRealProduct(p: any): boolean {
-  const priceVal = p.price_outlet || p.price || 0;
+  const priceVal = Number(p.price_outlet || p.price || 0);
   if (priceVal === 0 || priceVal === null || priceVal === undefined) return false;
   const nameLower = (p.name || "").toLowerCase();
   for (const kw of NON_PRODUCT_KEYWORDS) {
