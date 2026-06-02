@@ -10,7 +10,9 @@ import {
   Trash2,
   AlertCircle,
   Maximize2,
-  X
+  X,
+  Upload,
+  Image as ImageControl
 } from "lucide-react";
 
 interface GeneratedImage {
@@ -26,6 +28,12 @@ export default function GenerationPage() {
   const [generationStatus, setGenerationStatus] = useState("");
   const [error, setError] = useState("");
   
+  // Image Reference States
+  const [refImageFile, setRefImageFile] = useState<File | null>(null);
+  const [refImagePreview, setRefImagePreview] = useState<string | null>(null);
+  const [initImageId, setInitImageId] = useState<string | null>(null);
+  const [isUploadingRef, setIsUploadingRef] = useState(false);
+
   // Gallery and History
   const [currentImages, setCurrentImages] = useState<string[]>([]);
   const [history, setHistory] = useState<GeneratedImage[]>([]);
@@ -43,10 +51,90 @@ export default function GenerationPage() {
     }
   }, []);
 
+  // Handle reference image selection
+  const handleRefImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setError("");
+    setRefImageFile(file);
+    setRefImagePreview(URL.createObjectURL(file));
+    setIsUploadingRef(true);
+    setInitImageId(null);
+
+    try {
+      const extension = file.name.split(".").pop() || "jpg";
+      
+      // 1. Get presigned upload URL from server
+      const response = await fetch("/api/generation/init-image", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ extension }),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || "Не удалось запросить URL для загрузки референса.");
+      }
+
+      const data = await response.json();
+      const uploadData = data.uploadInitImage;
+
+      if (!uploadData) {
+        throw new Error("Неверная структура ответа от сервера загрузки.");
+      }
+
+      const { id, url, fields } = uploadData;
+
+      // 2. Upload the file to S3
+      const formData = new FormData();
+      Object.entries(fields).forEach(([key, val]) => {
+        formData.append(key, String(val));
+      });
+      formData.append("file", file);
+
+      const s3Response = await fetch(url, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!s3Response.ok && s3Response.status !== 204) {
+        throw new Error(`Ошибка загрузки на S3: (${s3Response.status})`);
+      }
+
+      // Successful upload! Save the image ID
+      setInitImageId(id);
+
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "Ошибка при загрузке референсного изображения.");
+      removeRefImage();
+    } finally {
+      setIsUploadingRef(false);
+    }
+  };
+
+  const removeRefImage = () => {
+    setRefImageFile(null);
+    if (refImagePreview) {
+      URL.revokeObjectURL(refImagePreview);
+    }
+    setRefImagePreview(null);
+    setInitImageId(null);
+    setIsUploadingRef(false);
+  };
+
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!prompt.trim()) {
       setError("Пожалуйста, введите описание для генерации.");
+      return;
+    }
+
+    if (isUploadingRef) {
+      setError("Пожалуйста, подождите, пока загрузится референсное изображение.");
       return;
     }
 
@@ -62,7 +150,8 @@ export default function GenerationPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          prompt: prompt.trim()
+          prompt: prompt.trim(),
+          initImageId: initImageId
         }),
       });
 
@@ -188,7 +277,7 @@ export default function GenerationPage() {
             Генератор декоров и текстур
           </h1>
           <p className="text-slate-500 max-w-xl mx-auto text-sm">
-            Введите текстовое описание текстуры ламината или двери для создания высококачественного эскиза 1:1.
+            Введите текстовое описание текстуры ламината или двери, либо загрузите референс, для создания высококачественного эскиза 1:1.
           </p>
         </div>
 
@@ -208,12 +297,58 @@ export default function GenerationPage() {
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                   placeholder="Например: wood texture background, seamless oak laminate pattern, high resolution..."
-                  rows={6}
+                  rows={4}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 transition-all resize-none"
                 />
-                <p className="text-[11px] text-slate-400 leading-normal">
-                  * Для получения наилучшего результата пишите промпты на английском языке и указывайте детали (например: seamless, oak, wood pattern).
-                </p>
+              </div>
+
+              {/* Reference Image Upload */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-700 tracking-wider uppercase flex items-center gap-1.5">
+                  <ImageControl className="w-3.5 h-3.5 text-indigo-500" />
+                  Референсное изображение (Имидж-гайд / Опционально)
+                </label>
+                
+                {!refImagePreview ? (
+                  <label className="flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-xl p-4 bg-slate-50/50 hover:bg-slate-50 hover:border-indigo-300 transition-all cursor-pointer">
+                    <Upload className="w-6 h-6 text-slate-400 mb-1.5" />
+                    <span className="text-xs font-medium text-slate-600">Выберите файл изображения</span>
+                    <span className="text-[10px] text-slate-400 mt-0.5">JPG, PNG или WEBP (макс. 5MB)</span>
+                    <input
+                      type="file"
+                      accept="image/png, image/jpeg, image/jpg, image/webp"
+                      onChange={handleRefImageChange}
+                      className="hidden"
+                    />
+                  </label>
+                ) : (
+                  <div className="relative border border-slate-200 rounded-xl p-3 bg-slate-50 flex items-center gap-3">
+                    <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-slate-200 border border-slate-300 shrink-0">
+                      <img src={refImagePreview} alt="Reference Preview" className="w-full h-full object-cover" />
+                      {isUploadingRef && (
+                        <div className="absolute inset-0 bg-slate-900/60 flex items-center justify-center">
+                          <Loader2 className="w-4 h-4 text-white animate-spin" />
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-slate-700 truncate">{refImageFile?.name}</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">
+                        {isUploadingRef ? "Загрузка на сервер..." : initImageId ? "Готов к генерации (сильное влияние)" : "Обработка..."}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={removeRefImage}
+                      className="w-7 h-7 rounded-full bg-slate-200/80 hover:bg-red-50 hover:text-red-500 text-slate-500 flex items-center justify-center transition-colors shrink-0"
+                      title="Удалить референс"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Error Message */}
@@ -227,7 +362,7 @@ export default function GenerationPage() {
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={isGenerating}
+                disabled={isGenerating || isUploadingRef}
                 className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white font-medium rounded-xl text-sm transition-all shadow-md shadow-indigo-600/10 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {isGenerating ? (

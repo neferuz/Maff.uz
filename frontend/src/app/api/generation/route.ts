@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { prompt } = body;
+    const { prompt, initImageId } = body;
 
     const key = process.env.LEONARDO_API_KEY;
 
@@ -15,18 +15,34 @@ export async function POST(req: Request) {
     }
 
     // Set model, nested parameters, and 1:1 ratio size (1024x1024)
+    const parameters: any = {
+      width: 1024,
+      height: 1024,
+      prompt: prompt,
+      quantity: 1,
+      style_ids: [
+        "111dc692-d470-4eec-b791-3475abac4c46" // Dynamic style preset
+      ],
+      prompt_enhance: "OFF"
+    };
+
+    if (initImageId) {
+      parameters.guidances = {
+        image_reference: [
+          {
+            image: {
+              id: initImageId,
+              type: "UPLOADED"
+            },
+            strength: "MID"
+          }
+        ]
+      };
+    }
+
     const payload = {
       model: "nano-banana-2",
-      parameters: {
-        width: 1024,
-        height: 1024,
-        prompt: prompt,
-        quantity: 1,
-        style_ids: [
-          "111dc692-d470-4eec-b791-3475abac4c46" // Dynamic style preset
-        ],
-        prompt_enhance: "OFF"
-      },
+      parameters: parameters,
       public: false
     };
 
