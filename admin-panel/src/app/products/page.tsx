@@ -56,7 +56,35 @@ export default function ProductsPage() {
       setIsLoading(true);
       const res = await fetch("/api/v1/products/");
       const data = await res.json();
-      setProducts(Array.isArray(data) ? data : []);
+      let allProducts = Array.isArray(data) ? data : [];
+      // Filter out non-products (accessories, samples, merchandise, 0-price)
+      const nonProductKeywords = [
+        "образец", "образцы", "коробка", "короб", "добор", "наличник",
+        "стенд", "вывеска", "каталог", "буклет", "щит рекл",
+        "футболка", "стойка", "герметик", "защелка", "замок", "agb",
+        "ключ", "связка", "соединение", "соединитель", "петля",
+        "ноутбук", "эмблема", "шуруп", "тяга", "сумка", "стреч", "пленка",
+        "повербанк", "планшет", "подставка", "табличка", "рейка", "флаг", "холдер",
+        "установка", "станок", "жидкий",
+        "router", "роутер", "cpe",
+      ];
+      allProducts = allProducts.filter((p: any) => {
+        const priceVal = p.price_outlet || p.price || 0;
+        if (priceVal === 0 || priceVal === null || priceVal === undefined) return false;
+        const nameLower = (p.name || "").toLowerCase();
+        for (const kw of nonProductKeywords) {
+          if (nameLower.includes(kw)) return false;
+        }
+        if (nameLower.includes("полотно")) {
+          const brandLower = (p.brand || "").toLowerCase();
+          const isDoorBrand = ["волховец", "volkhovets", "zadoor", "portika", "profildoors", "filomuro"].some(
+            (b) => brandLower.includes(b)
+          );
+          if (!isDoorBrand) return false;
+        }
+        return true;
+      });
+      setProducts(allProducts);
     } catch (error) {
       toast.error("Произошла ошибка: " + (error instanceof Error ? error.message : "Неизвестная ошибка"));
       console.error("Failed to fetch products:", error);

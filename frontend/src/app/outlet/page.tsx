@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
-import { cn } from "@/lib/utils";
+import { cn, isRealProduct } from "@/lib/utils";
 import { ProductCard } from "@/components/ui/product-card";
 import { ScrollReveal } from "@/components/ui/scroll-reveal";
 
@@ -77,21 +77,8 @@ function OutletContent() {
         const prodRes = await fetch(url, { cache: "no-store", headers: { "Cache-Control": "no-cache" } });
         const prodData = await prodRes.json();
         let safeProducts = Array.isArray(prodData) ? prodData : [];
-        // Filter out products with 0 price, "образец" samples, and accessories
-        safeProducts = safeProducts.filter((p: any) => {
-          const priceVal = p.price_outlet || p.price || 0;
-          if (priceVal === 0) return false;
-          const nameLower = (p.name || "").toLowerCase();
-          if (nameLower.includes("образец") || nameLower.includes("образцы")) return false;
-          if (nameLower.includes("коробка") || nameLower.includes("добор") || nameLower.includes("стенд") || nameLower.includes("вывеска") || nameLower.includes("каталог") || nameLower.includes("буклет") || nameLower.includes("щит рекл")) return false;
-          // Only filter "полотно" if it's not a door brand
-          if (nameLower.includes("полотно")) {
-            const brandLower = (p.brand || "").toLowerCase();
-            const isDoorBrand = ['волховец', 'volkhovets', 'zadoor', 'portika', 'profildoors', 'filomuro'].some(b => brandLower.includes(b));
-            if (!isDoorBrand) return false;
-          }
-          return true;
-        });
+        // Filter out non-products (accessories, samples, merchandise, 0-price)
+        safeProducts = safeProducts.filter((p: any) => isRealProduct(p));
         setProducts(safeProducts);
 
         const uniqueBrands = Array.from(new Set(safeProducts.map((p: any) => p.brand).filter(Boolean))) as string[];
