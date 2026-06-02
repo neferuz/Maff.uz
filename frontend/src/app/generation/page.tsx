@@ -39,16 +39,28 @@ export default function GenerationPage() {
   const [history, setHistory] = useState<GeneratedImage[]>([]);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
-  // Load history from localStorage on mount
+  // Load history from server on mount (with localStorage fallback)
   useEffect(() => {
-    const savedHistory = localStorage.getItem("maff_generation_history");
-    if (savedHistory) {
+    const fetchHistory = async () => {
       try {
-        setHistory(JSON.parse(savedHistory));
+        const res = await fetch("/api/generation/history");
+        if (res.ok) {
+          const data = await res.json();
+          setHistory(data);
+        } else {
+          throw new Error("Failed to fetch history");
+        }
       } catch (e) {
-        console.error("Failed to parse generation history", e);
+        console.error("Failed to load history from server", e);
+        const savedHistory = localStorage.getItem("maff_generation_history");
+        if (savedHistory) {
+          try {
+            setHistory(JSON.parse(savedHistory));
+          } catch (e2) {}
+        }
       }
-    }
+    };
+    fetchHistory();
   }, []);
 
   // Handle reference image selection
@@ -227,9 +239,29 @@ export default function GenerationPage() {
             createdAt: new Date().toLocaleString(),
           }));
 
-          const updatedHistory = [...newHistoryItems, ...history].slice(0, 50); // limit to 50 items
-          setHistory(updatedHistory);
-          localStorage.setItem("maff_generation_history", JSON.stringify(updatedHistory));
+          // Post to server to share with all users
+          fetch("/api/generation/history", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ images: newHistoryItems }),
+          })
+            .then(async (res) => {
+              if (res.ok) {
+                const data = await res.json();
+                setHistory(data.history);
+              } else {
+                const updatedHistory = [...newHistoryItems, ...history].slice(0, 50);
+                setHistory(updatedHistory);
+                localStorage.setItem("maff_generation_history", JSON.stringify(updatedHistory));
+              }
+            })
+            .catch(() => {
+              const updatedHistory = [...newHistoryItems, ...history].slice(0, 50);
+              setHistory(updatedHistory);
+              localStorage.setItem("maff_generation_history", JSON.stringify(updatedHistory));
+            });
         } else if (job.status === "FAILED") {
           clearInterval(interval);
           throw new Error("Генерация завершилась ошибкой.");
@@ -248,9 +280,19 @@ export default function GenerationPage() {
   };
 
   const clearHistory = () => {
-    if (confirm("Вы уверены, что хотите очистить всю историю генераций?")) {
-      setHistory([]);
-      localStorage.removeItem("maff_generation_history");
+    if (confirm("Вы уверены, что хотите очистить всю историю генераций для всех пользователей?")) {
+      fetch("/api/generation/history", {
+        method: "DELETE",
+      })
+        .then(async (res) => {
+          if (res.ok) {
+            setHistory([]);
+            localStorage.removeItem("maff_generation_history");
+          }
+        })
+        .catch((e) => {
+          console.error("Failed to clear shared history", e);
+        });
     }
   };
 
