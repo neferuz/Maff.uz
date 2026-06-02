@@ -303,6 +303,10 @@ export default function GenerationPage() {
   };
 
   const downloadImage = async (url: string, filename: string) => {
+    if (!url || !url.startsWith("http")) {
+      console.warn("Invalid image URL for download:", url);
+      return;
+    }
     // Skip fetch for cross-origin URLs to avoid CORS errors
     // (Leonardo AI S3 bucket does not allow cross-origin fetch)
     const isSameOrigin = url.startsWith(window.location.origin) || url.startsWith("/");
