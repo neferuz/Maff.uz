@@ -21,6 +21,15 @@ export async function POST(req: Request) {
       );
     }
 
+    const validExtensions = ["jpg", "jpeg", "png", "webp"];
+    const ext = (extension || "").toLowerCase().trim();
+    if (!validExtensions.includes(ext)) {
+      return NextResponse.json(
+        { error: `Неподдерживаемый формат файла: "${extension}". Поддерживаются: JPG, PNG, WEBP.` },
+        { status: 400 }
+      );
+    }
+
     const response = await fetch("https://cloud.leonardo.ai/api/rest/v1/init-image", {
       method: "POST",
       headers: {
@@ -29,7 +38,7 @@ export async function POST(req: Request) {
         "authorization": `Bearer ${key}`
       },
       body: JSON.stringify({
-        extension: extension.toLowerCase().replace("jpeg", "jpg")
+        extension: ext.replace("jpeg", "jpg")
       })
     });
 

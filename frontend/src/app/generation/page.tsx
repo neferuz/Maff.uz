@@ -75,7 +75,13 @@ export default function GenerationPage() {
     setInitImageId(null);
 
     try {
-      const extension = file.name.split(".").pop() || "jpg";
+      // Normalize extension from MIME type instead of filename
+      const mimeToExt: Record<string, string> = {
+        "image/jpeg": "jpg",
+        "image/png": "png",
+        "image/webp": "webp",
+      };
+      const extension = mimeToExt[file.type] || file.name.split(".").pop() || "jpg";
       
       // 1. Get presigned upload URL from server
       const response = await fetch("/api/generation/init-image", {
