@@ -129,7 +129,7 @@ export function ShopProvider({ children }: { children: React.ReactNode }) {
           isLoggedIn: true,
           id: data.id
         });
-      } else if (response.status === 401) {
+      } else if (response.status === 401 || response.status === 403) {
         logout();
       }
     } catch (err) {
