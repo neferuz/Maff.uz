@@ -69,6 +69,129 @@ async def read_products(
         
     return products
 
+@router.get("/legacy-redirect/{path:path}")
+async def legacy_redirect(
+    path: str,
+    db: AsyncSession = Depends(deps.get_db),
+) -> Any:
+    """
+    Intelligent redirect from old Bitrix URLs to new product or category pages.
+    """
+    from fastapi.responses import RedirectResponse
+    from sqlalchemy.future import select
+    from app.models.product import Product as ProductModel
+    from app.models.product import Category as CategoryModel
+    import re
+
+    path_clean = path.strip("/")
+    if not path_clean:
+        return RedirectResponse(url="/catalog", status_code=301)
+        
+    segments = [s.lower() for s in path_clean.split("/") if s]
+    if not segments:
+        return RedirectResponse(url="/catalog", status_code=301)
+        
+    # Get leaf segment
+    leaf = segments[-1]
+    
+    # 1. Extract potential SKUs
+    parts = re.split(r'[-_]', leaf)
+    potential_skus = []
+    for p in parts:
+        p = p.strip()
+        if not p:
+            continue
+        if p.isdigit() and len(p) >= 3:
+            potential_skus.append(p)
+        elif p.startswith("epl") and len(p) >= 5:
+            potential_skus.append(p.upper())
+        elif p.startswith("el") and len(p) >= 5:
+            potential_skus.append(p.upper())
+        elif p.startswith("ehl") and len(p) >= 5:
+            potential_skus.append(p.upper())
+        elif p.startswith("k") and len(p) >= 4 and p[1:].isdigit():
+            potential_skus.append(p.upper())
+            
+    # Try SKU match first
+    for sku in potential_skus:
+        # Search by exact SKU
+        q = select(ProductModel).where(ProductModel.sku == sku)
+        res = await db.execute(q)
+        prod = res.scalars().first()
+        if prod:
+            return RedirectResponse(url=f"/product/{prod.id}", status_code=301)
+            
+        # Try name contains SKU
+        q = select(ProductModel).where(ProductModel.name.ilike(f"%{sku}%"))
+        res = await db.execute(q)
+        prod = res.scalars().first()
+        if prod:
+            return RedirectResponse(url=f"/product/{prod.id}", status_code=301)
+
+    # 2. Try keyword/translit matching (useful for doors & other products without standard sku)
+    TRANSLIT_MAP = {
+        "belennyy": "белен",
+        "belenyi": "белен",
+        "dub": "дуб",
+        "oreh": "орех",
+        "yasen": "ясень",
+        "seryy": "серый",
+        "belyy": "белый",
+        "chernyy": "черный",
+        "venge": "венге",
+        "shokolad": "шоколад",
+        "grafit": "графит",
+        "yasen": "ясен",
+    }
+    
+    words = [w for w in parts if len(w) >= 2 and w not in ["pg", "dg", "door", "dveri", "faska", "klass", "class", "vlagostoykiy"]]
+    if words:
+        search_terms = []
+        for w in words:
+            if w in TRANSLIT_MAP:
+                search_terms.append(TRANSLIT_MAP[w])
+            else:
+                search_terms.append(w)
+                
+        if len(search_terms) >= 2:
+            q = select(ProductModel).where(
+                ProductModel.name.ilike(f"%{search_terms[0]}%"),
+                ProductModel.name.ilike(f"%{search_terms[1]}%")
+            )
+            res = await db.execute(q)
+            prod = res.scalars().first()
+            if prod:
+                return RedirectResponse(url=f"/product/{prod.id}", status_code=301)
+        elif len(search_terms) == 1:
+            q = select(ProductModel).where(ProductModel.name.ilike(f"%{search_terms[0]}%"))
+            res = await db.execute(q)
+            prod = res.scalars().first()
+            if prod:
+                return RedirectResponse(url=f"/product/{prod.id}", status_code=301)
+
+    # 3. Last resort fallback: try to find a category match from segments
+    for segment in reversed(segments):
+        if segment in ["laminat", "dveri", "porozhki", "plintus", "podlozhka", "klei", "furnitura"]:
+            if segment == "laminat":
+                return RedirectResponse(url="/category/laminat", status_code=301)
+            elif segment == "dveri":
+                return RedirectResponse(url="/category/mezhkomnatnye-dveri", status_code=301)
+            elif segment == "plintus":
+                return RedirectResponse(url="/category/plintus", status_code=301)
+            elif segment == "porozhki":
+                return RedirectResponse(url="/category/porogi", status_code=301)
+            elif segment == "podlozhka":
+                return RedirectResponse(url="/category/podlozhka", status_code=301)
+                
+        q = select(CategoryModel).where(CategoryModel.name.ilike(segment))
+        res = await db.execute(q)
+        cat = res.scalars().first()
+        if cat:
+            cat_slug = cat.name.lower().replace(" ", "-")
+            return RedirectResponse(url=f"/category/{cat_slug}", status_code=301)
+            
+    return RedirectResponse(url="/catalog", status_code=301)
+
 @router.get("/{id}", response_model=ProductDetail)
 async def read_product(
     id: int,
