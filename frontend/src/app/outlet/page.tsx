@@ -76,7 +76,22 @@ function OutletContent() {
           : `/api/v1/products/?limit=300&t=${Date.now()}`;
         const prodRes = await fetch(url, { cache: "no-store", headers: { "Cache-Control": "no-cache" } });
         const prodData = await prodRes.json();
-        const safeProducts = Array.isArray(prodData) ? prodData : [];
+        let safeProducts = Array.isArray(prodData) ? prodData : [];
+        // Filter out products with 0 price, "образец" samples, and accessories
+        safeProducts = safeProducts.filter((p: any) => {
+          const priceVal = p.price_outlet || p.price || 0;
+          if (priceVal === 0) return false;
+          const nameLower = (p.name || "").toLowerCase();
+          if (nameLower.includes("образец") || nameLower.includes("образцы")) return false;
+          if (nameLower.includes("коробка") || nameLower.includes("добор") || nameLower.includes("стенд") || nameLower.includes("вывеска") || nameLower.includes("каталог") || nameLower.includes("буклет") || nameLower.includes("щит рекл")) return false;
+          // Only filter "полотно" if it's not a door brand
+          if (nameLower.includes("полотно")) {
+            const brandLower = (p.brand || "").toLowerCase();
+            const isDoorBrand = ['волховец', 'volkhovets', 'zadoor', 'portika', 'profildoors', 'filomuro'].some(b => brandLower.includes(b));
+            if (!isDoorBrand) return false;
+          }
+          return true;
+        });
         setProducts(safeProducts);
 
         const uniqueBrands = Array.from(new Set(safeProducts.map((p: any) => p.brand).filter(Boolean))) as string[];

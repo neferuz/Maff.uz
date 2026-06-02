@@ -111,7 +111,22 @@ function CatalogContent() {
           headers: { "Cache-Control": "no-cache" } 
         });
         const prodData = await prodRes.json();
-        const safeProducts = Array.isArray(prodData) ? prodData : [];
+        let safeProducts = Array.isArray(prodData) ? prodData : [];
+        // Filter out products with 0 price, "образец" samples, and accessories
+        safeProducts = safeProducts.filter((p: any) => {
+          const priceVal = p.price_outlet || p.price || 0;
+          if (priceVal === 0) return false;
+          const nameLower = (p.name || "").toLowerCase();
+          if (nameLower.includes("образец") || nameLower.includes("образцы")) return false;
+          if (nameLower.includes("коробка") || nameLower.includes("добор") || nameLower.includes("стенд") || nameLower.includes("вывеска") || nameLower.includes("каталог") || nameLower.includes("буклет") || nameLower.includes("щит рекл")) return false;
+          // Only filter "полотно" if it's not a door brand (for Volkhovets, ZADOOR etc, полотно IS the door)
+          if (nameLower.includes("полотно")) {
+            const brandLower = (p.brand || "").toLowerCase();
+            const isDoorBrand = ['волховец', 'volkhovets', 'zadoor', 'portika', 'profildoors', 'filomuro'].some(b => brandLower.includes(b));
+            if (!isDoorBrand) return false;
+          }
+          return true;
+        });
         setProducts(safeProducts);
 
         // Extract unique brands for this selection
@@ -314,7 +329,7 @@ function CatalogContent() {
       } else if (lowerRawBrand === "silkroad" || lowerRawBrand === "silk road") {
         parsedBrand = "Silk Road";
       } else if (parsedBrand) {
-        parsedBrand = parsedBrand.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+        parsedBrand = parsedBrand.split('_').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
       }
 
       // 2. Auto-resolve missing countries based on brands

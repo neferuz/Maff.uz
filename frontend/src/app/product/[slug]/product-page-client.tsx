@@ -279,6 +279,8 @@ export default function ProductPageClient({ params }: { params: { slug: string }
     doorKeywords.some(k => productName.toLowerCase().includes(k)) ||
     doorBrands.some(b => productBrand.includes(b))
   ) : false;
+  // Kit calculator (box + trim) only for these brands
+  const hasKitCalculator = isDoor && !['волховец', 'volkhovets'].some(b => productBrand.includes(b));
   const unit = product ? (isDoor ? "шт" : getProductUnit(productName, product.category?.name || "")) : "м²";
 
   // ── Calculations ──
@@ -340,6 +342,46 @@ export default function ProductPageClient({ params }: { params: { slug: string }
     const val = Number(num || 0);
     return Math.round(val).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
   };
+
+  // Extract color from product name
+  const extractColor = (name: string): string | null => {
+    if (!name) return null;
+    const lower = name.toLowerCase();
+    const colorMap: Record<string, string[]> = {
+      "Белый": ["белый", "белая эмаль", "white"],
+      "Серый": ["серый", "серая", "grey", "gray"],
+      "Кремовый": ["кремовый", "крем", "cream"],
+      "Графит": ["графит", "graphite"],
+      "Орех": ["орех", "ореховый", "walnut"],
+      "Дуб": ["дуб", "дубовый", "oak"],
+      "Бетон": ["бетон", "concrete"],
+      "Нордик": ["нордик", "nordic"],
+      "Сканди": ["сканди", "scandi"],
+      "Бренди": ["бренди", "brandy"],
+      "Чёрный": ["чёрный", "черный", "black"],
+      "Бежевый": ["бежевый", "beige"],
+      "Молочный": ["молочный", "milky"],
+      "Антрацит": ["антрацит", "anthracite"],
+      "Деним": ["деним", "denim"],
+      "Айвори": ["айвори", "ivory"],
+      "Мелон": ["мелон", "melon"],
+      "Опал": ["опал", "opal"],
+      "Сатинато": ["сатинато", "satinato"],
+      "Перламутровый": ["перламутровый", "pearlescent", "жемчужно-перламутровый"],
+      "Аляска": ["аляска", "alaska"],
+      "Праймер": ["праймер", "primer"],
+      "Natural Oak": ["natural oak"],
+      "Alpik Oak": ["alpik oak"],
+    };
+    for (const [colorName, keywords] of Object.entries(colorMap)) {
+      for (const kw of keywords) {
+        if (lower.includes(kw)) return colorName;
+      }
+    }
+    return null;
+  };
+
+  const productColor = extractColor(productName);
 
   // installmentPartners loaded dynamically from installmentData.partners
 
@@ -494,10 +536,89 @@ export default function ProductPageClient({ params }: { params: { slug: string }
                       </span>
                     </>
                   )}
+                  {productColor && (
+                    <>
+                      <div className="w-1 h-1 bg-slate-300 dark:bg-slate-700 rounded-full" />
+                      <span className="inline-flex items-center gap-1.5 text-[8px] lg:text-[9px] font-black text-violet-600 dark:text-violet-400 uppercase tracking-widest">
+                        <span className="w-3 h-3 rounded-sm border border-slate-300 dark:border-slate-600"
+                          style={{
+                            backgroundColor:
+                              productColor === "Белый" ? "#ffffff" :
+                              productColor === "Серый" ? "#6b7280" :
+                              productColor === "Кремовый" ? "#f5f5dc" :
+                              productColor === "Графит" ? "#374151" :
+                              productColor === "Орех" ? "#8b5a2b" :
+                              productColor === "Дуб" ? "#a0522d" :
+                              productColor === "Бетон" ? "#9ca3af" :
+                              productColor === "Нордик" ? "#d1d5db" :
+                              productColor === "Сканди" ? "#e5e7eb" :
+                              productColor === "Бренди" ? "#b45309" :
+                              productColor === "Чёрный" ? "#000000" :
+                              productColor === "Бежевый" ? "#d2b48c" :
+                              productColor === "Молочный" ? "#fffdd0" :
+                              productColor === "Антрацит" ? "#1f2937" :
+                              productColor === "Деним" ? "#1560bd" :
+                              productColor === "Айвори" ? "#fffff0" :
+                              productColor === "Мелон" ? "#fdbcb4" :
+                              productColor === "Опал" ? "#f0f8ff" :
+                              productColor === "Сатинато" ? "#e2e8f0" :
+                              productColor === "Перламутровый" ? "#f0f0f0" :
+                              productColor === "Аляска" ? "#f8fafc" :
+                              productColor === "Праймер" ? "#e2e2e2" :
+                              productColor === "Natural Oak" ? "#c4a35a" :
+                              productColor === "Alpik Oak" ? "#b8956a" :
+                              "#cbd5e1"
+                          }}
+                        />
+                        {productColor}
+                      </span>
+                    </>
+                  )}
                </div>
-               <h1 className="text-xl lg:text-3xl font-black text-slate-900 dark:text-white leading-tight uppercase tracking-tighter mb-3 lg:mb-4">
+               <h1 className="text-xl lg:text-3xl font-black text-slate-900 dark:text-white leading-tight uppercase tracking-tighter mb-2 lg:mb-3">
                  {productName}
                </h1>
+
+               {/* Color swatch */}
+               {productColor && (
+                 <div className="flex items-center gap-2 mb-3 lg:mb-4">
+                   <span className="text-[9px] lg:text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Цвет:</span>
+                   <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 rounded-lg px-2 py-1">
+                     <span 
+                       className="w-4 h-4 rounded-sm border border-slate-300 dark:border-slate-600 inline-block"
+                       style={{
+                         backgroundColor:
+                           productColor === "Белый" ? "#ffffff" :
+                           productColor === "Серый" ? "#6b7280" :
+                           productColor === "Кремовый" ? "#f5f5dc" :
+                           productColor === "Графит" ? "#374151" :
+                           productColor === "Орех" ? "#8b5a2b" :
+                           productColor === "Дуб" ? "#a0522d" :
+                           productColor === "Бетон" ? "#9ca3af" :
+                           productColor === "Нордик" ? "#d1d5db" :
+                           productColor === "Сканди" ? "#e5e7eb" :
+                           productColor === "Бренди" ? "#b45309" :
+                           productColor === "Чёрный" ? "#000000" :
+                           productColor === "Бежевый" ? "#d2b48c" :
+                           productColor === "Молочный" ? "#fffdd0" :
+                           productColor === "Антрацит" ? "#1f2937" :
+                           productColor === "Деним" ? "#1560bd" :
+                           productColor === "Айвори" ? "#fffff0" :
+                           productColor === "Мелон" ? "#fdbcb4" :
+                           productColor === "Опал" ? "#f0f8ff" :
+                           productColor === "Сатинато" ? "#e2e8f0" :
+                           productColor === "Перламутровый" ? "#f0f0f0" :
+                           productColor === "Аляска" ? "#f8fafc" :
+                           productColor === "Праймер" ? "#e2e2e2" :
+                           productColor === "Natural Oak" ? "#c4a35a" :
+                           productColor === "Alpik Oak" ? "#b8956a" :
+                           "#cbd5e1"
+                       }}
+                     />
+                     <span className="text-[10px] lg:text-xs font-black text-slate-900 dark:text-white">{productColor}</span>
+                   </div>
+                 </div>
+               )}
                
                <div className="relative">
                  <div 
@@ -556,7 +677,7 @@ export default function ProductPageClient({ params }: { params: { slug: string }
                </div>
 
                {/* Calculator */}
-               {isDoor ? (
+               {hasKitCalculator ? (
                  <div className="bg-slate-50 dark:bg-slate-800/40 rounded-2xl p-4 lg:p-5 border border-slate-100 dark:border-slate-800 space-y-4">
                     <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                        <span className="text-[10px] lg:text-[11px] font-black text-slate-900 dark:text-white uppercase tracking-wider">Калькулятор комплекта</span>
