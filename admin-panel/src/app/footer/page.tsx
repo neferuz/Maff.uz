@@ -1,40 +1,14 @@
 "use client";
-import { toast } from "react-hot-toast";
 import { 
   Save, 
-  Phone, 
-  MapPin, 
   RefreshCw, 
-  CheckCircle2, 
   AlertCircle, 
-  Info, 
   Globe, 
-  Send,
-  MessageCircle,
-  Sparkles,
-  Layout
+  Layout,
+  Check
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { motion, AnimatePresence } from "framer-motion";
 import React, { useState, useEffect } from "react";
-
-function InstagramIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
-      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
-      <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
-    </svg>
-  );
-}
-
-function FacebookIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
-    </svg>
-  );
-}
 
 const DEFAULT_FOOTER = {
   description: "Ведущий дистрибьютор напольных покрытий и дверей в Узбекистане. 20 лет опыта, 17 международных брендов и безупречный сервис.",
@@ -72,7 +46,7 @@ export default function FooterEditor() {
         setOriginalData(JSON.parse(JSON.stringify(DEFAULT_FOOTER)));
       }
     } catch (err) {
-      toast.error("Произошла ошибка: " + (err instanceof Error ? err.message : "Неизвестная ошибка"));
+      setErrorMsg("Произошла ошибка: " + (err instanceof Error ? err.message : "Неизвестная ошибка"));
       console.error("Failed to fetch footer data:", err);
       setData(DEFAULT_FOOTER);
       setOriginalData(JSON.parse(JSON.stringify(DEFAULT_FOOTER)));
@@ -99,14 +73,13 @@ export default function FooterEditor() {
 
       if (response.ok) {
         setOriginalData(JSON.parse(JSON.stringify(data)));
-        toast.success("Изменения успешно сохранены!");
+        setShowToast(true);
         setTimeout(() => setShowToast(false), 3000);
       } else {
         setErrorMsg("Не удалось сохранить данные");
         setTimeout(() => setErrorMsg(null), 4000);
       }
     } catch (err) {
-      toast.error("Произошла ошибка: " + (err instanceof Error ? err.message : "Неизвестная ошибка"));
       setErrorMsg("Ошибка подключения к серверу");
       setTimeout(() => setErrorMsg(null), 4000);
     } finally {
@@ -121,157 +94,146 @@ export default function FooterEditor() {
   );
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-700 pb-20 text-left px-4">
-      {/* Toast Notifications */}
-      <AnimatePresence>
-        {showToast && (
-          <motion.div 
-            initial={{ opacity: 0, y: 50 }} 
-            animate={{ opacity: 1, y: 0 }} 
-            exit={{ opacity: 0, scale: 0.95 }} 
-            className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[10001]"
-          >
-             <div className="flex items-center gap-3 px-6 py-3 bg-[#1a1f36] text-white rounded-2xl border border-white/10 backdrop-blur-md shadow-2xl">
-                <CheckCircle2 className="w-4 h-4 text-green-400" />
-                <span className="text-[13px] font-bold tracking-tight">Изменения сохранены в базе!</span>
-             </div>
-          </motion.div>
-        )}
-        {errorMsg && (
-          <motion.div 
-            initial={{ opacity: 0, y: 50 }} 
-            animate={{ opacity: 1, y: 0 }} 
-            exit={{ opacity: 0, scale: 0.95 }} 
-            className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[10001]"
-          >
-             <div className="flex items-center gap-3 px-6 py-3 bg-[#cd5c5c] text-white rounded-2xl border border-white/10 backdrop-blur-md shadow-2xl">
-                <AlertCircle className="w-4 h-4 text-white" />
-                <span className="text-[13px] font-bold tracking-tight">{errorMsg}</span>
-             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+    <div className="space-y-6 animate-in fade-in duration-700 pb-12 text-left">
 
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-[#e3e8ee] pb-4 -mt-2">
-        <div>
-          <h1 className="text-xl font-bold text-[#1a1f36] tracking-tight">Управление футером (Подвалом сайта)</h1>
-          <p className="text-[12px] text-[#4f566b]">Глобальные контактные данные, социальные сети и описание внизу всех страниц</p>
+      <div className="flex items-center justify-between pb-4 border-b border-[#e3e8ee]">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-[#2c3b6e] rounded-lg flex items-center justify-center flex-shrink-0">
+            <Layout className="w-4 h-4 text-white" />
+          </div>
+          <div>
+            <h1 className="text-[16px] font-bold text-[#1a1f36] tracking-tight leading-none">Футер</h1>
+            <p className="text-[11px] text-[#4f566b] mt-0.5">Контакты, соцсети и описание</p>
+          </div>
+          {isDirty && (
+            <span className="text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md tracking-wider">Несохранено</span>
+          )}
         </div>
         <button 
           onClick={handleSave}
           disabled={isSaving || !isDirty}
           className={cn(
-            "flex items-center gap-2 px-5 py-2 text-[13px] font-bold rounded-lg transition-all border shadow-none",
+            "flex items-center gap-2 px-4 py-2 text-[12px] font-bold rounded-lg transition-all",
             isDirty 
-              ? "bg-[#2c3b6e] text-white hover:bg-[#232f58] border-[#2c3b6e] cursor-pointer" 
-              : "bg-[#f7f8f9] text-[#a3acb9] cursor-not-allowed border-[#e3e8ee]"
+              ? "bg-[#2c3b6e] text-white hover:bg-[#232f58] cursor-pointer" 
+              : "bg-[#f7f8f9] text-[#a3acb9] cursor-not-allowed border border-[#e3e8ee]"
           )}
         >
           {isSaving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-          Сохранить изменения
+          Сохранить
         </button>
       </div>
 
       <div className="max-w-3xl space-y-6">
         
          {/* Main Footer Info Card */}
-         <div className="bg-white border border-[#e3e8ee] rounded-xl p-5 space-y-4 shadow-none">
-            <div className="flex items-center gap-2 mb-2 border-b border-[#f7f8f9] pb-3">
+         <div className="bg-white border border-[#e3e8ee] rounded-xl p-4 space-y-4">
+            <div className="flex items-center gap-2 min-h-8">
                <Layout className="w-4 h-4 text-[#2c3b6e]" />
-               <h3 className="text-[12px] font-bold text-[#1a1f36] uppercase tracking-wider">Основная информация</h3>
+               <h3 className="text-[13px] font-bold text-[#1a1f36] tracking-wider">Основная информация</h3>
             </div>
             
-            <div className="space-y-1.5">
-               <label className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest">Описание бренда</label>
+            <div className="space-y-1">
+               <label className="block h-4 text-[10px] font-semibold text-[#4f566b] tracking-wider truncate">Описание бренда</label>
                <textarea 
                  rows={3} 
                  value={data.description} 
                  onChange={(e) => setData({...data, description: e.target.value})} 
-                 placeholder="Введите описание компании для левой колонки футера..."
-                 className="w-full px-3 py-2 bg-[#f7f8f9] border border-[#e3e8ee] rounded-lg text-[13px] outline-none focus:bg-white focus:border-[#2c3b6e]/30 transition-all leading-relaxed" 
+                 placeholder="Введите описание компании..."
+                 className="w-full px-3 py-2 bg-[#f7f8f9] border border-[#e3e8ee] rounded-lg text-[13px] outline-none focus:bg-white focus:border-[#2c3b6e] transition-all leading-relaxed text-[#1a1f36]" 
                />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-               <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest flex items-center gap-2">
-                     <Phone className="w-3 h-3 text-[#2c3b6e]" /> Телефон
-                  </label>
+               <div className="space-y-1">
+                  <label className="block h-4 text-[10px] font-semibold text-[#4f566b] tracking-wider truncate">Телефон</label>
                   <input 
                     type="text" 
                     value={data.phone} 
                     onChange={(e) => setData({...data, phone: e.target.value})} 
                     placeholder="+998 71 205 54 54"
-                    className="w-full px-3 py-2 bg-[#f7f8f9] border border-[#e3e8ee] rounded-lg text-[13px] outline-none focus:bg-white focus:border-[#2c3b6e]/30 transition-all font-semibold text-[#1a1f36]" 
+                    className="h-9 w-full px-3 bg-[#f7f8f9] border border-[#e3e8ee] rounded-lg text-[13px] outline-none focus:bg-white focus:border-[#2c3b6e] transition-all font-semibold text-[#1a1f36]" 
                   />
                </div>
                
-               <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest flex items-center gap-2">
-                     <MapPin className="w-3 h-3 text-[#2c3b6e]" /> Адрес
-                  </label>
+               <div className="space-y-1">
+                  <label className="block h-4 text-[10px] font-semibold text-[#4f566b] tracking-wider truncate">Адрес</label>
                   <input 
                     type="text" 
                     value={data.address} 
                     onChange={(e) => setData({...data, address: e.target.value})} 
                     placeholder="г. Ташкент, ул. Уста Ширин"
-                    className="w-full px-3 py-2 bg-[#f7f8f9] border border-[#e3e8ee] rounded-lg text-[13px] outline-none focus:bg-white focus:border-[#2c3b6e]/30 transition-all font-semibold text-[#1a1f36]" 
+                    className="h-9 w-full px-3 bg-[#f7f8f9] border border-[#e3e8ee] rounded-lg text-[13px] outline-none focus:bg-white focus:border-[#2c3b6e] transition-all font-semibold text-[#1a1f36]" 
                   />
                </div>
             </div>
          </div>
 
          {/* Social Networks Links */}
-         <div className="bg-white border border-[#e3e8ee] rounded-xl p-5 space-y-4 shadow-none">
-            <div className="flex items-center gap-2 mb-2 border-b border-[#f7f8f9] pb-3">
+         <div className="bg-white border border-[#e3e8ee] rounded-xl p-4 space-y-4">
+            <div className="flex items-center gap-2 min-h-8">
                <Globe className="w-4 h-4 text-[#2c3b6e]" />
-               <h3 className="text-[12px] font-bold text-[#1a1f36] uppercase tracking-wider">Социальные сети</h3>
+               <h3 className="text-[13px] font-bold text-[#1a1f36] tracking-wider">Социальные сети</h3>
             </div>
 
             <div className="space-y-4">
-               <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest flex items-center gap-2">
-                     <Send className="w-3 h-3 text-[#0088cc]" /> Telegram URL
-                  </label>
+               <div className="space-y-1">
+                  <label className="block h-4 text-[10px] font-semibold text-[#4f566b] tracking-wider truncate">Telegram URL</label>
                   <input 
                     type="text" 
                     value={data.telegram} 
                     onChange={(e) => setData({...data, telegram: e.target.value})} 
                     placeholder="https://t.me/..."
-                    className="w-full px-3 py-2 bg-[#f7f8f9] border border-[#e3e8ee] rounded-lg text-[13px] outline-none focus:bg-white focus:border-[#2c3b6e]/30 transition-all text-blue-600 font-medium" 
+                    className="h-9 w-full px-3 bg-[#f7f8f9] border border-[#e3e8ee] rounded-lg text-[13px] outline-none focus:bg-white focus:border-[#2c3b6e] transition-all text-[#1a1f36]" 
                   />
                </div>
 
-               <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest flex items-center gap-2">
-                     <InstagramIcon className="w-3.5 h-3.5 text-[#e1306c]" /> Instagram URL
-                  </label>
+               <div className="space-y-1">
+                  <label className="block h-4 text-[10px] font-semibold text-[#4f566b] tracking-wider truncate">Instagram URL</label>
                   <input 
                     type="text" 
                     value={data.instagram} 
                     onChange={(e) => setData({...data, instagram: e.target.value})} 
                     placeholder="https://instagram.com/..."
-                    className="w-full px-3 py-2 bg-[#f7f8f9] border border-[#e3e8ee] rounded-lg text-[13px] outline-none focus:bg-white focus:border-[#2c3b6e]/30 transition-all text-pink-600 font-medium" 
+                    className="h-9 w-full px-3 bg-[#f7f8f9] border border-[#e3e8ee] rounded-lg text-[13px] outline-none focus:bg-white focus:border-[#2c3b6e] transition-all text-[#1a1f36]" 
                   />
                </div>
 
-               <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest flex items-center gap-2">
-                     <FacebookIcon className="w-3.5 h-3.5 text-[#1877f2]" /> Facebook URL
-                  </label>
+               <div className="space-y-1">
+                  <label className="block h-4 text-[10px] font-semibold text-[#4f566b] tracking-wider truncate">Facebook URL</label>
                   <input 
                     type="text" 
                     value={data.facebook} 
                     onChange={(e) => setData({...data, facebook: e.target.value})} 
                     placeholder="https://facebook.com/..."
-                    className="w-full px-3 py-2 bg-[#f7f8f9] border border-[#e3e8ee] rounded-lg text-[13px] outline-none focus:bg-white focus:border-[#2c3b6e]/30 transition-all text-blue-800 font-medium" 
+                    className="h-9 w-full px-3 bg-[#f7f8f9] border border-[#e3e8ee] rounded-lg text-[13px] outline-none focus:bg-white focus:border-[#2c3b6e] transition-all text-[#1a1f36]" 
                   />
                </div>
             </div>
          </div>
 
       </div>
+
+      {showToast && (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-bottom-4 duration-300">
+           <div className="bg-[#1a1f36] text-white px-5 py-2.5 rounded-xl flex items-center gap-2.5 border border-white/10">
+              <div className="w-4 h-4 bg-[#10b981] rounded-full flex items-center justify-center flex-shrink-0">
+                 <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+              </div>
+              <span className="text-[12px] font-semibold">Изменения сохранены</span>
+           </div>
+        </div>
+      )}
+
+      {errorMsg && (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-bottom-4 duration-300">
+           <div className="bg-[#cd5c5c] text-white px-5 py-2.5 rounded-xl flex items-center gap-2.5 border border-white/10">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <span className="text-[12px] font-semibold">{errorMsg}</span>
+           </div>
+        </div>
+      )}
     </div>
   );
 }

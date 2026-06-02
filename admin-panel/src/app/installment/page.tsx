@@ -1,11 +1,10 @@
 "use client";
-import { toast } from "react-hot-toast";
 import { 
-  Save, Plus, Trash2, RefreshCw, CheckCircle2, AlertCircle, CreditCard, Zap, Clock, ShieldCheck, Upload, Image as ImageIcon, X, Type, List, ChevronRight, Smartphone, Wallet, BadgePercent, Coins, Handshake, Users, Target, Award, Shield, Search, MessageSquare, Package, Truck, HelpCircle
+  Save, Plus, Trash2, RefreshCw, CheckCircle2, AlertCircle, CreditCard, Zap, Clock, ShieldCheck, Upload, Image as ImageIcon, X, Type, List, ChevronRight, Smartphone, Wallet, BadgePercent, Coins, Handshake, Users, Target, Award, Shield, Search, MessageSquare, Package, Truck, HelpCircle, Check
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { motion, AnimatePresence } from "framer-motion";
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 
 const ICON_MAP: Record<string, any> = {
   CreditCard, Smartphone, Zap, Clock, ShieldCheck, CheckCircle2, Wallet, BadgePercent, Coins, Handshake, Users, Target, Award, Shield, Search, MessageSquare, Package, Truck, HelpCircle
@@ -64,7 +63,7 @@ export default function InstallmentEditor() {
         }
       }
     } catch (err) {
-      toast.error("Произошла ошибка: " + (err instanceof Error ? err.message : "Неизвестная ошибка"));
+      setErrorMsg("Произошла ошибка: " + (err instanceof Error ? err.message : "Неизвестная ошибка"));
       console.error("Failed to fetch data:", err);
     } finally {
       setFetching(false);
@@ -85,11 +84,13 @@ export default function InstallmentEditor() {
       });
       if (response.ok) {
         setOriginalData(JSON.parse(JSON.stringify(data)));
-        toast.success("Изменения успешно сохранены!");
+        setShowToast(true);
         setTimeout(() => setShowToast(false), 3000);
+      } else {
+        setErrorMsg("Не удалось сохранить");
+        setTimeout(() => setErrorMsg(null), 4000);
       }
     } catch (err) {
-      toast.error("Произошла ошибка: " + (err instanceof Error ? err.message : "Неизвестная ошибка"));
       setErrorMsg("Ошибка сохранения");
       setTimeout(() => setErrorMsg(null), 4000);
     } finally {
@@ -130,14 +131,10 @@ export default function InstallmentEditor() {
         updateListItem('partners', idx, 'logo', res.url);
       }
     } catch (err) {
-      toast.error("Произошла ошибка: " + (err instanceof Error ? err.message : "Неизвестная ошибка"));
       setErrorMsg("Ошибка загрузки");
       setTimeout(() => setErrorMsg(null), 3000);
     }
   };
-
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
 
   if (fetching) return (
     <div className="flex items-center justify-center min-h-[400px]">
@@ -146,46 +143,34 @@ export default function InstallmentEditor() {
   );
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-700 pb-24 text-left px-4">
+    <div className="space-y-6 animate-in fade-in duration-700 pb-12 text-left">
       
-      {/* Toast Notification */}
-      {showToast && (
-        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-bottom-4 duration-300">
-           <div className="bg-[#1a1f36] text-white px-6 py-3 rounded-full flex items-center gap-3 shadow-2xl border border-white/10">
-              <div className="w-5 h-5 bg-[#10b981] rounded-full flex items-center justify-center">
-                 <CheckCircle2 className="w-3.5 h-3.5 text-white" strokeWidth={4} />
-              </div>
-              <span className="text-[13px] font-bold tracking-tight">Рассрочка успешно сохранена!</span>
-           </div>
-        </div>
-      )}
-
-      {errorMsg && (
-        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-bottom-4 duration-300">
-           <div className="bg-red-950 text-red-200 px-6 py-3 rounded-full flex items-center gap-3 shadow-2xl border border-red-500/30">
-              <span className="text-[13px] font-bold tracking-tight">{errorMsg}</span>
-           </div>
-        </div>
-      )}
-
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-[#e3e8ee] pb-4 -mt-2">
-        <div>
-          <h1 className="text-xl font-bold text-[#1a1f36] tracking-tight">Управление рассрочкой</h1>
-          <p className="text-[12px] text-[#4f566b]">Настройка условий, этапов и сервисов-партнеров maff.uz/installment</p>
+      <div className="flex items-center justify-between pb-4 border-b border-[#e3e8ee]">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-[#2c3b6e] rounded-lg flex items-center justify-center flex-shrink-0">
+            <CreditCard className="w-4 h-4 text-white" />
+          </div>
+          <div>
+            <h1 className="text-[16px] font-bold text-[#1a1f36] tracking-tight leading-none">Рассрочка</h1>
+            <p className="text-[11px] text-[#4f566b] mt-0.5">Условия, этапы и партнеры</p>
+          </div>
+          {isDirty && (
+            <span className="text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md tracking-wider">Несохранено</span>
+          )}
         </div>
         <button 
           onClick={handleSave}
           disabled={loading || !isDirty}
           className={cn(
-            "flex items-center gap-2 px-4 py-2 text-[13px] font-bold rounded-lg transition-all shadow-none",
+            "flex items-center gap-2 px-4 py-2 text-[12px] font-bold rounded-lg transition-all",
             isDirty 
               ? "bg-[#2c3b6e] text-white hover:bg-[#232f58] cursor-pointer" 
               : "bg-[#f7f8f9] text-[#a3acb9] cursor-not-allowed border border-[#e3e8ee]"
           )}
         >
           {loading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-          Сохранить изменения
+          Сохранить
         </button>
       </div>
 
@@ -195,11 +180,11 @@ export default function InstallmentEditor() {
          <div className="lg:col-span-2 space-y-6">
             
             {/* Partners List */}
-            <div className="bg-white border border-[#e3e8ee] rounded-xl p-5 space-y-4 shadow-none">
+            <div className="bg-white border border-[#e3e8ee] rounded-xl p-4 space-y-4">
                <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                      <Zap className="w-4 h-4 text-[#2c3b6e]" />
-                     <h3 className="text-[12px] font-bold text-[#1a1f36] uppercase tracking-wider">Сервисы-партнеры</h3>
+                     <h3 className="text-[13px] font-bold text-[#1a1f36] tracking-wider">Сервисы-партнеры</h3>
                   </div>
                   <button 
                     onClick={() => addListItem('partners', { name: "Новый партнер", logo: "", terms: "3, 6, 12 мес", benefits: "0% переплата" })} 
@@ -212,23 +197,23 @@ export default function InstallmentEditor() {
 
                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {data.partners.map((partner, idx) => (
-                     <div key={idx} className="bg-[#f7f8f9] border border-[#e3e8ee] rounded-xl p-4 group relative space-y-4 hover:border-[#2c3b6e]/30 transition-all">
-                        <button onClick={() => setDeleteModal({ show: true, type: "partner", idx })} className="absolute top-2 right-2 p-1.5 bg-white/90 backdrop-blur-md rounded-md text-[#cd5c5c] opacity-0 group-hover:opacity-100 transition-all border border-[#e3e8ee]"><X className="w-4 h-4" /></button>
-                        <div className="flex items-center gap-3">
+                     <div key={idx} className="bg-[#f7f8f9] border border-[#e3e8ee] rounded-lg p-4 group relative space-y-3 hover:border-[#2c3b6e] transition-all">
+                        <button onClick={() => setDeleteModal({ show: true, type: "partner", idx })} className="absolute top-2 right-2 p-1.5 text-[#a3acb9] hover:text-[#cd5c5c] hover:bg-[#cd5c5c]/5 rounded-lg opacity-0 group-hover:opacity-100 transition-all"><X className="w-4 h-4" /></button>
+                        <div className="flex items-center gap-3 min-h-12 pr-8">
                            <div className="w-12 h-12 bg-white rounded-lg border border-[#e3e8ee] flex items-center justify-center relative group/logo overflow-hidden">
                               {partner.logo ? <img src={partner.logo} className="w-full h-full object-contain p-2" /> : <ImageIcon className="w-5 h-5 text-slate-200" />}
                               <label className="absolute inset-0 bg-[#1a1f36]/80 flex items-center justify-center text-white opacity-0 group-hover/logo:opacity-100 cursor-pointer transition-opacity"><Upload className="w-4 h-4" /><input type="file" className="hidden" onChange={(e) => e.target.files?.[0] && handleFileUpload(idx, e.target.files[0])} /></label>
                            </div>
-                           <input value={partner.name} onChange={(e) => updateListItem('partners', idx, 'name', e.target.value)} className="bg-transparent font-bold text-[13px] w-full outline-none border-b border-transparent focus:border-[#2c3b6e]/30 px-1" />
+                           <input value={partner.name} onChange={(e) => updateListItem('partners', idx, 'name', e.target.value)} className="h-9 bg-transparent font-bold text-[13px] w-full outline-none border-b border-transparent focus:border-[#2c3b6e] px-1" />
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                            <div className="space-y-1">
-                              <label className="text-[8px] font-bold text-[#4f566b] uppercase tracking-widest">Срок рассрочки</label>
-                              <input value={partner.terms} onChange={(e) => updateListItem('partners', idx, 'terms', e.target.value)} className="w-full bg-white border border-[#e3e8ee] rounded-lg px-2.5 py-1.5 text-[11px] font-semibold outline-none focus:border-[#2c3b6e]/30" />
+                              <label className="block h-4 text-[10px] font-semibold text-[#4f566b] tracking-wider truncate">Срок рассрочки</label>
+                              <input value={partner.terms} onChange={(e) => updateListItem('partners', idx, 'terms', e.target.value)} className="h-8 w-full bg-white border border-[#e3e8ee] rounded-lg px-2.5 text-[11px] font-semibold outline-none focus:border-[#2c3b6e]" />
                            </div>
                            <div className="space-y-1">
-                              <label className="text-[8px] font-bold text-[#4f566b] uppercase tracking-widest">Условие (переплата)</label>
-                              <input value={partner.benefits} onChange={(e) => updateListItem('partners', idx, 'benefits', e.target.value)} className="w-full bg-white border border-[#e3e8ee] rounded-lg px-2.5 py-1.5 text-[11px] font-bold text-[#2c3b6e] outline-none focus:border-[#2c3b6e]/30" />
+                              <label className="block h-4 text-[10px] font-semibold text-[#4f566b] tracking-wider truncate">Условие (переплата)</label>
+                              <input value={partner.benefits} onChange={(e) => updateListItem('partners', idx, 'benefits', e.target.value)} className="h-8 w-full bg-white border border-[#e3e8ee] rounded-lg px-2.5 text-[11px] font-bold text-[#2c3b6e] outline-none focus:border-[#2c3b6e]" />
                            </div>
                         </div>
                      </div>
@@ -237,11 +222,11 @@ export default function InstallmentEditor() {
             </div>
 
             {/* Steps Section */}
-            <div className="bg-white border border-[#e3e8ee] rounded-xl p-5 space-y-4 shadow-none">
+            <div className="bg-white border border-[#e3e8ee] rounded-xl p-4 space-y-4">
                <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                      <List className="w-4 h-4 text-[#2c3b6e]" />
-                     <h3 className="text-[12px] font-bold text-[#1a1f36] uppercase tracking-wider">Этапы оформления</h3>
+                     <h3 className="text-[13px] font-bold text-[#1a1f36] tracking-wider">Этапы оформления</h3>
                   </div>
                   <button 
                     onClick={() => addListItem('steps', { title: "Новый этап", description: "", icon: "Smartphone" })}
@@ -254,8 +239,8 @@ export default function InstallmentEditor() {
                
                <div className="space-y-3">
                   {data.steps.map((step, idx) => (
-                     <div key={idx} className="group relative bg-[#f7f8f9] border border-[#e3e8ee] rounded-xl p-4 space-y-3 hover:border-[#2c3b6e]/30 transition-all">
-                        <button onClick={() => setDeleteModal({ show: true, type: "step", idx })} className="absolute top-2 right-2 p-1.5 bg-white/90 backdrop-blur-md rounded-md text-[#cd5c5c] opacity-0 group-hover:opacity-100 transition-all border border-[#e3e8ee]"><Trash2 className="w-3.5 h-3.5" /></button>
+                     <div key={idx} className="group relative bg-[#f7f8f9] border border-[#e3e8ee] rounded-lg p-4 space-y-3 hover:border-[#2c3b6e] transition-all">
+                        <button onClick={() => setDeleteModal({ show: true, type: "step", idx })} className="absolute top-2 right-2 p-1.5 text-[#a3acb9] hover:text-[#cd5c5c] hover:bg-[#cd5c5c]/5 rounded-lg opacity-0 group-hover:opacity-100 transition-all"><Trash2 className="w-3.5 h-3.5" /></button>
                         <div className="flex items-start gap-3">
                            <div className="relative group/icon flex-shrink-0">
                               <div className="w-9 h-9 rounded-lg bg-white border border-[#e3e8ee] flex items-center justify-center text-[#2c3b6e] cursor-pointer hover:border-[#2c3b6e]/30 transition-all">
@@ -279,13 +264,13 @@ export default function InstallmentEditor() {
                               <input 
                                 value={step.title}
                                 onChange={(e) => updateListItem('steps', idx, 'title', e.target.value)}
-                                className="bg-transparent text-[13px] font-bold text-[#1a1f36] outline-none border-b border-transparent focus:border-[#2c3b6e]/30 px-1 py-0.5 w-full"
+                                className="h-8 bg-transparent text-[13px] font-bold text-[#1a1f36] outline-none border-b border-transparent focus:border-[#2c3b6e] px-1 w-full pr-8"
                               />
                               <textarea 
                                 value={step.description}
                                 onChange={(e) => updateListItem('steps', idx, 'description', e.target.value)}
                                 rows={2}
-                                className="w-full bg-white border border-[#e3e8ee] rounded-lg px-3 py-1.5 text-[12px] text-[#4f566b] outline-none focus:border-[#2c3b6e]/30 transition-all resize-none"
+                                className="w-full bg-white border border-[#e3e8ee] rounded-lg px-3 py-2 text-[12px] text-[#4f566b] outline-none focus:border-[#2c3b6e] transition-all resize-none"
                               />
                            </div>
                         </div>
@@ -300,37 +285,37 @@ export default function InstallmentEditor() {
          <div className="space-y-6">
             
             {/* General Info */}
-            <div className="bg-white border border-[#e3e8ee] rounded-xl p-5 space-y-4 shadow-none">
-               <div className="flex items-center gap-2 mb-2">
+            <div className="bg-white border border-[#e3e8ee] rounded-xl p-4 space-y-4">
+               <div className="flex items-center gap-2 min-h-8">
                   <Type className="w-4 h-4 text-[#2c3b6e]" />
-                  <h3 className="text-[12px] font-bold text-[#1a1f36] uppercase tracking-wider">Общие тексты</h3>
+                  <h3 className="text-[13px] font-bold text-[#1a1f36] tracking-wider">Общие тексты</h3>
                </div>
-               <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest">Главный заголовок</label>
+               <div className="space-y-1">
+                  <label className="block h-4 text-[10px] font-semibold text-[#4f566b] tracking-wider truncate">Главный заголовок</label>
                   <input 
                     value={data.title}
                     onChange={(e) => setData({ ...data, title: e.target.value })}
-                    className="w-full bg-[#f7f8f9] border border-[#e3e8ee] rounded-lg px-3 py-2 text-[13px] font-semibold text-[#1a1f36] outline-none focus:bg-white focus:border-[#2c3b6e]/30 transition-all"
+                    className="h-9 w-full bg-[#f7f8f9] border border-[#e3e8ee] rounded-lg px-3 text-[13px] font-semibold text-[#1a1f36] outline-none focus:bg-white focus:border-[#2c3b6e] transition-all"
                     placeholder="Рассрочка 0%"
                   />
                </div>
-               <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest">Описание страницы</label>
+               <div className="space-y-1">
+                  <label className="block h-4 text-[10px] font-semibold text-[#4f566b] tracking-wider truncate">Описание страницы</label>
                   <textarea 
                     value={data.description}
                     onChange={(e) => setData({ ...data, description: e.target.value })}
                     rows={4}
-                    className="w-full bg-[#f7f8f9] border border-[#e3e8ee] rounded-lg px-3 py-2 text-[13px] text-[#4f566b] outline-none focus:bg-white focus:border-[#2c3b6e]/30 transition-all resize-none"
+                    className="w-full bg-[#f7f8f9] border border-[#e3e8ee] rounded-lg px-3 py-2 text-[13px] text-[#1a1f36] outline-none focus:bg-white focus:border-[#2c3b6e] transition-all resize-none"
                   />
                </div>
             </div>
 
             {/* Installment Months Section */}
-            <div className="bg-white border border-[#e3e8ee] rounded-xl p-5 space-y-4 shadow-none">
+            <div className="bg-white border border-[#e3e8ee] rounded-xl p-4 space-y-4">
                <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                      <Clock className="w-4 h-4 text-[#2c3b6e]" />
-                     <h3 className="text-[12px] font-bold text-[#1a1f36] uppercase tracking-wider">Сроки (Месяцы)</h3>
+                     <h3 className="text-[13px] font-bold text-[#1a1f36] tracking-wider">Сроки (месяцы)</h3>
                   </div>
                   <button 
                     onClick={() => {
@@ -350,14 +335,14 @@ export default function InstallmentEditor() {
                </div>
                <div className="space-y-2">
                   {data.months.map((m, idx) => (
-                     <div key={m} className="flex items-center justify-between bg-[#f7f8f9] px-4 py-2.5 rounded-xl border border-[#e3e8ee]">
+                     <div key={m} className="min-h-10 flex items-center justify-between bg-[#f7f8f9] px-3 rounded-lg border border-[#e3e8ee]">
                         <span className="text-[12px] font-bold text-[#1a1f36]">{m} месяцев</span>
                         <button 
                           onClick={() => {
                             const newMonths = data.months.filter((month) => month !== m);
                             setData({ ...data, months: newMonths });
                           }} 
-                          className="text-[#cd5c5c] hover:bg-red-50 p-1 rounded-lg transition-colors"
+                          className="p-1.5 text-[#a3acb9] hover:text-[#cd5c5c] hover:bg-[#cd5c5c]/5 rounded-lg transition-colors"
                         >
                            <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -370,11 +355,11 @@ export default function InstallmentEditor() {
             </div>
 
             {/* Benefits Section */}
-            <div className="bg-white border border-[#e3e8ee] rounded-xl p-5 space-y-4 shadow-none">
+            <div className="bg-white border border-[#e3e8ee] rounded-xl p-4 space-y-4">
                <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                      <BadgePercent className="w-4 h-4 text-[#2c3b6e]" />
-                     <h3 className="text-[12px] font-bold text-[#1a1f36] uppercase tracking-wider">Выгоды</h3>
+                     <h3 className="text-[13px] font-bold text-[#1a1f36] tracking-wider">Выгоды</h3>
                   </div>
                   <button 
                     onClick={() => addListItem('benefits', { title: "Новый пункт выгоды", icon: "CheckCircle2" })} 
@@ -386,7 +371,7 @@ export default function InstallmentEditor() {
                </div>
                <div className="space-y-2">
                   {data.benefits.map((benefit, idx) => (
-                     <div key={idx} className="flex items-center gap-3 group bg-[#f7f8f9] p-3 rounded-xl border border-[#e3e8ee] hover:border-[#2c3b6e]/30 transition-all">
+                     <div key={idx} className="min-h-11 flex items-center gap-3 group bg-[#f7f8f9] px-3 py-2 rounded-lg border border-[#e3e8ee] hover:border-[#2c3b6e] transition-all">
                         <div className="relative group/icon flex-shrink-0">
                            <div className="w-8 h-8 rounded-lg bg-white border border-[#e3e8ee] flex items-center justify-center text-[#2c3b6e] cursor-pointer hover:border-[#2c3b6e]/30">
                               {(() => {
@@ -406,7 +391,7 @@ export default function InstallmentEditor() {
                            </div>
                         </div>
                         <input value={benefit.title} onChange={(e) => updateListItem('benefits', idx, 'title', e.target.value)} className="bg-transparent text-[12px] font-bold text-[#1a1f36] outline-none flex-1" />
-                        <button onClick={() => setDeleteModal({ show: true, type: "benefit", idx })} className="text-[#cd5c5c] opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => setDeleteModal({ show: true, type: "benefit", idx })} className="p-1.5 text-[#a3acb9] hover:text-[#cd5c5c] hover:bg-[#cd5c5c]/5 rounded-lg opacity-0 group-hover:opacity-100 transition-all"><Trash2 className="w-3.5 h-3.5" /></button>
                      </div>
                   ))}
                </div>
@@ -417,28 +402,46 @@ export default function InstallmentEditor() {
       </div>
 
       {/* Delete Confirmation Modal */}
-      {mounted && typeof document !== 'undefined' && require('react-dom').createPortal(
-        <AnimatePresence>
-          {deleteModal.show && (
-            <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
-               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setDeleteModal({ ...deleteModal, show: false })} className="absolute inset-0 bg-[#1a1f36]/60 backdrop-blur-md" />
-               <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="relative w-full max-w-sm bg-white rounded-3xl overflow-hidden border border-[#e3e8ee] shadow-2xl">
-                  <div className="p-8 text-center">
-                     <div className="w-16 h-16 bg-[#cd5c5c]/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <Trash2 className="w-8 h-8 text-[#cd5c5c]" />
-                     </div>
-                     <h3 className="text-xl font-bold text-[#1a1f36] mb-3 tracking-tight">Удалить элемент?</h3>
-                     <p className="text-[13px] text-[#4f566b] font-medium leading-relaxed mb-6">Это действие нельзя отменить. Данные будут навсегда удалены из этого раздела.</p>
-                     <div className="flex items-center gap-3">
-                        <button onClick={() => setDeleteModal({ ...deleteModal, show: false })} className="flex-1 py-3 bg-[#f7f8f9] text-[#1a1f36] rounded-xl font-bold text-[13px] hover:bg-[#e3e8ee] transition-all">Отмена</button>
-                        <button onClick={confirmDelete} className="flex-1 py-3 bg-[#cd5c5c] text-white rounded-xl font-bold text-[13px] hover:bg-[#b04b4b] transition-all shadow-lg shadow-red-500/20">Да, удалить</button>
-                     </div>
-                  </div>
-               </motion.div>
-            </div>
-          )}
-        </AnimatePresence>,
+      {deleteModal.show && createPortal(
+        <>
+          <div onClick={() => setDeleteModal({ ...deleteModal, show: false })} className="fixed inset-0 z-[99999] bg-[#1a1f36]/60 backdrop-blur-md" />
+          <div className="fixed inset-0 z-[100000] flex items-center justify-center p-4 pointer-events-none">
+             <div className="relative w-full max-w-sm bg-white rounded-xl overflow-hidden border border-[#e3e8ee] pointer-events-auto">
+                <div className="p-6 text-center">
+                   <div className="w-14 h-14 bg-[#cd5c5c]/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Trash2 className="w-6 h-6 text-[#cd5c5c]" />
+                   </div>
+                   <h3 className="text-lg font-bold text-[#1a1f36] mb-2">Удалить элемент?</h3>
+                   <p className="text-[13px] text-[#4f566b] leading-relaxed mb-6">Это действие нельзя отменить.</p>
+                   <div className="flex items-center gap-3">
+                      <button onClick={() => setDeleteModal({ ...deleteModal, show: false })} className="flex-1 py-3 bg-[#f7f8f9] text-[#1a1f36] rounded-xl font-bold text-[13px] hover:bg-[#e3e8ee] transition-all">Отмена</button>
+                      <button onClick={confirmDelete} className="flex-1 py-3 bg-[#cd5c5c] text-white rounded-xl font-bold text-[13px] hover:bg-[#b04b4b] transition-all">Да, удалить</button>
+                   </div>
+                </div>
+             </div>
+          </div>
+        </>,
         document.body
+      )}
+
+      {showToast && (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-bottom-4 duration-300">
+           <div className="bg-[#1a1f36] text-white px-5 py-2.5 rounded-xl flex items-center gap-2.5 border border-white/10">
+              <div className="w-4 h-4 bg-[#10b981] rounded-full flex items-center justify-center flex-shrink-0">
+                 <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+              </div>
+              <span className="text-[12px] font-semibold">Изменения сохранены</span>
+           </div>
+        </div>
+      )}
+
+      {errorMsg && (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-bottom-4 duration-300">
+           <div className="bg-[#cd5c5c] text-white px-5 py-2.5 rounded-xl flex items-center gap-2.5 border border-white/10">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <span className="text-[12px] font-semibold">{errorMsg}</span>
+           </div>
+        </div>
       )}
     </div>
   );

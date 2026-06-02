@@ -1,10 +1,8 @@
 "use client";
-import { toast } from "react-hot-toast";
 import { 
-  Save, Handshake, Plus, Trash2, RefreshCw, CheckCircle2, AlertCircle, Layout, ArrowRight, ChevronRight, Type
+  Save, Handshake, Plus, Trash2, RefreshCw, CheckCircle2, AlertCircle, Layout, ArrowRight, ChevronRight, Type, Handshake as HandshakeIcon, Check
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 
@@ -42,7 +40,7 @@ export default function PartnersEditor() {
         setHasChanges(false);
       }
     } catch (err) {
-      toast.error("Произошла ошибка: " + (err instanceof Error ? err.message : "Неизвестная ошибка"));
+      setErrorMsg("Произошла ошибка: " + (err instanceof Error ? err.message : "Неизвестная ошибка"));
       console.error("Failed to fetch data:", err);
     } finally {
       setFetching(false);
@@ -60,12 +58,11 @@ export default function PartnersEditor() {
       });
 
       if (response.ok) {
-        toast.success("Изменения успешно сохранены!");
+        setShowToast(true);
         setHasChanges(false);
         setTimeout(() => setShowToast(false), 3000);
       }
     } catch (err) {
-      toast.error("Произошла ошибка: " + (err instanceof Error ? err.message : "Неизвестная ошибка"));
       setErrorMsg("Ошибка сохранения");
       setTimeout(() => setErrorMsg(null), 4000);
     } finally {
@@ -94,18 +91,31 @@ export default function PartnersEditor() {
   return (
     <div className="space-y-6 animate-in fade-in duration-700 pb-12">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-bold text-[#1a1f36] tracking-tight">Партнерская программа</h1>
-          <p className="text-[13px] text-[#4f566b] font-medium">Управление общим контентом и категориями партнеров.</p>
+      <div className="flex items-center justify-between pb-4 border-b border-[#e3e8ee]">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-[#2c3b6e] rounded-lg flex items-center justify-center flex-shrink-0">
+            <HandshakeIcon className="w-4 h-4 text-white" />
+          </div>
+          <div>
+            <h1 className="text-[16px] font-bold text-[#1a1f36] tracking-tight leading-none">Партнеры</h1>
+            <p className="text-[11px] text-[#4f566b] mt-0.5">Партнерская программа</p>
+          </div>
+          {hasChanges && (
+            <span className="text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md tracking-wider">Несохранено</span>
+          )}
         </div>
         <button 
           onClick={handleSave}
           disabled={loading || !hasChanges}
-          className="flex items-center gap-2 px-6 py-2 text-[13px] font-semibold text-white bg-[#2c3b6e] border border-[#2c3b6e] rounded-md hover:bg-[#232f58] transition-all disabled:opacity-30"
+          className={cn(
+            "flex items-center gap-2 px-4 py-2 text-[12px] font-bold rounded-lg transition-all",
+            hasChanges 
+              ? "bg-[#2c3b6e] text-white hover:bg-[#232f58] cursor-pointer" 
+              : "bg-[#f7f8f9] text-[#a3acb9] cursor-not-allowed border border-[#e3e8ee]"
+          )}
         >
           {loading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-          Сохранить изменения
+          Сохранить
         </button>
       </div>
 
@@ -113,62 +123,62 @@ export default function PartnersEditor() {
         <div className="lg:col-span-12 space-y-6">
            
            {/* Hero Editor Card */}
-           <div className="bg-white border border-[#e3e8ee] rounded-2xl overflow-hidden shadow-none">
-              <div className="bg-[#f7f8f9] px-6 py-3 border-b border-[#e3e8ee] flex items-center gap-4">
+           <div className="bg-white border border-[#e3e8ee] rounded-xl overflow-hidden">
+              <div className="bg-[#f7f8f9] px-4 py-3 border-b border-[#e3e8ee] flex items-center gap-2">
                  <div className="w-8 h-8 rounded-lg bg-white border border-[#e3e8ee] flex items-center justify-center text-[#2c3b6e]">
                     <Type className="w-4 h-4" />
                  </div>
-                 <h3 className="text-base font-bold text-[#1a1f36]">Общий контент (Hero)</h3>
+                 <h3 className="text-[13px] font-bold text-[#1a1f36]">Общий контент</h3>
               </div>
               
-              <div className="p-5 space-y-4">
+              <div className="p-4 space-y-4">
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1">
-                       <label className="text-[9px] font-bold text-[#4f566b] uppercase tracking-widest ml-1">Главный заголовок</label>
+                       <label className="text-[10px] font-semibold text-[#4f566b] tracking-wider">Главный заголовок</label>
                        <input 
                          value={pageData.title} 
                          onChange={(e) => updateField("title", e.target.value)}
-                         className="w-full bg-[#f8f9fa] border border-[#e3e8ee] rounded-xl px-3 py-2 text-[13px] font-bold text-[#1a1f36] outline-none focus:border-[#2c3b6e]/30 transition-all"
+                         className="w-full bg-[#f7f8f9] border border-[#e3e8ee] rounded-lg px-3 py-2 text-[13px] font-bold text-[#1a1f36] outline-none focus:bg-white focus:border-[#2c3b6e] transition-all"
                        />
                     </div>
                     <div className="space-y-1">
-                       <label className="text-[9px] font-bold text-[#4f566b] uppercase tracking-widest ml-1">Надзаголовок</label>
+                       <label className="text-[10px] font-semibold text-[#4f566b] tracking-wider">Надзаголовок</label>
                        <input 
                          value={pageData.subtitle} 
                          onChange={(e) => updateField("subtitle", e.target.value)}
-                         className="w-full bg-[#f8f9fa] border border-[#e3e8ee] rounded-xl px-3 py-2 text-[13px] font-bold text-[#2c3b6e] outline-none focus:border-[#2c3b6e]/30 transition-all"
+                         className="w-full bg-[#f7f8f9] border border-[#e3e8ee] rounded-lg px-3 py-2 text-[13px] font-bold text-[#2c3b6e] outline-none focus:bg-white focus:border-[#2c3b6e] transition-all"
                        />
                     </div>
                  </div>
 
                  <div className="space-y-1">
-                    <label className="text-[9px] font-bold text-[#4f566b] uppercase tracking-widest ml-1">Описание</label>
+                    <label className="text-[10px] font-semibold text-[#4f566b] tracking-wider">Описание</label>
                     <textarea 
                       value={pageData.description} 
                       onChange={(e) => updateField("description", e.target.value)}
                       rows={2}
-                      className="w-full bg-[#f8f9fa] border border-[#e3e8ee] rounded-xl px-3 py-2 text-[12px] text-[#4f566b] font-medium outline-none focus:border-[#2c3b6e]/30 transition-all resize-none leading-relaxed"
+                      className="w-full bg-[#f7f8f9] border border-[#e3e8ee] rounded-lg px-3 py-2 text-[12px] text-[#1a1f36] font-medium outline-none focus:bg-white focus:border-[#2c3b6e] transition-all resize-none leading-relaxed"
                     />
                  </div>
               </div>
            </div>
 
            {/* Categories List */}
-           <div className="space-y-4">
-              <div className="flex items-center justify-between px-1">
-                 <h3 className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Категории:</h3>
+           <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                 <h3 className="text-[11px] font-bold text-[#4f566b] tracking-wider">Категории</h3>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                  {pageData.partnerTypes.map((type, idx) => (
-                    <div key={type.slug} className="group bg-white border border-[#e3e8ee] rounded-xl p-4 hover:border-[#2c3b6e]/30 transition-all shadow-none flex flex-col h-full">
+                    <div key={type.slug} className="group bg-white border border-[#e3e8ee] rounded-xl p-4 hover:border-[#2c3b6e] transition-all flex flex-col h-full">
                        <div className="flex items-center justify-between mb-3">
                           <div className="w-8 h-8 bg-[#f7f8f9] rounded-lg flex items-center justify-center text-[#2c3b6e] border border-[#e3e8ee]">
                              <Handshake className="w-4 h-4" />
                           </div>
                           <Link 
                             href={`/partners/${type.slug}`}
-                            className="p-1.5 hover:bg-[#2c3b6e]/5 rounded-lg text-slate-300 hover:text-[#2c3b6e] transition-all"
+                            className="p-1.5 hover:bg-[#2c3b6e]/5 rounded-lg text-[#a3acb9] hover:text-[#2c3b6e] transition-all"
                           >
                              <ChevronRight className="w-4 h-4" />
                           </Link>
@@ -177,7 +187,7 @@ export default function PartnersEditor() {
                        <input 
                          value={type.title} 
                          onChange={(e) => updateType(idx, "title", e.target.value)}
-                         className="w-full bg-transparent border-none p-0 text-[14px] font-bold text-[#1a1f36] outline-none mb-1"
+                         className="w-full bg-transparent border-none p-0 text-[14px] font-bold text-[#1a1f36] outline-none mb-1 placeholder:text-[#c4cad4]"
                          placeholder="Заголовок"
                        />
                        <textarea 
@@ -188,8 +198,8 @@ export default function PartnersEditor() {
                          placeholder="Краткое описание"
                        />
                        
-                       <div className="mt-3 pt-3 border-t border-slate-50">
-                          <Link href={`/partners/${type.slug}`} className="text-[8px] font-black uppercase tracking-widest text-[#2c3b6e] flex items-center gap-1 hover:gap-1.5 transition-all group/btn">
+                       <div className="mt-3 pt-3 border-t border-[#e3e8ee]">
+                          <Link href={`/partners/${type.slug}`} className="text-[10px] font-semibold text-[#2c3b6e] flex items-center gap-1 hover:gap-1.5 transition-all group/btn">
                              Изменить <ArrowRight className="w-3 h-3 group-hover/btn:translate-x-0.5 transition-transform" />
                           </Link>
                        </div>
@@ -200,16 +210,25 @@ export default function PartnersEditor() {
         </div>
       </div>
 
-      <AnimatePresence>
-        {showToast && (
-          <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[10001]">
-             <div className="flex items-center gap-3 px-6 py-3 bg-[#1a1f36] text-white rounded-2xl border border-white/10 backdrop-blur-md shadow-xl">
-                <CheckCircle2 className="w-4 h-4 text-green-400" />
-                <span className="text-[13px] font-bold">Изменения сохранены!</span>
-             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {showToast && (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-bottom-4 duration-300">
+           <div className="bg-[#1a1f36] text-white px-5 py-2.5 rounded-xl flex items-center gap-2.5 border border-white/10">
+              <div className="w-4 h-4 bg-[#10b981] rounded-full flex items-center justify-center flex-shrink-0">
+                 <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+              </div>
+              <span className="text-[12px] font-semibold">Изменения сохранены</span>
+           </div>
+        </div>
+      )}
+
+      {errorMsg && (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-bottom-4 duration-300">
+           <div className="bg-[#cd5c5c] text-white px-5 py-2.5 rounded-xl flex items-center gap-2.5 border border-white/10">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <span className="text-[12px] font-semibold">{errorMsg}</span>
+           </div>
+        </div>
+      )}
     </div>
   );
 }

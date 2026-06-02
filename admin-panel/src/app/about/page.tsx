@@ -1,11 +1,12 @@
 "use client";
 
 import { 
-  Save, RefreshCw, CheckCircle2, Plus, Trash2, Clock, Gem, Users, Building2, ShieldCheck, Truck, HeartHandshake, Target, Award, MapPin, Phone, Layout, ChevronRight, History, Lightbulb, Image as ImageIcon, UserPlus, Upload, Globe, Users2, Check, Calendar, Type, Star, Shield, Zap, Search, MessageSquare, Package, X, BadgePercent
+  Save, RefreshCw, CheckCircle2, Plus, Trash2, Clock, Gem, Users, Building2, ShieldCheck, Truck, HeartHandshake, Target, Award, MapPin, Phone, Layout, ChevronRight, History, Lightbulb, Image as ImageIcon, UserPlus, Upload, Globe, Users2, Check, Calendar, Type, Star, Shield, Zap, Search, MessageSquare, Package, X, BadgePercent, Home as HomeIcon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import React, { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 
 const ICON_MAP: Record<string, any> = {
   Clock, Gem, Users, Building2, ShieldCheck, Truck, HeartHandshake, Target, Award, MapPin, Phone, Globe, Users2, Check, CheckCircle2, Star, Shield, Zap, Search, MessageSquare, Package
@@ -21,6 +22,7 @@ export default function AboutEditor() {
   const [uploadingHero, setUploadingHero] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const heroInputRef = useRef<HTMLInputElement>(null);
+  const [activeTab, setActiveTab] = useState("hero");
 
   const [data, setData] = useState<any>({
     hero: { title: "", description: "", image: "" },
@@ -168,291 +170,350 @@ export default function AboutEditor() {
       <input type="file" ref={heroInputRef} onChange={(e) => handleFileUpload(e, 'hero')} className="hidden" />
 
       {/* ── Header ── */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-[#1a1f36] tracking-tight mb-1">О компании</h1>
-          <p className="text-[14px] text-[#4f566b]">Полное управление контентом страницы maff.uz/about</p>
+      <div className="flex items-center justify-between pb-4 border-b border-[#e3e8ee]">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-[#2c3b6e] rounded-lg flex items-center justify-center flex-shrink-0">
+            <HomeIcon className="w-4 h-4 text-white" />
+          </div>
+          <div>
+            <h1 className="text-[16px] font-bold text-[#1a1f36] tracking-tight leading-none">О компании</h1>
+            <p className="text-[11px] text-[#4f566b] mt-0.5">maff.uz / about</p>
+          </div>
+          {hasChanges && (
+            <span className="text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md tracking-wider">Несохранено</span>
+          )}
         </div>
         <button 
           onClick={handleSave}
           disabled={loading || !hasChanges}
-          className="flex items-center gap-2 px-6 py-2 text-[13px] font-semibold text-white bg-[#2c3b6e] border border-[#2c3b6e] rounded-md hover:bg-[#232f58] transition-all disabled:opacity-30"
+          className={cn(
+            "flex items-center gap-2 px-4 py-2 text-[12px] font-bold rounded-lg transition-all",
+            hasChanges 
+              ? "bg-[#2c3b6e] text-white hover:bg-[#232f58] cursor-pointer" 
+              : "bg-[#f7f8f9] text-[#a3acb9] cursor-not-allowed border border-[#e3e8ee]"
+          )}
         >
           {loading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-          Сохранить изменения
+          Сохранить
         </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        
-        {/* ── Left Column: Main Content ── */}
-        <div className="lg:col-span-7 space-y-8">
-           
-           {/* Team Section */}
-           <div className="bg-white border border-[#e3e8ee] rounded-2xl shadow-none">
-              <div className="bg-[#f7f8f9] px-6 py-4 border-b border-[#e3e8ee] flex items-center justify-between">
-                 <div className="flex items-center gap-4">
-                    <div className="w-8 h-8 rounded-lg bg-[#2c3b6e] flex items-center justify-center text-white">
-                       <Users className="w-4 h-4" />
-                    </div>
-                    <h3 className="text-[15px] font-bold text-[#1a1f36]">Наша команда</h3>
-                 </div>
-                 <button 
-                    onClick={() => addItem("team", { name: "", role: "", image: "" })} 
-                    className="p-1.5 hover:bg-[#2c3b6e]/5 rounded-lg text-[#2c3b6e] transition-all flex items-center gap-2 px-4 border border-dashed border-[#2c3b6e]/20"
-                 >
-                    <UserPlus className="w-4 h-4" />
-                    <span className="text-[11px] font-bold uppercase tracking-tight">Добавить</span>
-                 </button>
-              </div>
-              
-              <div className="p-6 space-y-4">
-                 {data.team.map((m: any, idx: number) => (
-                    <div key={idx} className="group relative bg-[#f8f9fa] border border-[#e3e8ee] rounded-xl p-4 space-y-3">
-                       <button onClick={() => setDeleteModal({ show: true, section: "team", idx })} className="absolute top-2 right-2 text-[#cd5c5c] opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-50 rounded-lg">
-                          <X className="w-4 h-4" />
-                       </button>
-                       <div className="flex gap-4 items-start">
-                          <div className="w-20 h-20 bg-white border border-[#e3e8ee] rounded-xl overflow-hidden flex-shrink-0 relative group/photo shadow-none">
-                             {m.image ? <img src={m.image} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-slate-200"><ImageIcon className="w-8 h-8" /></div>}
-                             <button onClick={() => { setUploadingIdx(idx); fileInputRef.current?.click(); }} className="absolute inset-0 bg-black/40 flex items-center justify-center text-white opacity-0 group-hover/photo:opacity-100 transition-opacity"><Upload className="w-5 h-5" /></button>
-                          </div>
-                          <div className="flex-1 grid grid-cols-1 gap-3">
-                             <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-1.5">
-                                   <label className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest flex items-center gap-2"><Users className="w-3 h-3 text-[#2c3b6e]" /> Имя Фамилия</label>
-                                   <input value={m.name} onChange={(e) => updateItem("team", idx, "name", e.target.value)} className="w-full bg-[#f8f9fa] border border-[#e3e8ee] rounded-xl px-3 py-1.5 text-[13px] font-bold text-[#1a1f36] outline-none focus:border-[#2c3b6e]/30" />
-                                </div>
-                                <div className="space-y-1.5">
-                                   <label className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest flex items-center gap-2"><Award className="w-3 h-3 text-[#2c3b6e]" /> Должность</label>
-                                   <input value={m.role} onChange={(e) => updateItem("team", idx, "role", e.target.value)} className="w-full bg-[#f8f9fa] border border-[#e3e8ee] rounded-xl px-3 py-1.5 text-[13px] text-[#4f566b] outline-none focus:border-[#2c3b6e]/30" />
-                                </div>
-                             </div>
-                             <div className="space-y-1.5">
-                                <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><ImageIcon className="w-2.5 h-2.5" /> URL Фотографии</label>
-                                <input value={m.image} onChange={(e) => updateItem("team", idx, "image", e.target.value)} className="w-full bg-transparent border-b border-slate-100 px-1 py-1 text-[11px] text-blue-500 outline-none focus:border-blue-200" />
-                             </div>
-                          </div>
-                       </div>
-                    </div>
-                 ))}
-              </div>
-           </div>
-
-           {/* Mission Items */}
-           <div className="bg-white border border-[#e3e8ee] rounded-2xl shadow-none">
-              <div className="bg-[#f7f8f9] px-6 py-4 border-b border-[#e3e8ee] flex items-center justify-between">
-                 <div className="flex items-center gap-4">
-                    <div className="w-8 h-8 rounded-lg bg-[#2c3b6e] flex items-center justify-center text-white">
-                       <Target className="w-4 h-4" />
-                    </div>
-                    <h3 className="text-[15px] font-bold text-[#1a1f36]">Наши ориентиры (Миссия)</h3>
-                 </div>
-                 <button onClick={() => addItem("mission.values", { icon: "Target", title: "", desc: "" })} className="p-1.5 hover:bg-[#2c3b6e]/5 rounded-lg text-[#2c3b6e] transition-all px-4 border border-dashed border-[#2c3b6e]/20">
-                    <Plus className="w-4 h-4" />
-                 </button>
-              </div>
-              
-              <div className="p-6 grid grid-cols-2 gap-4">
-                 {data.mission.values.map((v: any, idx: number) => (
-                    <div key={idx} className="group relative bg-[#f8f9fa] p-4 rounded-xl border border-[#e3e8ee] space-y-3">
-                       <button onClick={() => setDeleteModal({ show: true, section: "mission.values", idx })} className="absolute top-2 right-2 text-[#cd5c5c] opacity-0 group-hover:opacity-100 transition-opacity p-1"><X className="w-4 h-4" /></button>
-                       <div className="flex items-center gap-3">
-                          <div className="group/icon relative flex-shrink-0">
-                             <div className="w-9 h-9 bg-white rounded-lg flex items-center justify-center text-[#2c3b6e] border border-[#e3e8ee] cursor-pointer hover:border-[#2c3b6e]/30 transition-all shadow-none">
-                                {React.createElement(ICON_MAP[v.icon] || Target, { className: "w-4.5 h-4.5" })}
-                             </div>
-                             <div className="absolute top-full left-0 mt-2 p-2 bg-white border border-[#e3e8ee] rounded-xl shadow-2xl opacity-0 invisible group-hover/icon:opacity-100 group-hover/icon:visible transition-all grid grid-cols-5 gap-1 z-[60] w-48">
-                                {Object.keys(ICON_MAP).map(iconName => {
-                                   const Icon = ICON_MAP[iconName];
-                                   return (
-                                      <button key={iconName} onClick={() => updateItem("mission.values", idx, "icon", iconName)} className={cn("p-1.5 rounded-md transition-all hover:bg-slate-50", v.icon === iconName ? "bg-[#1a1f36] text-white" : "text-slate-400")}>
-                                         <Icon className="w-3.5 h-3.5" />
-                                      </button>
-                                   );
-                                })}
-                             </div>
-                          </div>
-                          <input value={v.title} onChange={(e) => updateItem("mission.values", idx, "title", e.target.value)} className="bg-transparent border-none p-0 text-[11px] font-bold uppercase text-[#1a1f36] outline-none w-full" placeholder="Заголовок" />
-                       </div>
-                       <textarea value={v.desc} onChange={(e) => updateItem("mission.values", idx, "desc", e.target.value)} className="w-full bg-[#f8f9fa] border border-[#e3e8ee] rounded-xl px-2 py-1.5 text-[12px] text-[#4f566b] outline-none min-h-[50px] resize-none" placeholder="Описание..." />
-                    </div>
-                 ))}
-              </div>
-           </div>
-
-           {/* Hero Content */}
-           <div className="bg-white border border-[#e3e8ee] rounded-2xl shadow-none">
-              <div className="bg-[#f7f8f9] px-6 py-4 border-b border-[#e3e8ee] flex items-center gap-4">
-                 <div className="w-8 h-8 rounded-lg bg-[#2c3b6e] flex items-center justify-center text-white">
-                    <Layout className="w-4 h-4" />
-                 </div>
-                 <h3 className="text-[15px] font-bold text-[#1a1f36]">Главный экран (Hero)</h3>
-              </div>
-              <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-                 <div className="md:col-span-1">
-                    <div className="relative aspect-square rounded-2xl bg-slate-50 border border-[#e3e8ee] overflow-hidden group/hero shadow-none">
-                       {data.hero.image ? <img src={data.hero.image} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-slate-200"><ImageIcon className="w-10 h-10" /></div>}
-                       <button onClick={() => heroInputRef.current?.click()} className="absolute inset-0 bg-black/40 flex items-center justify-center text-white opacity-0 group-hover/hero:opacity-100 transition-opacity"><Upload className="w-6 h-6" /></button>
-                    </div>
-                 </div>
-                 <div className="md:col-span-2 space-y-4">
-                    <div className="space-y-1.5">
-                       <label className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest flex items-center gap-2"><Type className="w-3 h-3 text-[#2c3b6e]" /> Заголовок Hero</label>
-                       <input value={data.hero.title} onChange={(e) => setData({...data, hero: {...data.hero, title: e.target.value}})} className="w-full bg-[#f8f9fa] border border-[#e3e8ee] rounded-xl px-3 py-2 text-[13px] font-bold text-[#1a1f36] outline-none focus:border-[#2c3b6e]/30" />
-                    </div>
-                    <div className="space-y-1.5">
-                       <label className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest flex items-center gap-2"><Layout className="w-3 h-3 text-[#2c3b6e]" /> Описание Hero</label>
-                       <textarea value={data.hero.description} onChange={(e) => setData({...data, hero: {...data.hero, description: e.target.value}})} className="w-full bg-[#f8f9fa] border border-[#e3e8ee] rounded-xl px-3 py-2 text-[13px] text-[#4f566b] outline-none min-h-[80px] resize-none" />
-                    </div>
-                 </div>
-              </div>
-           </div>
-        </div>
-
-        {/* ── Right Column: Configuration ── */}
-        <div className="lg:col-span-5 space-y-8">
-           
-           {/* Core Values Section */}
-           <div className="bg-white border border-[#e3e8ee] rounded-2xl shadow-none">
-              <div className="bg-[#f7f8f9] px-6 py-4 border-b border-[#e3e8ee] flex items-center justify-between">
-                 <div className="flex items-center gap-4">
-                    <div className="w-8 h-8 rounded-lg bg-[#2c3b6e] flex items-center justify-center text-white">
-                       <Award className="w-4 h-4" />
-                    </div>
-                    <h3 className="text-[15px] font-bold text-[#1a1f36]">Ценности</h3>
-                 </div>
-                 <button onClick={() => addItem("values", { icon: "Award", title: "", description: "" })} className="p-1.5 hover:bg-[#2c3b6e]/5 rounded-lg text-[#2c3b6e] transition-all px-4 border border-dashed border-[#2c3b6e]/20">
-                    <Plus className="w-4 h-4" />
-                 </button>
-              </div>
-
-              <div className="p-6 space-y-4">
-                 {data.values.map((v: any, idx: number) => (
-                    <div key={idx} className="group relative bg-[#f8f9fa] p-4 rounded-xl border border-[#e3e8ee] space-y-3 overflow-visible">
-                       <button onClick={() => setDeleteModal({ show: true, section: "values", idx })} className="absolute top-2 right-2 text-[#cd5c5c] opacity-0 group-hover:opacity-100 transition-opacity p-1"><Trash2 className="w-4 h-4" /></button>
-                       <div className="flex items-center gap-3">
-                          <div className="group/icon relative flex-shrink-0">
-                             <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-[#2c3b6e] border border-[#e3e8ee] cursor-pointer hover:border-[#2c3b6e]/30 shadow-none">
-                                {React.createElement(ICON_MAP[v.icon] || Award, { className: "w-4 h-4" })}
-                             </div>
-                             <div className="absolute top-0 right-full mr-2 p-2 bg-white border border-[#e3e8ee] rounded-xl shadow-2xl opacity-0 invisible group-hover/icon:opacity-100 group-hover/icon:visible transition-all grid grid-cols-4 gap-1 z-[60] w-40">
-                                {Object.keys(ICON_MAP).slice(0, 12).map(iconName => {
-                                   const Icon = ICON_MAP[iconName];
-                                   return (
-                                      <button key={iconName} onClick={() => updateItem("values", idx, "icon", iconName)} className={cn("p-1.5 rounded-md transition-all hover:bg-slate-50", v.icon === iconName ? "bg-[#1a1f36] text-white" : "text-slate-400")}>
-                                         <Icon className="w-3.5 h-3.5" />
-                                      </button>
-                                   );
-                                })}
-                             </div>
-                          </div>
-                          <input value={v.title} onChange={(e) => updateItem("values", idx, "title", e.target.value)} className="bg-transparent border-none p-0 text-[12px] font-bold uppercase text-[#1a1f36] outline-none" placeholder="Заголовок" />
-                       </div>
-                       <textarea value={v.description} onChange={(e) => updateItem("values", idx, "description", e.target.value)} className="w-full bg-[#f8f9fa] border border-[#e3e8ee] rounded-xl px-2 py-1.5 text-[12px] text-[#4f566b] outline-none min-h-[45px] resize-none leading-relaxed" placeholder="Описание..." />
-                    </div>
-                 ))}
-              </div>
-           </div>
-
-           {/* History Section */}
-           <div className="bg-white border border-[#e3e8ee] rounded-2xl shadow-none">
-              <div className="bg-[#f7f8f9] px-6 py-4 border-b border-[#e3e8ee] flex items-center justify-between">
-                 <div className="flex items-center gap-4">
-                    <div className="w-8 h-8 rounded-lg bg-[#2c3b6e] flex items-center justify-center text-white">
-                       <History className="w-4 h-4" />
-                    </div>
-                    <h3 className="text-[15px] font-bold text-[#1a1f36]">История</h3>
-                 </div>
-                 <button onClick={() => addItem("milestones", { year: "", title: "" })} className="p-1.5 hover:bg-[#2c3b6e]/5 rounded-lg text-[#2c3b6e] transition-all px-4 border border-dashed border-[#2c3b6e]/20"><Plus className="w-4 h-4" /></button>
-              </div>
-              <div className="p-6 space-y-3">
-                 {data.milestones.map((m: any, idx: number) => (
-                    <div key={idx} className="flex gap-3 items-center group bg-[#f8f9fa] p-3 rounded-xl border border-[#e3e8ee]">
-                       <div className="w-14">
-                          <input value={m.year} onChange={(e) => updateItem("milestones", idx, "year", e.target.value)} className="w-full bg-[#f8f9fa] border border-[#e3e8ee] rounded-xl px-2 py-1 text-[11px] font-bold text-[#2c3b6e] text-center outline-none" placeholder="2024" />
-                       </div>
-                       <input value={m.title} onChange={(e) => updateItem("milestones", idx, "title", e.target.value)} className="flex-1 bg-transparent border-none p-0 text-[13px] font-medium text-[#1a1f36] outline-none" placeholder="Событие" />
-                       <button onClick={() => setDeleteModal({ show: true, section: "milestones", idx })} className="text-[#cd5c5c] opacity-0 group-hover:opacity-100 transition-opacity p-1"><Trash2 className="w-4 h-4" /></button>
-                    </div>
-                 ))}
-              </div>
-           </div>
-
-           {/* Stats Section */}
-           <div className="bg-white border border-[#e3e8ee] rounded-2xl shadow-none">
-              <div className="bg-[#f7f8f9] px-6 py-4 border-b border-[#e3e8ee] flex items-center gap-4">
-                 <div className="w-8 h-8 rounded-lg bg-[#2c3b6e] flex items-center justify-center text-white">
-                    <BadgePercent className="w-4 h-4" />
-                 </div>
-                 <h3 className="text-[15px] font-bold text-[#1a1f36]">Цифры</h3>
-              </div>
-              <div className="p-6 grid grid-cols-2 gap-4">
-                 {data.stats.map((s: any, idx: number) => (
-                    <div key={idx} className="p-4 bg-[#f8f9fa] border border-[#e3e8ee] rounded-xl text-center space-y-1">
-                       <input value={s.value} onChange={(e) => updateItem("stats", idx, "value", e.target.value)} className="w-full bg-[#f8f9fa] border border-[#e3e8ee] rounded-xl py-1.5 text-center text-xl font-black text-[#2c3b6e] outline-none" />
-                       <input value={s.label} onChange={(e) => updateItem("stats", idx, "label", e.target.value)} className="w-full bg-transparent text-center text-[10px] font-bold uppercase tracking-widest text-[#4f566b] outline-none" />
-                    </div>
-                 ))}
-              </div>
-           </div>
-
-           {/* Mission Text */}
-           <div className="bg-white border border-[#e3e8ee] rounded-2xl shadow-none">
-              <div className="bg-[#f7f8f9] px-6 py-4 border-b border-[#e3e8ee] flex items-center gap-4">
-                 <div className="w-8 h-8 rounded-lg bg-[#2c3b6e] flex items-center justify-center text-white">
-                    <Lightbulb className="w-4 h-4" />
-                 </div>
-                 <h3 className="text-[15px] font-bold text-[#1a1f36]">Текст миссии</h3>
-              </div>
-              <div className="p-6 space-y-4">
-                 <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest flex items-center gap-2"><Type className="w-3 h-3 text-[#2c3b6e]" /> Заголовок миссии</label>
-                    <input value={data.mission.title} onChange={(e) => setData({...data, mission: {...data.mission, title: e.target.value}})} className="w-full bg-[#f8f9fa] border border-[#e3e8ee] rounded-xl px-3 py-2 text-[13px] font-bold text-[#1a1f36] outline-none" />
-                 </div>
-                 <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest flex items-center gap-2"><Lightbulb className="w-3 h-3 text-[#2c3b6e]" /> Описание миссии</label>
-                    <textarea value={data.mission.description} onChange={(e) => setData({...data, mission: {...data.mission, description: e.target.value}})} className="w-full bg-[#f8f9fa] border border-[#e3e8ee] rounded-xl px-3 py-2 text-[13px] text-[#4f566b] outline-none min-h-[80px] resize-none" />
-                 </div>
-              </div>
-           </div>
-
-        </div>
+      {/* Tab Navigation */}
+      <div className="flex items-center gap-1 border-b border-[#e3e8ee] overflow-x-auto">
+         {[
+            { id: "hero", label: "Hero", icon: ImageIcon },
+            { id: "stats", label: "Цифры", icon: BadgePercent },
+            { id: "mission", label: "Миссия", icon: Lightbulb },
+            { id: "values", label: "Ценности", icon: Award },
+            { id: "history", label: "История", icon: History },
+            { id: "team", label: "Команда", icon: Users },
+         ].map((tab) => (
+            <button
+               key={tab.id}
+               onClick={() => setActiveTab(tab.id)}
+               className={cn(
+                  "flex items-center gap-2 px-4 py-3 text-[12px] font-semibold border-b-2 transition-all whitespace-nowrap",
+                  activeTab === tab.id
+                     ? "text-[#2c3b6e] border-[#2c3b6e]"
+                     : "text-[#4f566b] border-transparent hover:text-[#1a1f36]"
+               )}
+            >
+               <tab.icon className="w-4 h-4" />
+               {tab.label}
+            </button>
+         ))}
       </div>
 
-      <AnimatePresence>
-        {showToast && (
-          <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[10001]">
-             <div className="flex items-center gap-3 px-6 py-3 bg-[#1a1f36] text-white rounded-2xl border border-white/10 backdrop-blur-md shadow-none">
-                <CheckCircle2 className="w-4 h-4 text-green-400" />
-                <span className="text-[13px] font-bold tracking-tight">Изменения сохранены!</span>
-             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Delete Confirmation Modal */}
-      {mounted && typeof document !== 'undefined' && require('react-dom').createPortal(
-        <AnimatePresence>
-          {deleteModal.show && (
-            <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
-               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setDeleteModal({ ...deleteModal, show: false })} className="absolute inset-0 bg-[#1a1f36]/60 backdrop-blur-md" />
-               <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="relative w-full max-w-sm bg-white rounded-[2.5rem] overflow-hidden border border-[#e3e8ee] shadow-none">
-                  <div className="p-8 text-center">
-                     <div className="w-20 h-20 bg-[#cd5c5c]/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <Trash2 className="w-10 h-10 text-[#cd5c5c]" />
-                     </div>
-                     <h3 className="text-2xl font-bold text-[#1a1f36] mb-3 tracking-tight">Удалить элемент?</h3>
-                     <p className="text-[14px] text-[#4f566b] font-medium leading-relaxed mb-8">Это действие нельзя отменить. Элемент будет навсегда удален из этого раздела.</p>
-                     <div className="flex items-center gap-3">
-                        <button onClick={() => setDeleteModal({ ...deleteModal, show: false })} className="flex-1 py-4 bg-[#f7f8f9] text-[#1a1f36] rounded-2xl font-bold text-[14px] hover:bg-[#e3e8ee] transition-all">Отмена</button>
-                        <button onClick={confirmDelete} className="flex-1 py-4 bg-[#cd5c5c] text-white rounded-2xl font-bold text-[14px] hover:bg-[#b04b4b] transition-all shadow-lg shadow-red-500/20">Да, удалить</button>
+      {/* Tab Content */}
+      <div className="space-y-8 animate-in fade-in duration-300">
+         
+         {/* Hero Tab */}
+         {activeTab === "hero" && (
+            <div className="space-y-4">
+               <div className="bg-white border border-[#e3e8ee] rounded-xl overflow-hidden">
+                  <div className="flex items-center gap-2 px-4 py-3 border-b border-[#e3e8ee] bg-[#f7f8f9]">
+                     <div className="w-1.5 h-4 bg-[#2c3b6e] rounded-full"></div>
+                     <div>
+                       <h3 className="text-[11px] font-bold text-[#1a1f36]">Главный экран</h3>
+                       <p className="text-[10px] text-[#a3acb9] mt-0.5">Баннер и текст в шапке страницы</p>
                      </div>
                   </div>
-               </motion.div>
+                  <div className="p-4 space-y-4">
+                     <div className="relative h-48 rounded-lg bg-[#f7f8f9] border border-[#e3e8ee] overflow-hidden group/hero">
+                        {data.hero.image ? <img src={data.hero.image} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[#e3e8ee]"><ImageIcon className="w-12 h-12" /></div>}
+                        <button onClick={() => heroInputRef.current?.click()} className="absolute inset-0 bg-black/40 flex items-center justify-center text-white opacity-0 group-hover/hero:opacity-100 transition-opacity"><Upload className="w-6 h-6" /></button>
+                     </div>
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                           <label className="text-[10px] font-semibold text-[#4f566b] tracking-wider">Заголовок</label>
+                           <input value={data.hero.title} placeholder="Напр: О компании Maff" onChange={(e) => setData({...data, hero: {...data.hero, title: e.target.value}})} className="w-full bg-[#f7f8f9] border border-[#e3e8ee] rounded-lg px-3 py-2 text-[13px] font-bold text-[#1a1f36] outline-none focus:bg-white focus:border-[#2c3b6e] transition-all placeholder:text-[#c4cad4]" />
+                        </div>
+                        <div className="space-y-1">
+                           <label className="text-[10px] font-semibold text-[#4f566b] tracking-wider">Описание</label>
+                           <textarea value={data.hero.description} placeholder="Краткое описание..." onChange={(e) => setData({...data, hero: {...data.hero, description: e.target.value}})} className="w-full bg-[#f7f8f9] border border-[#e3e8ee] rounded-lg px-3 py-2 text-[13px] text-[#1a1f36] outline-none min-h-[80px] resize-none focus:bg-white focus:border-[#2c3b6e] transition-all placeholder:text-[#c4cad4]" />
+                        </div>
+                     </div>
+                  </div>
+               </div>
             </div>
-          )}
-        </AnimatePresence>,
+         )}
+
+         {/* Stats Tab */}
+         {activeTab === "stats" && (
+            <div className="space-y-4">
+               <div className="bg-white border border-[#e3e8ee] rounded-xl overflow-hidden">
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-[#e3e8ee] bg-[#f7f8f9]">
+                     <div className="flex items-center gap-2">
+                        <div className="w-1.5 h-4 bg-[#2c3b6e] rounded-full"></div>
+                        <div>
+                          <h3 className="text-[11px] font-bold text-[#1a1f36]">Цифры</h3>
+                          <p className="text-[10px] text-[#a3acb9] mt-0.5">Статистика в блоке «О нас»</p>
+                        </div>
+                     </div>
+                  </div>
+                  <div className="p-4 grid grid-cols-2 md:grid-cols-4 gap-3">
+                     {data.stats.map((s: any, idx: number) => (
+                        <div key={idx} className="p-4 bg-[#f7f8f9] border border-[#e3e8ee] rounded-xl text-center space-y-1 hover:border-[#2c3b6e] transition-colors">
+                           <input value={s.value} onChange={(e) => updateItem("stats", idx, "value", e.target.value)} className="w-full bg-white border border-[#e3e8ee] rounded-lg py-1.5 text-center text-xl font-black text-[#2c3b6e] outline-none focus:border-[#2c3b6e] transition-all placeholder:text-[#c4cad4]" placeholder="20+" />
+                           <input value={s.label} onChange={(e) => updateItem("stats", idx, "label", e.target.value)} className="w-full bg-transparent text-center text-[10px] font-semibold text-[#4f566b] outline-none placeholder:text-[#c4cad4]" placeholder="Лет опыта" />
+                        </div>
+                     ))}
+                  </div>
+               </div>
+            </div>
+         )}
+
+         {/* Mission Tab */}
+         {activeTab === "mission" && (
+            <div className="space-y-4">
+               <div className="bg-white border border-[#e3e8ee] rounded-xl overflow-hidden">
+                  <div className="flex items-center gap-2 px-4 py-3 border-b border-[#e3e8ee] bg-[#f7f8f9]">
+                     <div className="w-1.5 h-4 bg-[#2c3b6e] rounded-full"></div>
+                     <div>
+                       <h3 className="text-[11px] font-bold text-[#1a1f36]">Текст миссии</h3>
+                       <p className="text-[10px] text-[#a3acb9] mt-0.5">Заголовок и описание миссии компании</p>
+                     </div>
+                  </div>
+                  <div className="p-4 space-y-3">
+                     <div className="space-y-1">
+                        <label className="text-[10px] font-semibold text-[#4f566b] tracking-wider">Заголовок миссии</label>
+                        <input value={data.mission.title} placeholder="Наша миссия" onChange={(e) => setData({...data, mission: {...data.mission, title: e.target.value}})} className="w-full bg-[#f7f8f9] border border-[#e3e8ee] rounded-lg px-3 py-2 text-[13px] font-bold text-[#1a1f36] outline-none focus:bg-white focus:border-[#2c3b6e] transition-all placeholder:text-[#c4cad4]" />
+                     </div>
+                     <div className="space-y-1">
+                        <label className="text-[10px] font-semibold text-[#4f566b] tracking-wider">Описание миссии</label>
+                        <textarea value={data.mission.description} placeholder="Опишите миссию компании..." onChange={(e) => setData({...data, mission: {...data.mission, description: e.target.value}})} className="w-full bg-[#f7f8f9] border border-[#e3e8ee] rounded-lg px-3 py-2 text-[13px] text-[#1a1f36] outline-none min-h-[80px] resize-none focus:bg-white focus:border-[#2c3b6e] transition-all placeholder:text-[#c4cad4]" />
+                     </div>
+                  </div>
+               </div>
+
+               <div className="bg-white border border-[#e3e8ee] rounded-xl overflow-hidden">
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-[#e3e8ee] bg-[#f7f8f9]">
+                     <div className="flex items-center gap-2">
+                        <div className="w-1.5 h-4 bg-[#2c3b6e] rounded-full"></div>
+                        <div>
+                          <h3 className="text-[11px] font-bold text-[#1a1f36]">Наши ориентиры</h3>
+                          <p className="text-[10px] text-[#a3acb9] mt-0.5">Ценности и принципы компании</p>
+                        </div>
+                     </div>
+                     <button onClick={() => addItem("mission.values", { icon: "Target", title: "", desc: "" })} className="flex items-center gap-1.5 px-3 py-1.5 bg-[#2c3b6e] text-white hover:bg-[#232f58] rounded-lg transition-all text-[11px] font-semibold">
+                        <Plus className="w-3.5 h-3.5" />
+                        Добавить
+                     </button>
+                  </div>
+                  
+                  <div className="p-4 grid grid-cols-2 md:grid-cols-3 gap-3">
+                     {data.mission.values.map((v: any, idx: number) => (
+                        <div key={idx} className="group relative bg-[#f7f8f9] p-3 rounded-lg border border-[#e3e8ee] space-y-2 transition-all hover:border-[#2c3b6e]">
+                           <button onClick={() => setDeleteModal({ show: true, section: "mission.values", idx })} className="absolute top-2 right-2 text-[#cd5c5c] opacity-0 group-hover:opacity-100 transition-opacity p-1"><X className="w-3.5 h-3.5" /></button>
+                           <div className="flex items-center gap-2">
+                              <div className="group/icon relative flex-shrink-0">
+                                 <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-[#2c3b6e] border border-[#e3e8ee] cursor-pointer hover:border-[#2c3b6e] transition-all">
+                                    {React.createElement(ICON_MAP[v.icon] || Target, { className: "w-4 h-4" })}
+                                 </div>
+                                 <div className="absolute top-full left-0 mt-2 p-2 bg-white border border-[#e3e8ee] rounded-xl opacity-0 invisible group-hover/icon:opacity-100 group-hover/icon:visible transition-all grid grid-cols-5 gap-1 z-[60] w-48">
+                                    {Object.keys(ICON_MAP).map(iconName => {
+                                       const Icon = ICON_MAP[iconName];
+                                       return (
+                                          <button key={iconName} onClick={() => updateItem("mission.values", idx, "icon", iconName)} className={cn("p-1.5 rounded-md transition-all hover:bg-[#f7f8f9]", v.icon === iconName ? "bg-[#2c3b6e] text-white" : "text-[#a3acb9]")}>
+                                             <Icon className="w-3.5 h-3.5" />
+                                          </button>
+                                       );
+                                    })}
+                                 </div>
+                              </div>
+                              <input value={v.title} onChange={(e) => updateItem("mission.values", idx, "title", e.target.value)} className="bg-transparent border-none p-0 text-[11px] font-bold text-[#1a1f36] outline-none w-full placeholder:text-[#c4cad4]" placeholder="Заголовок" />
+                           </div>
+                           <textarea value={v.desc} onChange={(e) => updateItem("mission.values", idx, "desc", e.target.value)} className="w-full bg-white border border-[#e3e8ee] rounded-lg px-2 py-1.5 text-[12px] text-[#1a1f36] outline-none min-h-[50px] resize-none focus:border-[#2c3b6e] transition-all placeholder:text-[#c4cad4]" placeholder="Описание..." />
+                        </div>
+                     ))}
+                  </div>
+               </div>
+            </div>
+         )}
+
+         {/* Values Tab */}
+         {activeTab === "values" && (
+            <div className="space-y-4">
+               <div className="bg-white border border-[#e3e8ee] rounded-xl overflow-hidden">
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-[#e3e8ee] bg-[#f7f8f9]">
+                     <div className="flex items-center gap-2">
+                        <div className="w-1.5 h-4 bg-[#2c3b6e] rounded-full"></div>
+                        <div>
+                          <h3 className="text-[11px] font-bold text-[#1a1f36]">Ценности</h3>
+                          <p className="text-[10px] text-[#a3acb9] mt-0.5">Ключевые ценности компании</p>
+                        </div>
+                     </div>
+                     <button onClick={() => addItem("values", { icon: "Award", title: "", description: "" })} className="flex items-center gap-1.5 px-3 py-1.5 bg-[#2c3b6e] text-white hover:bg-[#232f58] rounded-lg transition-all text-[11px] font-semibold">
+                        <Plus className="w-3.5 h-3.5" />
+                        Добавить
+                     </button>
+                  </div>
+
+                  <div className="p-4 grid grid-cols-2 md:grid-cols-3 gap-3">
+                     {data.values.map((v: any, idx: number) => (
+                        <div key={idx} className="group relative bg-[#f7f8f9] p-3 rounded-lg border border-[#e3e8ee] space-y-2 overflow-visible transition-all hover:border-[#2c3b6e]">
+                           <button onClick={() => setDeleteModal({ show: true, section: "values", idx })} className="absolute top-2 right-2 text-[#cd5c5c] opacity-0 group-hover:opacity-100 transition-opacity p-1"><Trash2 className="w-3.5 h-3.5" /></button>
+                           <div className="flex items-center gap-2">
+                              <div className="group/icon relative flex-shrink-0">
+                                 <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-[#2c3b6e] border border-[#e3e8ee] cursor-pointer hover:border-[#2c3b6e] transition-all">
+                                    {React.createElement(ICON_MAP[v.icon] || Award, { className: "w-4 h-4" })}
+                                 </div>
+                                 <div className="absolute top-0 right-full mr-2 p-2 bg-white border border-[#e3e8ee] rounded-xl opacity-0 invisible group-hover/icon:opacity-100 group-hover/icon:visible transition-all grid grid-cols-4 gap-1 z-[60] w-40">
+                                    {Object.keys(ICON_MAP).slice(0, 12).map(iconName => {
+                                       const Icon = ICON_MAP[iconName];
+                                       return (
+                                          <button key={iconName} onClick={() => updateItem("values", idx, "icon", iconName)} className={cn("p-1.5 rounded-md transition-all hover:bg-[#f7f8f9]", v.icon === iconName ? "bg-[#2c3b6e] text-white" : "text-[#a3acb9]")}>
+                                             <Icon className="w-3.5 h-3.5" />
+                                          </button>
+                                       );
+                                    })}
+                                 </div>
+                              </div>
+                              <input value={v.title} onChange={(e) => updateItem("values", idx, "title", e.target.value)} className="bg-transparent border-none p-0 text-[12px] font-bold text-[#1a1f36] outline-none placeholder:text-[#c4cad4]" placeholder="Заголовок" />
+                           </div>
+                           <textarea value={v.description} onChange={(e) => updateItem("values", idx, "description", e.target.value)} className="w-full bg-white border border-[#e3e8ee] rounded-lg px-2 py-1.5 text-[12px] text-[#1a1f36] outline-none min-h-[45px] resize-none leading-relaxed focus:border-[#2c3b6e] transition-all placeholder:text-[#c4cad4]" placeholder="Описание..." />
+                        </div>
+                     ))}
+                  </div>
+               </div>
+            </div>
+         )}
+
+         {/* History Tab */}
+         {activeTab === "history" && (
+            <div className="space-y-4">
+               <div className="bg-white border border-[#e3e8ee] rounded-xl overflow-hidden">
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-[#e3e8ee] bg-[#f7f8f9]">
+                     <div className="flex items-center gap-2">
+                        <div className="w-1.5 h-4 bg-[#2c3b6e] rounded-full"></div>
+                        <div>
+                          <h3 className="text-[11px] font-bold text-[#1a1f36]">История</h3>
+                          <p className="text-[10px] text-[#a3acb9] mt-0.5">Важные события компании по годам</p>
+                        </div>
+                     </div>
+                     <button onClick={() => addItem("milestones", { year: "", title: "" })} className="flex items-center gap-1.5 px-3 py-1.5 bg-[#2c3b6e] text-white hover:bg-[#232f58] rounded-lg transition-all text-[11px] font-semibold"><Plus className="w-3.5 h-3.5" /> Добавить</button>
+                  </div>
+                  <div className="p-4 space-y-2">
+                     {data.milestones.map((m: any, idx: number) => (
+                        <div key={idx} className="flex gap-3 items-center group bg-[#f7f8f9] p-3 rounded-lg border border-[#e3e8ee] transition-all hover:border-[#2c3b6e]">
+                           <div className="w-14">
+                              <input value={m.year} onChange={(e) => updateItem("milestones", idx, "year", e.target.value)} className="w-full bg-white border border-[#e3e8ee] rounded-lg px-2 py-1.5 text-[11px] font-bold text-[#2c3b6e] text-center outline-none focus:border-[#2c3b6e] transition-all placeholder:text-[#c4cad4]" placeholder="2024" />
+                           </div>
+                           <input value={m.title} onChange={(e) => updateItem("milestones", idx, "title", e.target.value)} className="flex-1 bg-transparent border-none p-0 text-[13px] font-medium text-[#1a1f36] outline-none placeholder:text-[#c4cad4]" placeholder="Событие" />
+                           <button onClick={() => setDeleteModal({ show: true, section: "milestones", idx })} className="text-[#cd5c5c] opacity-0 group-hover:opacity-100 transition-opacity p-1"><Trash2 className="w-3.5 h-3.5" /></button>
+                        </div>
+                     ))}
+                  </div>
+               </div>
+            </div>
+         )}
+
+         {/* Team Tab */}
+         {activeTab === "team" && (
+            <div className="space-y-4">
+               <div className="bg-white border border-[#e3e8ee] rounded-xl overflow-hidden">
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-[#e3e8ee] bg-[#f7f8f9]">
+                     <div className="flex items-center gap-2">
+                        <div className="w-1.5 h-4 bg-[#2c3b6e] rounded-full"></div>
+                        <div>
+                          <h3 className="text-[11px] font-bold text-[#1a1f36]">Наша команда</h3>
+                          <p className="text-[10px] text-[#a3acb9] mt-0.5">Карточки сотрудников на странице /about</p>
+                        </div>
+                     </div>
+                     <button 
+                        onClick={() => addItem("team", { name: "", role: "", image: "" })} 
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-[#2c3b6e] text-white hover:bg-[#232f58] rounded-lg transition-all text-[11px] font-semibold"
+                     >
+                        <UserPlus className="w-3.5 h-3.5" />
+                        Добавить
+                     </button>
+                  </div>
+                  
+                  <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                     {data.team.map((m: any, idx: number) => (
+                        <div key={idx} className="group relative bg-[#f7f8f9] border border-[#e3e8ee] rounded-lg p-4 space-y-3 transition-all hover:border-[#2c3b6e]">
+                           <button onClick={() => setDeleteModal({ show: true, section: "team", idx })} className="absolute top-2 right-2 text-[#cd5c5c] opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-50 rounded-lg">
+                              <X className="w-4 h-4" />
+                           </button>
+                           <div className="flex gap-4 items-start">
+                              <div className="w-20 h-20 bg-white border border-[#e3e8ee] rounded-lg overflow-hidden flex-shrink-0 relative group/photo">
+                                 {m.image ? <img src={m.image} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-slate-200"><ImageIcon className="w-8 h-8" /></div>}
+                                 <button onClick={() => { setUploadingIdx(idx); fileInputRef.current?.click(); }} className="absolute inset-0 bg-black/40 flex items-center justify-center text-white opacity-0 group-hover/photo:opacity-100 transition-opacity"><Upload className="w-5 h-5" /></button>
+                              </div>
+                              <div className="flex-1 grid grid-cols-1 gap-3">
+                                 <div className="space-y-1">
+                                    <label className="text-[10px] font-semibold text-[#4f566b] tracking-wider">Имя и фамилия</label>
+                                    <input value={m.name} placeholder="Иван Иванов" onChange={(e) => updateItem("team", idx, "name", e.target.value)} className="w-full bg-[#f7f8f9] border border-[#e3e8ee] rounded-lg px-3 py-2 text-[13px] font-bold text-[#1a1f36] outline-none focus:bg-white focus:border-[#2c3b6e] transition-all placeholder:text-[#c4cad4]" />
+                                 </div>
+                                 <div className="space-y-1">
+                                    <label className="text-[10px] font-semibold text-[#4f566b] tracking-wider">Должность</label>
+                                    <input value={m.role} placeholder="Генеральный директор" onChange={(e) => updateItem("team", idx, "role", e.target.value)} className="w-full bg-[#f7f8f9] border border-[#e3e8ee] rounded-lg px-3 py-2 text-[13px] text-[#1a1f36] outline-none focus:bg-white focus:border-[#2c3b6e] transition-all placeholder:text-[#c4cad4]" />
+                                 </div>
+                                 <div className="space-y-1">
+                                    <label className="text-[9px] font-semibold text-[#a3acb9] tracking-wider">URL фотографии</label>
+                                    <input value={m.image} placeholder="https://..." onChange={(e) => updateItem("team", idx, "image", e.target.value)} className="w-full bg-[#f7f8f9] border border-[#e3e8ee] rounded-lg px-3 py-1.5 text-[11px] text-[#1a1f36] outline-none focus:bg-white focus:border-[#2c3b6e] transition-all placeholder:text-[#c4cad4]" />
+                                 </div>
+                              </div>
+                           </div>
+                        </div>
+                     ))}
+                  </div>
+               </div>
+            </div>
+         )}
+      </div>
+
+      {showToast && (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] animate-in slide-in-from-bottom-4 duration-300">
+           <div className="bg-[#1a1f36] text-white px-5 py-2.5 rounded-xl flex items-center gap-2.5 border border-white/10">
+              <div className="w-4 h-4 bg-[#10b981] rounded-full flex items-center justify-center flex-shrink-0">
+                 <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+              </div>
+              <span className="text-[12px] font-semibold">Изменения сохранены</span>
+           </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteModal.show && createPortal(
+        <>
+          <div onClick={() => setDeleteModal({ ...deleteModal, show: false })} className="fixed inset-0 z-[99999] bg-[#1a1f36]/60 backdrop-blur-md" />
+          <div className="fixed inset-0 z-[100000] flex items-center justify-center p-4 pointer-events-none">
+             <div className="relative w-full max-w-sm bg-white rounded-xl overflow-hidden border border-[#e3e8ee] pointer-events-auto">
+                <div className="p-6 text-center">
+                   <div className="w-14 h-14 bg-[#cd5c5c]/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Trash2 className="w-6 h-6 text-[#cd5c5c]" />
+                   </div>
+                   <h3 className="text-lg font-bold text-[#1a1f36] mb-2">Удалить элемент?</h3>
+                   <p className="text-[13px] text-[#4f566b] leading-relaxed mb-6">Элемент будет удалён из раздела. Это действие нельзя отменить.</p>
+                   <div className="flex items-center gap-3">
+                      <button onClick={() => setDeleteModal({ ...deleteModal, show: false })} className="flex-1 py-3 bg-[#f7f8f9] text-[#1a1f36] rounded-xl font-bold text-[13px] hover:bg-[#e3e8ee] transition-all">Отмена</button>
+                      <button onClick={confirmDelete} className="flex-1 py-3 bg-[#cd5c5c] text-white rounded-xl font-bold text-[13px] hover:bg-[#b04b4b] transition-all">Да, удалить</button>
+                   </div>
+                </div>
+             </div>
+          </div>
+        </>,
         document.body
       )}
     </div>
