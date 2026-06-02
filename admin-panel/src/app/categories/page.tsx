@@ -56,6 +56,8 @@ export default function CategoriesPage() {
   const [editImageUrl, setEditImageUrl] = useState("");
   const [editParentId, setEditParentId] = useState<number | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [parentSearchQuery, setParentSearchQuery] = useState("");
+  const [isParentDropdownOpen, setIsParentDropdownOpen] = useState(false);
   const [categoryProducts, setCategoryProducts] = useState<any[]>([]);
   const [isLoadingCategoryProducts, setIsLoadingCategoryProducts] = useState(false);
   const [productSearchQuery, setProductSearchQuery] = useState("");
@@ -617,21 +619,74 @@ export default function CategoriesPage() {
                   <div className="space-y-4">
                      <label className="text-[11px] font-bold text-[#4f566b] uppercase tracking-widest">Родительская категория</label>
                      <div className="relative">
-                        <select 
-                          value={editParentId || ""}
-                          onChange={(e) => setEditParentId(e.target.value ? parseInt(e.target.value) : null)}
-                          className="w-full px-4 py-3 bg-[#f7f8f9] border border-[#e3e8ee] rounded-xl text-[13px] font-bold text-[#1a1f36] outline-none focus:border-[#2c3b6e]/30 appearance-none cursor-pointer"
+                        <div 
+                          className="w-full px-4 py-3 bg-[#f7f8f9] border border-[#e3e8ee] rounded-xl text-[13px] font-bold text-[#1a1f36] flex items-center justify-between cursor-pointer"
+                          onClick={() => setIsParentDropdownOpen(!isParentDropdownOpen)}
                         >
-                          <option value="">Без родительской категории (Корневая)</option>
-                          {categories
-                            .filter((c) => c.id !== selectedCategory.id)
-                            .map((c) => (
-                              <option key={c.id} value={c.id}>
-                                {c.name}
-                              </option>
-                            ))}
-                        </select>
-                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#4f566b] pointer-events-none" />
+                          <span className={!editParentId ? "text-[#4f566b] font-normal" : ""}>
+                            {editParentId 
+                              ? categories.find(c => c.id === editParentId)?.name || "Неизвестная категория"
+                              : "Без родительской категории (Корневая)"}
+                          </span>
+                          <ChevronDown className={cn("w-4 h-4 text-[#4f566b] transition-transform", isParentDropdownOpen && "rotate-180")} />
+                        </div>
+                        
+                        {isParentDropdownOpen && (
+                          <div className="absolute z-50 w-full mt-2 bg-white border border-[#e3e8ee] rounded-xl shadow-lg max-h-[300px] flex flex-col overflow-hidden">
+                            <div className="p-2 border-b border-[#e3e8ee]">
+                              <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#4f566b]" />
+                                <input 
+                                  type="text" 
+                                  placeholder="Поиск категории..." 
+                                  value={parentSearchQuery}
+                                  onChange={(e) => setParentSearchQuery(e.target.value)}
+                                  className="w-full pl-9 pr-4 py-2 bg-[#f7f8f9] border border-transparent focus:border-[#2c3b6e]/30 focus:bg-white rounded-lg text-[13px] outline-none transition-all"
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                              </div>
+                            </div>
+                            <div className="overflow-y-auto flex-1 p-1">
+                              <div 
+                                className={cn(
+                                  "px-3 py-2 text-[13px] rounded-lg cursor-pointer transition-colors",
+                                  editParentId === null ? "bg-[#2c3b6e]/10 text-[#2c3b6e] font-bold" : "text-[#1a1f36] hover:bg-[#f7f8f9]"
+                                )}
+                                onClick={() => {
+                                  setEditParentId(null);
+                                  setIsParentDropdownOpen(false);
+                                  setParentSearchQuery("");
+                                }}
+                              >
+                                Без родительской категории (Корневая)
+                              </div>
+                              {categories
+                                .filter((c) => c.id !== selectedCategory.id)
+                                .filter((c) => c.name.toLowerCase().includes(parentSearchQuery.toLowerCase()))
+                                .map((c) => (
+                                  <div 
+                                    key={c.id} 
+                                    className={cn(
+                                      "px-3 py-2 text-[13px] rounded-lg cursor-pointer transition-colors",
+                                      editParentId === c.id ? "bg-[#2c3b6e]/10 text-[#2c3b6e] font-bold" : "text-[#1a1f36] hover:bg-[#f7f8f9]"
+                                    )}
+                                    onClick={() => {
+                                      setEditParentId(c.id);
+                                      setIsParentDropdownOpen(false);
+                                      setParentSearchQuery("");
+                                    }}
+                                  >
+                                    {c.name}
+                                  </div>
+                                ))}
+                                {categories.filter((c) => c.id !== selectedCategory.id && c.name.toLowerCase().includes(parentSearchQuery.toLowerCase())).length === 0 && (
+                                  <div className="px-3 py-4 text-center text-[12px] text-[#4f566b]">
+                                    Ничего не найдено
+                                  </div>
+                                )}
+                            </div>
+                          </div>
+                        )}
                      </div>
                   </div>
 
