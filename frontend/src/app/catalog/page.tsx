@@ -63,7 +63,33 @@ function CatalogContent() {
         });
         const catData = await catRes.json();
         const safeCategories = Array.isArray(catData) ? catData : [];
-        setCategories(safeCategories);
+
+        // Helper to check if a category name contains "комплектующие"
+        const isAccessoryCategoryName = (name: string) => {
+          if (!name) return false;
+          const lower = name.toLowerCase();
+          return lower.includes("комплектующие") || lower.includes("нестандарт комплектующие");
+        };
+
+        // Recursively check if a category or any of its parent/ancestor categories is an accessory
+        const isAccessoryOrChild = (cat: any): boolean => {
+          let current = cat;
+          while (current) {
+            if (isAccessoryCategoryName(current.name)) {
+              return true;
+            }
+            if (current.parent_id) {
+              current = safeCategories.find((c: any) => c && c.id === current.parent_id);
+            } else {
+              break;
+            }
+          }
+          return false;
+        };
+
+        // Filter out accessory categories
+        const filteredCategories = safeCategories.filter((c: any) => c && !isAccessoryOrChild(c));
+        setCategories(filteredCategories);
       } catch (err) {
         console.error("Fetch categories failed", err);
       }
@@ -154,6 +180,10 @@ function CatalogContent() {
   const filteredProducts = useMemo(() => {
     let result = [...products];
     
+    // Ensure we only show products belonging to non-hidden categories
+    const activeCategoryIds = new Set(categories.map(c => c.id));
+    result = result.filter(p => p.category_id && activeCategoryIds.has(p.category_id));
+
     // Exclude promotional items with no categories. 
     // We allow doors, parquets and underlayments to have price 0 (calculated on request/samples).
     // For other products, we require price >= 1000 to filter out invalid items.
