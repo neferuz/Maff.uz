@@ -303,20 +303,27 @@ export default function GenerationPage() {
   };
 
   const downloadImage = async (url: string, filename: string) => {
-    try {
-      const response = await fetch(url);
-      const blob = await response.blob();
-      const blobUrl = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = blobUrl;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(blobUrl);
-    } catch (e) {
-      window.open(url, "_blank");
+    // Skip fetch for cross-origin URLs to avoid CORS errors
+    // (Leonardo AI S3 bucket does not allow cross-origin fetch)
+    const isSameOrigin = url.startsWith(window.location.origin) || url.startsWith("/");
+    if (isSameOrigin) {
+      try {
+        const response = await fetch(url);
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = blobUrl;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(blobUrl);
+        return;
+      } catch (e) {
+        // Fall through to window.open
+      }
     }
+    window.open(url, "_blank");
   };
 
   return (
