@@ -73,7 +73,7 @@ function OutletContent() {
         setLoading(true);
         const url = selectedCategoryId
           ? `/api/v1/products/?category_id=${selectedCategoryId}&t=${Date.now()}`
-          : `/api/v1/products/?t=${Date.now()}`;
+          : `/api/v1/products/?limit=300&t=${Date.now()}`;
         const prodRes = await fetch(url, { cache: "no-store", headers: { "Cache-Control": "no-cache" } });
         const prodData = await prodRes.json();
         const safeProducts = Array.isArray(prodData) ? prodData : [];
