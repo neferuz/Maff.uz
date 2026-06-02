@@ -251,6 +251,13 @@ export default function ProductsPage() {
         setProducts(products.filter(p => p.id !== selectedProduct.id));
         setSelectedProduct(null);
         setShowDeleteConfirm(false);
+        toast.success("Товар удален");
+      } else {
+        const errText = await res.text().catch(() => "Неизвестная ошибка");
+        toast.error(`Не удалось удалить товар: ${errText}`);
+        setShowDeleteConfirm(false);
+        // Refresh product list to ensure we have current data
+        await fetchProducts();
       }
     } catch (error) {
       toast.error("Произошла ошибка: " + (error instanceof Error ? error.message : "Неизвестная ошибка"));
