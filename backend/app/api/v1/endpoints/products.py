@@ -5,7 +5,7 @@ from app.api import deps
 from app.schemas.product import Product, ProductCreate, ProductUpdate, ProductDetail
 from app.crud.crud_product import product_crud, category_crud
 from app.services.one_c import one_c_service
-from app.utils.sanitizer import parse_product_characteristics, BRANDS_MAP
+from app.utils.sanitizer import parse_product_characteristics, BRANDS_MAP, clean_door_name
 
 router = APIRouter()
 
@@ -790,6 +790,42 @@ async def perform_sync(db: AsyncSession):
                     elif any(k in name_upper for k in ['ПАРКЕТ', 'ДУБ', 'ОРЕХ']):
                         category_id = 406  # Coswick
             
+            # --- Joss Beaumont decors mapping ---
+            jb_decors = {
+                # 1. Opus (ID 325)
+                "ДЕКАРТ": 325,
+                "ДЮРАС": 325,
+                "ЖУЛЬ ВЕРН": 325,
+                "КОЛЕТТ": 325,
+                "ЛЕБЛАН": 325,
+                # 2. Veritas (ID 374)
+                "АРАГОН": 374,
+                "ВЕРЛЕН": 374,
+                "ГАЛУА": 374,
+                "ЛАФАЙЕТ": 374,
+                "МИРАБО": 374,
+                "ПОТЬЕ": 374,
+                "РАВАШОЛЬ": 374,
+                # 3. Gusto (ID 110)
+                "ГОЙЕР": 110,
+                "ЖУРМАН": 110,
+                "КАССИНИ": 110,
+                "КИПИАНИ": 110,
+                "ПАЛЕЙ": 110,
+                "РОМАНОФФ": 110,
+                "РОШЕФОР": 110,
+                "ШЕЛИЯ": 110,
+                # 4. Liberte (ID 324)
+                "МАКАРОН": 324,
+                "МИЛФЕЙ": 324,
+                "ПРОФИТРОЛЬ": 324,
+                "ШОДО": 324,
+            }
+            for decor_name, target_cat_id in jb_decors.items():
+                if decor_name in name_upper:
+                    category_id = target_cat_id
+                    break
+            
             # 7. Last resort: "ЛП" prefix -> general Laminate category
             if not category_id and name_upper.startswith('ЛП ') and laminate_cat_id:
                 category_id = laminate_cat_id
@@ -820,6 +856,11 @@ async def perform_sync(db: AsyncSession):
             name, c_brand, c_country
         )
         
+        # Clean name for doors to remove sizes (e.g. 43х700х2000)
+        display_name = name
+        if is_door:
+            display_name = clean_door_name(name)
+            
         # Check if exists
         db_obj = product_map.get(ref_key)
         if db_obj:
@@ -835,8 +876,8 @@ async def perform_sync(db: AsyncSession):
             db_obj.country = parsed_country
             db_obj.grade = parsed_grade
             db_obj.thickness = parsed_thickness
-            if not db_obj.description:
-                db_obj.name = name
+            if is_door or not db_obj.description:
+                db_obj.name = display_name
             if not db_obj.image_url:
                 db_obj.image_url = image_url
             db_obj.is_active = True
@@ -844,7 +885,7 @@ async def perform_sync(db: AsyncSession):
         else:
             # Create a new product object and add to session
             new_obj = ProductModel(
-                name=name, sku=sku, ref_key=ref_key, price=price, price_outlet=price_outlet,
+                name=display_name, sku=sku, ref_key=ref_key, price=price, price_outlet=price_outlet,
                 price_outlet_usd=price_outlet_usd, price_outlet_wholesale=price_outlet_wholesale, stock=stock,
                 category_id=category_id, image_url=image_url,
                 brand=parsed_brand, country=parsed_country, grade=parsed_grade, thickness=parsed_thickness

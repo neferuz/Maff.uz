@@ -3,6 +3,7 @@ import Script from "next/script";
 import localFont from "next/font/local";
 import "./globals.css";
 import { APP_CONFIG } from "@/constants";
+import { organizationJsonLd } from "@/lib/seo";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { ShopProvider } from "@/context/shop-context";
@@ -171,6 +172,12 @@ export default async function RootLayout({
             gtag('config', 'G-ERYZCEFEJS');
           `}
         </Script>
+
+        {/* Organization Structured Data (JSON-LD) */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd()) }}
+        />
       </head>
       <body className="antialiased transition-colors duration-300 bg-[var(--bg)] text-[var(--text-primary)]">
         <TranslationProvider>

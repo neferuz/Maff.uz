@@ -283,3 +283,20 @@ def parse_product_characteristics(name: str, category_brand: str = None, categor
             
     return brand, country, grade, thickness
 
+
+def clean_door_name(name: str) -> str:
+    if not name:
+        return ""
+    # Remove three-dimensional sizes (e.g. 43х700х2000, 2300*600*40)
+    name = re.sub(r'\b\d+(?:\.\d+)?\s*[xх\*×]\s*\d+(?:\.\d+)?\s*[xх\*×]\s*\d+\b', '', name, flags=re.IGNORECASE)
+    # Remove two-dimensional sizes (e.g. 2000х800, 43*2600)
+    name = re.sub(r'\b\d+(?:\.\d+)?\s*[xх\*×]\s*\d+\b', '', name, flags=re.IGNORECASE)
+    # Clean up standalone dashes, commas, semicolons at the end of words or strings (but not parentheses!)
+    name = re.sub(r'\s*[,;\-\s]+\s*(?=\s|$)', ' ', name)
+    # Clean up empty brackets
+    name = re.sub(r'\(\s*\)', '', name)
+    name = re.sub(r'\[\s*\]', '', name)
+    name = re.sub(r'\s+', ' ', name)
+    return name.strip()
+
+
