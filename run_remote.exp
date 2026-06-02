@@ -1,7 +1,7 @@
 #!/usr/bin/expect -f
 
 set timeout 60
-spawn ssh -o StrictHostKeyChecking=no root@192.168.183.35 "cd /var/www/new-maff-website && git pull origin main && cd backend && venv/bin/python inspect_bitrix_categories.py"
+spawn ssh -o StrictHostKeyChecking=no root@192.168.183.35 "cd /var/www/new-maff-website && git pull origin main && cd backend && venv/bin/python search_parquets.py"
 expect {
     "assword:" { send "rJhj,rf2@\r" }
 }
