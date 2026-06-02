@@ -7,12 +7,8 @@ import subprocess
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 async def main():
-    print("=== OLD BITRIX SECTIONS ===")
-    cmd = "mysql -u bitrix0 -p'-2W)m3-qIayyedwgiiif' sitemanager -B -e \"SELECT ID, NAME, CODE, IBLOCK_ID FROM b_iblock_section WHERE NAME LIKE '%Silkwood%' OR NAME LIKE '%Силквуд%' OR NAME LIKE '%паркет%' OR NAME LIKE '%доска%' LIMIT 100\""
-    subprocess.run(cmd, shell=True)
-
-    print("\n=== OLD BITRIX SECTIONS LIST (TOP 50) ===")
-    cmd = "mysql -u bitrix0 -p'-2W)m3-qIayyedwgiiif' sitemanager -B -e \"SELECT ID, NAME, IBLOCK_ID, IBLOCK_SECTION_ID FROM b_iblock_section LIMIT 50\""
+    print("=== OLD BITRIX ELEMENTS CONTAINING 'Silk', 'wood' or 'вуд' ===")
+    cmd = "mysql -u bitrix0 -p'-2W)m3-qIayyedwgiiif' sitemanager -B -e \"SELECT ID, NAME, XML_ID, DETAIL_PICTURE, PREVIEW_PICTURE FROM b_iblock_element WHERE NAME LIKE '%Silk%' OR NAME LIKE '%wood%' OR NAME LIKE '%вуд%' LIMIT 100\""
     subprocess.run(cmd, shell=True)
 
 if __name__ == "__main__":
