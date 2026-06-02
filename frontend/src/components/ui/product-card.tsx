@@ -59,19 +59,17 @@ export function ProductCard({
 
   // Dynamic specifications builder
   const specs = [];
-  if (brand && brand.trim() !== "" && brand.trim() !== "MAFF" && !/^[0-9a-f-]{36}$/.test(brand)) {
+  if (brand && brand.trim() !== "" && !/^[0-9a-f-]{36}$/.test(brand)) {
     specs.push({ label: "Бренд", value: brand });
   }
-  if (country && country.trim() !== "" && country.trim() !== "Европа") {
+  if (country && country.trim() !== "") {
     specs.push({ label: "Страна", value: country });
   }
-  if (!isDoor) {
-    if (grade && grade.trim() !== "" && grade.trim() !== "Premium" && grade.trim() !== "Premium класс") {
-      specs.push({ label: "Класс", value: grade });
-    }
-    if (thickness && thickness.trim() !== "" && thickness.trim() !== "8мм") {
-      specs.push({ label: "Толщина", value: thickness });
-    }
+  if (grade && grade.trim() !== "") {
+    specs.push({ label: "Класс", value: grade });
+  }
+  if (thickness && thickness.trim() !== "") {
+    specs.push({ label: "Толщина", value: thickness });
   }
 
   const getNumericPrice = (p: string | number) => {
@@ -196,20 +194,20 @@ export function ProductCard({
         
         {specs.length > 0 ? (
           <div className="space-y-1 lg:space-y-1.5 mb-3 lg:mb-6">
-            {specs.slice(0, 3).map((spec, idx) => (
+            {specs.slice(0, 4).map((spec, idx) => (
               <div key={idx} className="flex items-center justify-between text-[8px] lg:text-[10px]">
                 <span className="text-slate-400 dark:text-slate-500 font-medium tracking-tight">{spec.label}:</span>
                 <span className="text-slate-900 dark:text-slate-300 font-black truncate max-w-[125px]" title={spec.value}>{spec.value}</span>
               </div>
             ))}
-            {/* Filler lines to keep card heights visually aligned when specs are fewer than 3 */}
-            {specs.length < 3 && Array.from({ length: 3 - specs.length }).map((_, i) => (
+            {/* Filler lines to keep card heights visually aligned when specs are fewer than 4 */}
+            {specs.length < 4 && Array.from({ length: 4 - specs.length }).map((_, i) => (
               <div key={`filler-${i}`} className="h-3 lg:h-3.5 opacity-0 select-none pointer-events-none" />
             ))}
           </div>
         ) : (
           <div className="space-y-1 lg:space-y-1.5 mb-3 lg:mb-6">
-            {Array.from({ length: 3 }).map((_, i) => (
+            {Array.from({ length: 4 }).map((_, i) => (
               <div key={`filler-${i}`} className="h-3 lg:h-3.5 opacity-0 select-none pointer-events-none" />
             ))}
           </div>

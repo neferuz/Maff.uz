@@ -190,8 +190,6 @@ export default function Home() {
         if (res.ok) {
           const allCats = await res.json();
           setAllCategories(allCats);
-          const mainCats = allCats.filter((c: any) => !c.parent_id).slice(0, 10);
-          setCategories(mainCats);
         }
       } catch (err) {
         console.error("Failed to fetch categories:", err);
@@ -201,6 +199,24 @@ export default function Home() {
     }
     fetchCategories();
   }, []);
+
+  useEffect(() => {
+    if (allCategories.length === 0) return;
+    const customCatIds = pageData?.categories || [];
+    if (customCatIds.length > 0) {
+      const orderedCats: any[] = [];
+      customCatIds.forEach((id: number) => {
+        const cat = allCategories.find((c: any) => c.id === id);
+        if (cat) {
+          orderedCats.push(cat);
+        }
+      });
+      setCategories(orderedCats);
+    } else {
+      const mainCats = allCategories.filter((c: any) => !c.parent_id).slice(0, 10);
+      setCategories(mainCats);
+    }
+  }, [allCategories, pageData]);
 
 
 

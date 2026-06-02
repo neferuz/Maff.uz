@@ -1,5 +1,5 @@
 "use client";
-
+import { toast } from "react-hot-toast";
 import { 
   Save, 
   Award, 
@@ -51,6 +51,7 @@ export default function CertificatesEditor() {
         setCertificates([]);
       }
     } catch (err) {
+      toast.error("Произошла ошибка: " + (err instanceof Error ? err.message : "Неизвестная ошибка"));
       console.error("Failed to fetch data:", err);
       setCertificates([]);
     } finally {
@@ -75,7 +76,7 @@ export default function CertificatesEditor() {
       });
 
       if (response.ok) {
-        setShowToast(true);
+        toast.success("Изменения успешно сохранены!");
         setHasChanges(false);
         setTimeout(() => setShowToast(false), 3000);
       } else {
@@ -84,6 +85,7 @@ export default function CertificatesEditor() {
         setTimeout(() => setErrorMsg(null), 4000);
       }
     } catch (err) {
+      toast.error("Произошла ошибка: " + (err instanceof Error ? err.message : "Неизвестная ошибка"));
       setErrorMsg("Ошибка подключения к серверу");
       setTimeout(() => setErrorMsg(null), 4000);
     } finally {
@@ -140,6 +142,7 @@ export default function CertificatesEditor() {
         setTimeout(() => setErrorMsg(null), 4000);
       }
     } catch (err) {
+      toast.error("Произошла ошибка: " + (err instanceof Error ? err.message : "Неизвестная ошибка"));
       setErrorMsg("Ошибка подключения при загрузке");
       setTimeout(() => setErrorMsg(null), 4000);
     }

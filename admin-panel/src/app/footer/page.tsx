@@ -1,5 +1,5 @@
 "use client";
-
+import { toast } from "react-hot-toast";
 import { 
   Save, 
   Phone, 
@@ -72,6 +72,7 @@ export default function FooterEditor() {
         setOriginalData(JSON.parse(JSON.stringify(DEFAULT_FOOTER)));
       }
     } catch (err) {
+      toast.error("Произошла ошибка: " + (err instanceof Error ? err.message : "Неизвестная ошибка"));
       console.error("Failed to fetch footer data:", err);
       setData(DEFAULT_FOOTER);
       setOriginalData(JSON.parse(JSON.stringify(DEFAULT_FOOTER)));
@@ -98,13 +99,14 @@ export default function FooterEditor() {
 
       if (response.ok) {
         setOriginalData(JSON.parse(JSON.stringify(data)));
-        setShowToast(true);
+        toast.success("Изменения успешно сохранены!");
         setTimeout(() => setShowToast(false), 3000);
       } else {
         setErrorMsg("Не удалось сохранить данные");
         setTimeout(() => setErrorMsg(null), 4000);
       }
     } catch (err) {
+      toast.error("Произошла ошибка: " + (err instanceof Error ? err.message : "Неизвестная ошибка"));
       setErrorMsg("Ошибка подключения к серверу");
       setTimeout(() => setErrorMsg(null), 4000);
     } finally {

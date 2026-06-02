@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api import deps
 from app.crud.crud_product import category_crud
-from app.schemas.product import Category, CategoryCreate, CategoryUpdate
+from app.schemas.product import Category, CategoryCreate, CategoryUpdate, CategoryReorder
 from app.services.one_c import one_c_service
 
 router = APIRouter()
@@ -27,6 +27,7 @@ async def read_categories(
     query = select(CategoryModel)
     if not include_inactive:
         query = query.filter(CategoryModel.is_active != False)
+    query = query.order_by(CategoryModel.sort_order.asc(), CategoryModel.name.asc())
     categories_result = await db.execute(query.offset(skip).limit(limit))
     categories = categories_result.scalars().all()
     
@@ -71,6 +72,8 @@ async def read_categories(
             "is_preorder": c.is_preorder,
             "price_prefix": c.price_prefix,
             "order_link": c.order_link,
+            "sort_order": c.sort_order,
+            "recommended_accessories": c.recommended_accessories,
         }
         result.append(c_dict)
         
@@ -369,8 +372,30 @@ async def create_category(
         is_preorder=created.is_preorder,
         price_prefix=created.price_prefix,
         order_link=created.order_link,
+        sort_order=created.sort_order,
+        recommended_accessories=created.recommended_accessories,
         product_count=0
     )
+
+@router.post("/reorder")
+async def reorder_categories(
+    obj_in: CategoryReorder,
+    db: AsyncSession = Depends(deps.get_db),
+) -> Any:
+    """
+    Bulk update sort_order for categories.
+    """
+    from app.models.product import Category as CategoryModel
+    
+    # Simple loop to update each category's sort_order
+    for item in obj_in.items:
+        db_obj = await category_crud.get(db, id=item.id)
+        if db_obj:
+            db_obj.sort_order = item.sort_order
+            db.add(db_obj)
+            
+    await db.commit()
+    return {"status": "success"}
 
 @router.put("/{id}", response_model=Category)
 async def update_category(
@@ -397,5 +422,7 @@ async def update_category(
         is_preorder=updated.is_preorder,
         price_prefix=updated.price_prefix,
         order_link=updated.order_link,
+        sort_order=updated.sort_order,
+        recommended_accessories=updated.recommended_accessories,
         product_count=0
     )

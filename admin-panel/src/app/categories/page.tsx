@@ -1,5 +1,5 @@
 "use client";
-
+import { toast } from "react-hot-toast";
 import React from "react";
 import { 
   MoreHorizontal, 
@@ -20,6 +20,9 @@ import {
   RefreshCw,
   ChevronDown,
   Archive,
+  ArrowUp,
+  ArrowDown,
+  CheckCircle2,
   // 34 Lucide Icons for category selection
   Home as HomeIcon, DoorOpen, LayoutGrid, Square, Maximize, Layout, Box, Shapes, Hammer, Wind, Sparkles, Award,
   Wrench, Grid, HardHat, Brush, Paintbrush, Ruler, Construction, Flame, Sun, Compass, Scissors, ShieldCheck,
@@ -65,6 +68,15 @@ export default function CategoriesPage() {
   const [isSearchingProducts, setIsSearchingProducts] = useState(false);
   const [mergeTargetCategoryId, setMergeTargetCategoryId] = useState<number | null>(null);
   const [isMerging, setIsMerging] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+  const [editRecommendedAccessories, setEditRecommendedAccessories] = useState<any>({
+    category_ids: [],
+    product_ids: []
+  });
+  const [accProductSearch, setAccProductSearch] = useState("");
+  const [accProductResults, setAccProductResults] = useState<any[]>([]);
+  const [isSearchingAccProducts, setIsSearchingAccProducts] = useState(false);
+  const [loadedAccProducts, setLoadedAccProducts] = useState<any[]>([]);
 
   const fetchCategories = async () => {
     try {
@@ -73,9 +85,56 @@ export default function CategoriesPage() {
       const data = await res.json();
       setCategories(Array.isArray(data) ? data : []);
     } catch (error) {
+      toast.error("Произошла ошибка: " + (error instanceof Error ? error.message : "Неизвестная ошибка"));
       console.error("Failed to fetch categories:", error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleReorder = async (category: any, direction: 'up' | 'down') => {
+    // 1. Find siblings (categories with the same parent)
+    const siblings = displayCategories.filter(c => c.parent_id === category.parent_id);
+    const currentIndex = siblings.findIndex(c => c.id === category.id);
+    if (currentIndex === -1) return;
+
+    if (direction === 'up' && currentIndex > 0) {
+      // Swap elements in the array
+      const temp = siblings[currentIndex - 1];
+      siblings[currentIndex - 1] = siblings[currentIndex];
+      siblings[currentIndex] = temp;
+    } else if (direction === 'down' && currentIndex < siblings.length - 1) {
+      // Swap elements in the array
+      const temp = siblings[currentIndex + 1];
+      siblings[currentIndex + 1] = siblings[currentIndex];
+      siblings[currentIndex] = temp;
+    } else {
+      return;
+    }
+
+    // Explicitly set sort_order sequentially for all siblings
+    const items = siblings.map((sib, index) => ({
+      id: sib.id,
+      sort_order: index
+    }));
+    await executeReorder(items);
+  };
+
+  const executeReorder = async (items: any[]) => {
+    try {
+      const res = await fetch("/api/v1/categories/reorder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items })
+      });
+      if (res.ok) {
+        await fetchCategories();
+        toast.success("Изменения успешно сохранены!");
+        setTimeout(() => setShowToast(false), 3000);
+      }
+    } catch (error) {
+      toast.error("Произошла ошибка: " + (error instanceof Error ? error.message : "Неизвестная ошибка"));
+      console.error("Failed to reorder categories", error);
     }
   };
 
@@ -88,6 +147,7 @@ export default function CategoriesPage() {
         setCategoryProducts(data);
       }
     } catch (error) {
+      toast.error("Произошла ошибка: " + (error instanceof Error ? error.message : "Неизвестная ошибка"));
       console.error("Failed to fetch category products:", error);
     } finally {
       setIsLoadingCategoryProducts(false);
@@ -111,6 +171,7 @@ export default function CategoriesPage() {
         setSearchedProducts(filtered);
       }
     } catch (error) {
+      toast.error("Произошла ошибка: " + (error instanceof Error ? error.message : "Неизвестная ошибка"));
       console.error("Failed to search products:", error);
     } finally {
       setIsSearchingProducts(false);
@@ -134,11 +195,11 @@ export default function CategoriesPage() {
         setSearchedProducts(prev => prev.filter(p => p.id !== productId));
         await fetchCategories();
       } else {
-        alert("Не удалось добавить товар в категорию");
+        toast.error("Не удалось добавить товар в категорию");
       }
     } catch (error) {
       console.error("Failed to assign product:", error);
-      alert("Ошибка сети");
+      toast.error("Ошибка сети");
     }
   };
 
@@ -158,11 +219,11 @@ export default function CategoriesPage() {
         await fetchCategoryProducts(selectedCategory.id);
         await fetchCategories();
       } else {
-        alert("Не удалось убрать товар из категории");
+        toast.error("Не удалось убрать товар из категории");
       }
     } catch (error) {
       console.error("Failed to remove product:", error);
-      alert("Ошибка сети");
+      toast.error("Ошибка сети");
     }
   };
 
@@ -176,17 +237,17 @@ export default function CategoriesPage() {
       });
       if (res.ok) {
         const data = await res.json();
-        alert(`Успешно перенесено товаров: ${data.moved_products_count}`);
+        toast.success(`Успешно перенесено товаров: ${data.moved_products_count}`);
         await fetchCategories();
         await fetchCategoryProducts(selectedCategory.id);
         setMergeTargetCategoryId(null);
       } else {
         const err = await res.json();
-        alert(`Не удалось объединить категории: ${err.detail || "Неизвестная ошибка"}`);
+        toast.error(`Не удалось объединить категории: ${err.detail || "Неизвестная ошибка"}`);
       }
     } catch (error) {
       console.error("Merge error:", error);
-      alert("Ошибка при подключении к серверу");
+      toast.error("Ошибка при подключении к серверу");
     } finally {
       setIsMerging(false);
     }
@@ -198,6 +259,7 @@ export default function CategoriesPage() {
       await fetch("/api/v1/categories/sync", { method: "POST" });
       await fetchCategories();
     } catch (error) {
+      toast.error("Произошла ошибка: " + (error instanceof Error ? error.message : "Неизвестная ошибка"));
       console.error("Sync failed:", error);
     } finally {
       setIsSyncing(false);
@@ -221,11 +283,11 @@ export default function CategoriesPage() {
         setSelectedCategory(null);
         await fetchCategories();
       } else {
-        alert("Не удалось удалить категорию");
+        toast.error("Не удалось удалить категорию");
       }
     } catch (error) {
       console.error("Failed to delete category:", error);
-      alert("Ошибка при подключении к серверу");
+      toast.error("Ошибка при подключении к серверу");
     } finally {
       setIsDeleting(false);
     }
@@ -249,11 +311,11 @@ export default function CategoriesPage() {
         setSelectedCategory(null);
         await fetchCategories();
       } else {
-        alert("Не удалось изменить статус категории");
+        toast.error("Не удалось изменить статус категории");
       }
     } catch (error) {
       console.error("Failed to archive/restore category:", error);
-      alert("Ошибка при подключении к серверу");
+      toast.error("Ошибка при подключении к серверу");
     } finally {
       setIsDeleting(false);
     }
@@ -273,6 +335,9 @@ export default function CategoriesPage() {
       setEditOrderLink(selectedCategory.order_link || "");
       setEditImageUrl(selectedCategory.image_url || "");
       setEditParentId(selectedCategory.parent_id || null);
+      setEditRecommendedAccessories(selectedCategory.recommended_accessories || { category_ids: [], product_ids: [] });
+      setAccProductSearch("");
+      setAccProductResults([]);
 
       if (selectedCategory.id !== 'new') {
         fetchCategoryProducts(selectedCategory.id);
@@ -289,6 +354,60 @@ export default function CategoriesPage() {
       document.body.style.overflow = 'unset';
     };
   }, [selectedCategory]);
+
+  // Search accessory products
+  useEffect(() => {
+    if (!accProductSearch.trim()) {
+      setAccProductResults([]);
+      return;
+    }
+    const delayDebounceFn = setTimeout(async () => {
+      setIsSearchingAccProducts(true);
+      try {
+        const response = await fetch(`/api/v1/products?q=${encodeURIComponent(accProductSearch)}&limit=10`);
+        if (response.ok) {
+          const results = await response.json();
+          setAccProductResults(results);
+        }
+      } catch (err) {
+        console.error("Error searching accessory products:", err);
+      } finally {
+        setIsSearchingAccProducts(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [accProductSearch]);
+
+  // Load details of selected accessory products
+  useEffect(() => {
+    async function loadAccProducts() {
+      const ids = editRecommendedAccessories.product_ids || [];
+      if (ids.length === 0) {
+        setLoadedAccProducts([]);
+        return;
+      }
+      
+      const unloadedIds = ids.filter((id: number) => !loadedAccProducts.some(p => p.id === id));
+      if (unloadedIds.length === 0) return;
+
+      try {
+        const responses = await Promise.all(
+          unloadedIds.map((id: number) => fetch(`/api/v1/products/${id}`))
+        );
+        const newProds: any[] = [];
+        for (const res of responses) {
+          if (res.ok) {
+            newProds.push(await res.json());
+          }
+        }
+        setLoadedAccProducts(prev => [...prev, ...newProds]);
+      } catch (err) {
+        console.error("Failed to load accessory products details", err);
+      }
+    }
+    loadAccProducts();
+  }, [editRecommendedAccessories.product_ids]);
 
   const handleSaveCategory = async () => {
     if (!selectedCategory || !editName.trim()) return;
@@ -310,17 +429,18 @@ export default function CategoriesPage() {
           price_prefix: editPricePrefix,
           order_link: editOrderLink,
           image_url: editImageUrl,
+          recommended_accessories: editRecommendedAccessories,
         }),
       });
       if (res.ok) {
         setSelectedCategory(null);
         await fetchCategories();
       } else {
-        alert("Не удалось сохранить изменения");
+        toast.error("Не удалось сохранить изменения");
       }
     } catch (error) {
       console.error("Failed to save category:", error);
-      alert("Ошибка при подключении к серверу");
+      toast.error("Ошибка при подключении к серверу");
     } finally {
       setIsSaving(false);
     }
@@ -540,6 +660,21 @@ export default function CategoriesPage() {
                       <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-2">
                           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity mr-2">
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); handleReorder(cat, 'up'); }}
+                              className="p-1.5 hover:bg-[#f7f8f9] rounded-lg text-[#4f566b] hover:text-[#2c3b6e] transition-colors"
+                              title="Вверх"
+                            >
+                              <ArrowUp className="w-3.5 h-3.5" />
+                            </button>
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); handleReorder(cat, 'down'); }}
+                              className="p-1.5 hover:bg-[#f7f8f9] rounded-lg text-[#4f566b] hover:text-[#2c3b6e] transition-colors"
+                              title="Вниз"
+                            >
+                              <ArrowDown className="w-3.5 h-3.5" />
+                            </button>
+                            <div className="w-[1px] h-4 bg-[#e3e8ee] mx-1"></div>
                             <button 
                               onClick={() => setSelectedCategory(cat)}
                               className="p-1.5 hover:bg-[#f7f8f9] rounded-lg text-[#4f566b] hover:text-[#2c3b6e] transition-colors"
@@ -818,11 +953,11 @@ export default function CategoriesPage() {
                                        const data = await res.json();
                                        setEditImageUrl(data.url);
                                     } else {
-                                       alert("Не удалось загрузить иконку");
+                                       toast.error("Не удалось загрузить иконку");
                                     }
                                  } catch (err) {
                                     console.error("Upload error", err);
-                                    alert("Ошибка сети при загрузке");
+                                    toast.error("Ошибка сети при загрузке");
                                  }
                               }}
                               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
@@ -864,6 +999,175 @@ export default function CategoriesPage() {
                         </div>
                      </div>
                   </div>
+
+                  {/* --- Accessories Config (Часто покупают вместе) --- */}
+                  {selectedCategory.id !== 'new' && (
+                     <div className="space-y-4 p-4 bg-white border border-[#e3e8ee] rounded-xl shadow-none">
+                        <div>
+                           <p className="text-[13px] font-bold text-[#1a1f36]">Сопутствующие категории и товары</p>
+                           <p className="text-[10px] text-[#4f566b] mt-0.5">Настройте, какие категории или конкретные товары будут рекомендоваться к товарам из этой категории.</p>
+                        </div>
+
+                        {/* Custom Title Input */}
+                        <div className="space-y-2 pt-3 border-t border-[#f7f8f9]">
+                           <label className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest block">Заголовок блока рекомендаций</label>
+                           <input
+                             type="text"
+                             placeholder="Например: С этим товаром покупают"
+                             value={editRecommendedAccessories.title || ""}
+                             onChange={(e) => {
+                               setEditRecommendedAccessories({
+                                 ...editRecommendedAccessories,
+                                 title: e.target.value
+                               });
+                             }}
+                             className="w-full px-3 py-2 bg-[#f7f8f9] border border-[#e3e8ee] rounded-xl text-[12px] font-medium outline-none focus:border-[#2c3b6e]/30"
+                           />
+                        </div>
+
+                        {/* Category selection */}
+                        <div className="space-y-2 pt-3 border-t border-[#f7f8f9]">
+                           <label className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest block">Рекомендовать категории</label>
+                           
+                           {/* Selected category tags */}
+                           <div className="flex flex-wrap gap-1.5 mb-2">
+                              {(editRecommendedAccessories.category_ids || []).map((catId: number) => {
+                                const cat = categories.find(c => c.id === catId);
+                                if (!cat) return null;
+                                return (
+                                  <span key={catId} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#2c3b6e]/10 text-[#2c3b6e] text-[10px] font-bold rounded-lg border border-[#2c3b6e]/20">
+                                     {cat.name}
+                                     <button
+                                       type="button"
+                                       onClick={() => {
+                                         const nextCatIds = (editRecommendedAccessories.category_ids || []).filter((id: number) => id !== catId);
+                                         setEditRecommendedAccessories({ ...editRecommendedAccessories, category_ids: nextCatIds });
+                                       }}
+                                       className="hover:text-red-500 transition-colors font-bold ml-1 text-slate-400"
+                                     >
+                                       &times;
+                                     </button>
+                                  </span>
+                                );
+                              })}
+                              {(editRecommendedAccessories.category_ids || []).length === 0 && (
+                                <span className="text-[10px] text-slate-400 italic">Категории не выбраны</span>
+                              )}
+                           </div>
+
+                           {/* Select a category to add */}
+                           <div className="relative">
+                              <select
+                                value=""
+                                onChange={(e) => {
+                                  if (!e.target.value) return;
+                                  const catId = parseInt(e.target.value);
+                                  const currentIds = editRecommendedAccessories.category_ids || [];
+                                  if (!currentIds.includes(catId)) {
+                                    setEditRecommendedAccessories({
+                                      ...editRecommendedAccessories,
+                                      category_ids: [...currentIds, catId]
+                                    });
+                                  }
+                                }}
+                                className="w-full px-3 py-2 bg-[#f7f8f9] border border-[#e3e8ee] rounded-xl text-[12px] font-bold text-[#1a1f36] outline-none focus:border-[#2c3b6e]/30 appearance-none cursor-pointer"
+                              >
+                                 <option value="">Добавить сопутствующую категорию...</option>
+                                 {categories
+                                   .filter(c => c.id !== selectedCategory.id && !(editRecommendedAccessories.category_ids || []).includes(c.id))
+                                   .map(c => {
+                                     const parent = c.parent_id ? categories.find(parentCat => parentCat.id === c.parent_id) : null;
+                                     const displayName = parent ? `${parent.name} → ${c.name}` : c.name;
+                                     return (
+                                       <option key={c.id} value={c.id}>
+                                          {displayName}
+                                       </option>
+                                     );
+                                   })}
+                              </select>
+                              <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#4f566b] pointer-events-none" />
+                           </div>
+                        </div>
+
+                        {/* Product selection */}
+                        <div className="space-y-2.5 pt-3 border-t border-[#f7f8f9]">
+                           <label className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest block">Рекомендовать товары</label>
+                           
+                           {/* Product search input */}
+                           <div className="relative">
+                              <input
+                                type="text"
+                                placeholder="Поиск товаров для добавления..."
+                                value={accProductSearch}
+                                onChange={(e) => setAccProductSearch(e.target.value)}
+                                className="w-full pl-8 pr-3 py-2 bg-[#f7f8f9] border border-[#e3e8ee] rounded-xl text-[12px] font-medium outline-none focus:border-[#2c3b6e]/30"
+                              />
+                              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#4f566b]" />
+                              {isSearchingAccProducts && (
+                                <RefreshCw className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#2c3b6e] animate-spin" />
+                              )}
+
+                              {/* Search results dropdown */}
+                              {accProductResults.length > 0 && (
+                                <div className="absolute z-[100] left-0 right-0 mt-1 bg-white border border-[#e3e8ee] rounded-xl shadow-xl max-h-[180px] overflow-y-auto">
+                                   {accProductResults.map(p => {
+                                     const isAdded = (editRecommendedAccessories.product_ids || []).includes(p.id);
+                                     return (
+                                       <div
+                                         key={p.id}
+                                         onClick={() => {
+                                           if (isAdded) return;
+                                           const currentProductIds = editRecommendedAccessories.product_ids || [];
+                                           setEditRecommendedAccessories({
+                                             ...editRecommendedAccessories,
+                                             product_ids: [...currentProductIds, p.id]
+                                           });
+                                           setAccProductSearch("");
+                                           setAccProductResults([]);
+                                         }}
+                                         className={cn(
+                                           "px-3 py-2 text-[11px] border-b border-[#f7f8f9] last:border-0 flex items-center justify-between cursor-pointer hover:bg-slate-50",
+                                           isAdded && "opacity-50 cursor-not-allowed"
+                                         )}
+                                       >
+                                          <span className="truncate max-w-[70%] font-bold text-[#1a1f36]">{p.name}</span>
+                                          <span className="text-[10px] font-medium text-slate-500">{p.price?.toLocaleString()} сум</span>
+                                       </div>
+                                     );
+                                   })}
+                                </div>
+                              )}
+                           </div>
+
+                           {/* Selected accessory products list */}
+                           <div className="space-y-1.5 max-h-[150px] overflow-y-auto pr-1">
+                              {(editRecommendedAccessories.product_ids || []).map((prodId: number) => {
+                                const prod = loadedAccProducts.find(p => p.id === prodId);
+                                return (
+                                  <div key={prodId} className="flex items-center justify-between p-2 bg-[#f7f8f9] border border-slate-100 rounded-lg">
+                                     <div className="min-w-0 flex-1 pr-2">
+                                        <p className="text-[11px] font-bold text-[#1a1f36] truncate">{prod ? prod.name : `Загрузка товара #${prodId}...`}</p>
+                                     </div>
+                                     <button
+                                       type="button"
+                                       onClick={() => {
+                                         const nextProductIds = (editRecommendedAccessories.product_ids || []).filter((id: number) => id !== prodId);
+                                         setEditRecommendedAccessories({ ...editRecommendedAccessories, product_ids: nextProductIds });
+                                       }}
+                                       className="text-red-500 hover:text-red-600 transition-colors p-1"
+                                     >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                     </button>
+                                  </div>
+                                );
+                              })}
+                              {(editRecommendedAccessories.product_ids || []).length === 0 && (
+                                <p className="text-[10px] text-slate-400 italic">Товары не выбраны</p>
+                              )}
+                           </div>
+                        </div>
+                     </div>
+                  )}
 
                   {selectedCategory.id !== 'new' && (
                     <>
@@ -1170,6 +1474,23 @@ export default function CategoriesPage() {
               </div>
             </motion.div>
           </>
+        )}
+      </AnimatePresence>
+
+      {/* Success Toast */}
+      <AnimatePresence>
+        {showToast && (
+          <motion.div 
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.9 }}
+            className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-5 py-3.5 rounded-2xl shadow-xl flex items-center gap-3"
+          >
+            <div className="w-8 h-8 bg-emerald-500/20 rounded-full flex items-center justify-center text-emerald-400">
+              <CheckCircle2 className="w-5 h-5" />
+            </div>
+            <span className="text-[13px] font-bold tracking-tight">Порядок успешно изменён!</span>
+          </motion.div>
         )}
       </AnimatePresence>
     </>

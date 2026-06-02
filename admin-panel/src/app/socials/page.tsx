@@ -1,7 +1,7 @@
 "use client";
-
+import { toast } from "react-hot-toast";
 import { 
-  Save, Plus, Trash2, RefreshCw, Check, Type, Share2, Globe, Sparkles, Info, ExternalLink, Link as LinkIcon
+  Save, Plus, Trash2, RefreshCw, Check, Type, Share2, Globe, Sparkles, Info, ExternalLink, Link as LinkIcon, Upload
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import React, { useState, useEffect } from "react";
@@ -90,6 +90,7 @@ export default function SocialsEditor() {
         setOriginalData(JSON.parse(JSON.stringify(content)));
       }
     } catch (err) {
+      toast.error("Произошла ошибка: " + (err instanceof Error ? err.message : "Неизвестная ошибка"));
       console.error("Failed to fetch data:", err);
     } finally {
       setIsLoading(false);
@@ -114,13 +115,14 @@ export default function SocialsEditor() {
 
       if (response.ok) {
         setOriginalData(JSON.parse(JSON.stringify(data)));
-        setShowToast(true);
+        toast.success("Изменения успешно сохранены!");
         setTimeout(() => setShowToast(false), 3000);
       } else {
         setErrorMsg("Не удалось сохранить");
         setTimeout(() => setErrorMsg(null), 4000);
       }
     } catch (err) {
+      toast.error("Произошла ошибка: " + (err instanceof Error ? err.message : "Неизвестная ошибка"));
       setErrorMsg("Ошибка подключения");
       setTimeout(() => setErrorMsg(null), 4000);
     } finally {
@@ -152,12 +154,36 @@ export default function SocialsEditor() {
   const openLink = (url: string) => {
     if (typeof window !== "undefined" && url && url.length > 8 && url.startsWith("http")) {
       try {
-        // Simple check to see if it's a valid URL format
         new URL(url);
         window.open(url, "_blank");
       } catch (e) {
+      toast.error("Произошла ошибка: " + (e instanceof Error ? e.message : "Неизвестная ошибка"));
         console.error("Invalid URL:", url);
       }
+    }
+  };
+
+  const handleFileUpload = async (idx: number, file: File) => {
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      
+      const uploadToastId = toast.loading("Загрузка иконки...");
+      
+      const response = await fetch("/api/v1/uploads", {
+        method: "POST",
+        body: formData,
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        updateItem(idx, "icon", result.url);
+        toast.success("Иконка загружена", { id: uploadToastId });
+      } else {
+        toast.error("Не удалось загрузить изображение", { id: uploadToastId });
+      }
+    } catch (err) {
+      toast.error("Ошибка сети при загрузке: " + (err instanceof Error ? err.message : "Неизвестная ошибка"));
     }
   };
 
@@ -203,40 +229,39 @@ export default function SocialsEditor() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start animate-in fade-in slide-in-from-bottom-2 duration-500">
+      <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500 w-full">
          
-         {/* Left Side: Global Info & Lists */}
-         <div className="space-y-6">
-            
-            {/* Page Header Content */}
-            <div className="bg-white border border-[#e3e8ee] rounded-xl p-5 space-y-5 shadow-none">
-               <div className="flex items-center gap-2 mb-2">
+         {/* Page Header Content */}
+         <div className="bg-white border border-[#e3e8ee] rounded-xl p-6 space-y-6 shadow-none max-w-5xl">
+               <div className="flex items-center gap-2 mb-2 border-b border-[#e3e8ee] pb-4">
                   <Type className="w-4 h-4 text-[#2c3b6e]" />
-                  <h3 className="text-[12px] font-bold text-[#1a1f36] uppercase tracking-wider">Заголовок страницы</h3>
+                  <h3 className="text-[13px] font-bold text-[#1a1f36] uppercase tracking-wider">Шапка страницы</h3>
                </div>
-               <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest">Главный заголовок</label>
-                  <input 
-                    type="text" 
-                    value={data.header.title} 
-                    onChange={(e) => setData({...data, header: {...data.header, title: e.target.value}})} 
-                    className="w-full px-3 py-2 bg-[#f7f8f9] border border-[#e3e8ee] rounded-lg text-[13px] outline-none focus:bg-white transition-all font-bold text-[#1a1f36]" 
-                  />
-               </div>
-               <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest">Описание</label>
-                  <textarea 
-                    rows={2} 
-                    value={data.header.subtitle} 
-                    onChange={(e) => setData({...data, header: {...data.header, subtitle: e.target.value}})} 
-                    className="w-full px-3 py-2 bg-[#f7f8f9] border border-[#e3e8ee] rounded-lg text-[13px] outline-none resize-none focus:bg-white transition-all" 
-                  />
+               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="space-y-1.5">
+                     <label className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest">Главный заголовок</label>
+                     <input 
+                       type="text" 
+                       value={data.header.title} 
+                       onChange={(e) => setData({...data, header: {...data.header, title: e.target.value}})} 
+                       className="w-full px-3 py-2 bg-[#f7f8f9] border border-[#e3e8ee] rounded-lg text-[13px] outline-none focus:bg-white transition-all font-bold text-[#1a1f36]" 
+                     />
+                  </div>
+                  <div className="space-y-1.5">
+                     <label className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest">Описание</label>
+                     <textarea 
+                       rows={1} 
+                       value={data.header.subtitle} 
+                       onChange={(e) => setData({...data, header: {...data.header, subtitle: e.target.value}})} 
+                       className="w-full px-3 py-2 bg-[#f7f8f9] border border-[#e3e8ee] rounded-lg text-[13px] outline-none resize-none focus:bg-white transition-all min-h-[42px]" 
+                     />
+                  </div>
                </div>
             </div>
 
             {/* Links Section */}
-            <div className="bg-white border border-[#e3e8ee] rounded-xl p-5 space-y-4 shadow-none">
-               <div className="flex items-center justify-between mb-2">
+            <div className="bg-white border border-[#e3e8ee] rounded-xl p-6 space-y-6 shadow-none">
+               <div className="flex items-center justify-between mb-4 border-b border-[#e3e8ee] pb-4">
                   <div className="flex items-center gap-2">
                      <Share2 className="w-4 h-4 text-[#2c3b6e]" />
                      <h3 className="text-[12px] font-bold text-[#1a1f36] uppercase tracking-wider">Список социальных сетей</h3>
@@ -250,7 +275,7 @@ export default function SocialsEditor() {
                   </button>
                </div>
 
-               <div className="space-y-4">
+               <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-6">
                   {data.links.map((item: any, idx: number) => (
                     <div key={item.id} className="p-5 bg-[#f7f8f9] border border-[#e3e8ee] rounded-2xl relative group transition-all hover:border-[#2c3b6e]/30">
                        <button 
@@ -303,7 +328,7 @@ export default function SocialsEditor() {
                           {/* Icon Selector */}
                           <div className="space-y-2">
                              <label className="text-[9px] font-bold text-[#4f566b] uppercase tracking-widest">Иконка</label>
-                             <div className="flex flex-wrap gap-2">
+                             <div className="flex flex-wrap items-center gap-2">
                                 {availableIcons.map(iconObj => (
                                    <button 
                                      key={iconObj.name} 
@@ -312,10 +337,41 @@ export default function SocialsEditor() {
                                        "w-8 h-8 rounded-xl flex items-center justify-center border transition-all",
                                        item.icon === iconObj.name ? "bg-[#2c3b6e] text-white border-[#2c3b6e] shadow-md shadow-blue-900/20" : "bg-white text-slate-300 border-[#e3e8ee] hover:border-slate-400"
                                      )}
+                                     title={iconObj.name}
                                    >
                                       <iconObj.icon className="w-4 h-4" />
                                    </button>
                                 ))}
+                                
+                                {/* Custom Image Upload */}
+                                <div 
+                                  className={cn(
+                                    "relative w-8 h-8 rounded-xl border border-dashed flex items-center justify-center transition-colors cursor-pointer group/upload",
+                                    item.icon && (item.icon.startsWith('http') || item.icon.startsWith('/'))
+                                      ? "border-[#2c3b6e] shadow-md shadow-blue-900/20 overflow-hidden" 
+                                      : "border-[#e3e8ee] bg-[#f7f8f9] hover:bg-white hover:border-slate-400"
+                                  )}
+                                  title="Загрузить свое фото/иконку"
+                                >
+                                  {item.icon && (item.icon.startsWith('http') || item.icon.startsWith('/')) ? (
+                                    <>
+                                      <img src={item.icon} alt="icon" className="w-full h-full object-cover" />
+                                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/upload:opacity-100 flex items-center justify-center transition-opacity">
+                                        <Upload className="w-3.5 h-3.5 text-white" />
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <Upload className="w-3.5 h-3.5 text-slate-400 group-hover/upload:text-[#2c3b6e]" />
+                                  )}
+                                  <input 
+                                      type="file" 
+                                      accept="image/*"
+                                      onChange={(e) => {
+                                          if (e.target.files?.[0]) handleFileUpload(idx, e.target.files[0]);
+                                      }}
+                                      className="absolute inset-0 opacity-0 cursor-pointer"
+                                  />
+                                </div>
                              </div>
                           </div>
                        </div>
@@ -323,30 +379,6 @@ export default function SocialsEditor() {
                   ))}
                </div>
             </div>
-         </div>
-
-         {/* Right Side: Help/Tips */}
-         <div className="space-y-6">
-            <div className="bg-[#f7f8f9] border border-[#e3e8ee] rounded-xl p-6 text-center">
-               <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center mx-auto mb-4 border border-[#e3e8ee] shadow-sm">
-                  <Sparkles className="w-6 h-6 text-[#2c3b6e]" />
-               </div>
-               <h3 className="text-[13px] font-bold text-[#1a1f36] uppercase tracking-wider mb-2">Ваш социальный хаб</h3>
-               <p className="text-[11px] text-[#4f566b] font-medium leading-relaxed max-w-xs mx-auto">
-                  Эти настройки управляют страницей maff.uz/socials. Добавляйте только активные ссылки, чтобы клиенты могли легко найти вас во всех сетях.
-               </p>
-            </div>
-
-            <div className="bg-white border border-[#e3e8ee] rounded-xl p-5 space-y-4 shadow-none">
-               <div className="flex items-center gap-2 mb-2">
-                  <Info className="w-4 h-4 text-[#2c3b6e]" />
-                  <h3 className="text-[12px] font-bold text-[#1a1f36] uppercase tracking-wider">Подсказка</h3>
-               </div>
-               <p className="text-[11px] text-[#4f566b] leading-relaxed">
-                  Используйте короткие и понятные описания для каждой соцсети. Например: «Наши интерьеры в Reels» или «Быстрые ответы в Telegram».
-               </p>
-            </div>
-         </div>
 
       </div>
     </div>

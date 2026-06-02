@@ -1,5 +1,5 @@
 "use client";
-
+import { toast } from "react-hot-toast";
 import { 
   Zap,
   CheckCircle2,
@@ -62,6 +62,7 @@ export default function IntegrationsPage() {
         setSyncResult({ success: false, message: data.detail || "Ошибка при синхронизации" });
       }
     } catch (error) {
+      toast.error("Произошла ошибка: " + (error instanceof Error ? error.message : "Неизвестная ошибка"));
       setSyncResult({ success: false, message: "Не удалось связаться с сервером" });
     } finally {
       setIsSyncing(false);

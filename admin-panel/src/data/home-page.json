@@ -49,5 +49,6 @@
     { "name": "BERRYALLOC", "link": "/catalog?brand=BERRYALLOC" },
     { "name": "KAINDL", "link": "/catalog?brand=KAINDL" },
     { "name": "MEISTER", "link": "/catalog?brand=MEISTER" }
-  ]
+  ],
+  "categories": []
 }

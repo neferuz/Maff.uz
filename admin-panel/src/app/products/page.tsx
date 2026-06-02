@@ -1,5 +1,5 @@
 "use client";
-
+import { toast } from "react-hot-toast";
 import { 
   MoreHorizontal, 
   ExternalLink,
@@ -58,6 +58,7 @@ export default function ProductsPage() {
       const data = await res.json();
       setProducts(Array.isArray(data) ? data : []);
     } catch (error) {
+      toast.error("Произошла ошибка: " + (error instanceof Error ? error.message : "Неизвестная ошибка"));
       console.error("Failed to fetch products:", error);
     } finally {
       setIsLoading(false);
@@ -70,6 +71,7 @@ export default function ProductsPage() {
       const data = await res.json();
       setCategories(Array.isArray(data) ? data : []);
     } catch (error) {
+      toast.error("Произошла ошибка: " + (error instanceof Error ? error.message : "Неизвестная ошибка"));
       console.error("Failed to fetch categories:", error);
     }
   };
@@ -83,6 +85,7 @@ export default function ProductsPage() {
       ]);
       await Promise.all([fetchProducts(), fetchCategories()]);
     } catch (error) {
+      toast.error("Произошла ошибка: " + (error instanceof Error ? error.message : "Неизвестная ошибка"));
       console.error("Sync failed:", error);
     } finally {
       setIsSyncing(false);
@@ -111,6 +114,7 @@ export default function ProductsPage() {
         });
       }
     } catch (error) {
+      toast.error("Произошла ошибка: " + (error instanceof Error ? error.message : "Неизвестная ошибка"));
       console.error("Failed to fetch full product details:", error);
     }
   };
@@ -141,6 +145,7 @@ export default function ProductsPage() {
         setEditForm({ ...editForm, image_url: data.url });
       }
     } catch (error) {
+      toast.error("Произошла ошибка: " + (error instanceof Error ? error.message : "Неизвестная ошибка"));
       console.error("Upload failed:", error);
     } finally {
       setIsUploadingImage(false);
@@ -199,6 +204,7 @@ export default function ProductsPage() {
         setIsEditing(false);
       }
     } catch (error) {
+      toast.error("Произошла ошибка: " + (error instanceof Error ? error.message : "Неизвестная ошибка"));
       console.error(isNew ? "Create failed:" : "Update failed:", error);
     } finally {
       setIsSaving(false);
@@ -218,6 +224,7 @@ export default function ProductsPage() {
         setShowDeleteConfirm(false);
       }
     } catch (error) {
+      toast.error("Произошла ошибка: " + (error instanceof Error ? error.message : "Неизвестная ошибка"));
       console.error("Delete failed:", error);
     } finally {
       setIsDeleting(false);

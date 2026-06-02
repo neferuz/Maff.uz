@@ -1,5 +1,5 @@
 "use client";
-
+import { toast } from "react-hot-toast";
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { 
@@ -40,6 +40,7 @@ export default function BlogListAdmin() {
         setPosts(blogPosts);
       }
     } catch (err) {
+      toast.error("Произошла ошибка: " + (err instanceof Error ? err.message : "Неизвестная ошибка"));
       console.error("Failed to fetch blog posts:", err);
     } finally {
       setLoading(false);

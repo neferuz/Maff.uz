@@ -1,5 +1,5 @@
 "use client";
-
+import { toast } from "react-hot-toast";
 import { 
   Save, 
   MapPin, 
@@ -49,6 +49,7 @@ export default function ShowroomsEditor() {
         setShowrooms([]);
       }
     } catch (err) {
+      toast.error("Произошла ошибка: " + (err instanceof Error ? err.message : "Неизвестная ошибка"));
       console.error("Failed to fetch data:", err);
       setShowrooms([]);
     } finally {
@@ -73,7 +74,7 @@ export default function ShowroomsEditor() {
       });
 
       if (response.ok) {
-        setShowToast(true);
+        toast.success("Изменения успешно сохранены!");
         setHasChanges(false);
         setTimeout(() => setShowToast(false), 3000);
       } else {
@@ -82,6 +83,7 @@ export default function ShowroomsEditor() {
         setTimeout(() => setErrorMsg(null), 4000);
       }
     } catch (err) {
+      toast.error("Произошла ошибка: " + (err instanceof Error ? err.message : "Неизвестная ошибка"));
       setErrorMsg("Ошибка подключения к серверу");
       setTimeout(() => setErrorMsg(null), 4000);
     } finally {

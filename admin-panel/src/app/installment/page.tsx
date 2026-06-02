@@ -1,5 +1,5 @@
 "use client";
-
+import { toast } from "react-hot-toast";
 import { 
   Save, Plus, Trash2, RefreshCw, CheckCircle2, AlertCircle, CreditCard, Zap, Clock, ShieldCheck, Upload, Image as ImageIcon, X, Type, List, ChevronRight, Smartphone, Wallet, BadgePercent, Coins, Handshake, Users, Target, Award, Shield, Search, MessageSquare, Package, Truck, HelpCircle
 } from "lucide-react";
@@ -64,6 +64,7 @@ export default function InstallmentEditor() {
         }
       }
     } catch (err) {
+      toast.error("Произошла ошибка: " + (err instanceof Error ? err.message : "Неизвестная ошибка"));
       console.error("Failed to fetch data:", err);
     } finally {
       setFetching(false);
@@ -84,10 +85,11 @@ export default function InstallmentEditor() {
       });
       if (response.ok) {
         setOriginalData(JSON.parse(JSON.stringify(data)));
-        setShowToast(true);
+        toast.success("Изменения успешно сохранены!");
         setTimeout(() => setShowToast(false), 3000);
       }
     } catch (err) {
+      toast.error("Произошла ошибка: " + (err instanceof Error ? err.message : "Неизвестная ошибка"));
       setErrorMsg("Ошибка сохранения");
       setTimeout(() => setErrorMsg(null), 4000);
     } finally {
@@ -128,6 +130,7 @@ export default function InstallmentEditor() {
         updateListItem('partners', idx, 'logo', res.url);
       }
     } catch (err) {
+      toast.error("Произошла ошибка: " + (err instanceof Error ? err.message : "Неизвестная ошибка"));
       setErrorMsg("Ошибка загрузки");
       setTimeout(() => setErrorMsg(null), 3000);
     }

@@ -13,6 +13,15 @@ class CategoryBase(BaseModel):
     is_preorder: Optional[bool] = False
     price_prefix: Optional[str] = None
     order_link: Optional[str] = None
+    sort_order: Optional[int] = 0
+    recommended_accessories: Optional[Any] = None
+
+class CategoryReorderItem(BaseModel):
+    id: int
+    sort_order: int
+
+class CategoryReorder(BaseModel):
+    items: List[CategoryReorderItem]
 
 class CategoryCreate(CategoryBase):
     pass
@@ -28,6 +37,8 @@ class CategoryUpdate(BaseModel):
     is_preorder: Optional[bool] = None
     price_prefix: Optional[str] = None
     order_link: Optional[str] = None
+    sort_order: Optional[int] = None
+    recommended_accessories: Optional[Any] = None
 
 class Category(CategoryBase):
     id: int

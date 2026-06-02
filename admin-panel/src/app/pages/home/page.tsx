@@ -28,11 +28,69 @@ import {
   Check,
   Info,
   Tag,
-  Search
+  Search,
+  Layers,
+  ArrowUp,
+  ArrowDown,
+  Home as HomeIcon,
+  DoorOpen,
+  LayoutGrid,
+  Square,
+  Maximize,
+  Box,
+  Shapes,
+  Hammer,
+  Wind,
+  Sparkles,
+  Grid,
+  HardHat,
+  Brush,
+  Paintbrush,
+  Ruler,
+  Construction,
+  Flame,
+  Sun,
+  Compass,
+  Scissors,
+  PenTool,
+  Pipette,
+  Trees,
+  Boxes,
+  Warehouse,
+  Sparkle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect, useRef } from "react";
 import initialData from "@/data/home-page.json";
+
+const lucideMap: Record<string, any> = {
+  Home: HomeIcon, DoorOpen, Layers, LayoutGrid, Square, Maximize, Layout, Box, Shapes, Hammer, Wind, Sparkles, Award,
+  Wrench, Grid, HardHat, Brush, Paintbrush, Ruler, Construction, Flame, Sun, Compass, Scissors, ShieldCheck,
+  PenTool, Pipette, Trees, Boxes, Warehouse, Smile, Heart, Sparkle, Gem
+};
+
+const categoryIcons = [Layers, LayoutGrid, Square, DoorOpen, Layout, Box, Shapes, Hammer, Wind, Sparkles];
+
+interface CategoryIconProps {
+  imageUrl?: string;
+  index: number;
+}
+
+const CategoryIcon = ({ imageUrl, index }: CategoryIconProps) => {
+  const defaultIcon = categoryIcons[index % categoryIcons.length] || Layers;
+  
+  if (!imageUrl) {
+    const IconComp = defaultIcon;
+    return <IconComp className="w-5 h-5 text-slate-400" />;
+  }
+
+  if (imageUrl.startsWith("http") || imageUrl.startsWith("/")) {
+    return <img src={imageUrl} alt="" className="w-full h-full object-cover" />;
+  }
+
+  const IconComp = lucideMap[imageUrl] || defaultIcon;
+  return <IconComp className="w-5 h-5 text-slate-400" />;
+};
 
 const API_BASE_URL = "/api/v1";
 
@@ -61,37 +119,49 @@ export default function HomePageEditor() {
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [showToast, setShowToast] = useState(false);
-  const [activeTab, setActiveTab] = useState("hero"); // "hero", "about", "brands", "recommendations"
+  const [activeTab, setActiveTab] = useState("hero"); // "hero", "about", "brands", "recommendations", "categories"
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [prodSearch, setProdSearch] = useState("");
   const [prodResults, setProdResults] = useState<any[]>([]);
   const [isSearchingProds, setIsSearchingProds] = useState(false);
   const [recommendedProducts, setRecommendedProducts] = useState<any[]>([]);
+  const [allCategories, setAllCategories] = useState<any[]>([]);
 
   const isDirty = JSON.stringify(data) !== JSON.stringify(originalData);
 
   useEffect(() => {
     async function fetchData() {
       try {
-        const response = await fetch(`${API_BASE_URL}/pages/home`);
+        const [response, catResponse] = await Promise.all([
+          fetch(`${API_BASE_URL}/pages/home`),
+          fetch(`${API_BASE_URL}/categories`)
+        ]);
+
+        let homeContent = {};
         if (response.ok) {
           const result = await response.json();
-          const content = JSON.parse(JSON.stringify(result.content));
-          
-          // Merge with initialData to ensure new sections exist if backend data is old
-          const mergedData = {
-            ...initialData,
-            ...content,
-            hero: { ...initialData.hero, ...content.hero },
-            about: { ...initialData.about, ...content.about },
-            brands: content.brands || initialData.brands,
-            recommendations: content.recommendations || []
-          };
-
-          setData(mergedData);
-          setOriginalData(JSON.parse(JSON.stringify(mergedData)));
+          homeContent = JSON.parse(JSON.stringify(result.content));
         }
+
+        if (catResponse.ok) {
+          const cats = await catResponse.json();
+          setAllCategories(cats);
+        }
+        
+        // Merge with initialData to ensure new sections exist if backend data is old
+        const mergedData = {
+          ...initialData,
+          ...homeContent,
+          hero: { ...initialData.hero, ...(homeContent as any).hero },
+          about: { ...initialData.about, ...(homeContent as any).about },
+          brands: (homeContent as any).brands || initialData.brands,
+          recommendations: (homeContent as any).recommendations || [],
+          categories: (homeContent as any).categories || initialData.categories || []
+        };
+
+        setData(mergedData);
+        setOriginalData(JSON.parse(JSON.stringify(mergedData)));
       } catch (error) {
         console.error("Error fetching home page data:", error);
       } finally {
@@ -280,6 +350,41 @@ export default function HomePageEditor() {
     });
   };
 
+  // --- Category Handlers ---
+  const addHomeCategory = (categoryId: number) => {
+    const currentCats = data.categories || [];
+    if (currentCats.includes(categoryId)) return;
+    setData({
+      ...data,
+      categories: [...currentCats, categoryId]
+    });
+  };
+
+  const removeHomeCategory = (categoryId: number) => {
+    const currentCats = data.categories || [];
+    setData({
+      ...data,
+      categories: currentCats.filter((id: number) => id !== categoryId)
+    });
+  };
+
+  const moveHomeCategory = (index: number, direction: "up" | "down") => {
+    const currentCats = [...(data.categories || [])];
+    if (direction === "up" && index > 0) {
+      const temp = currentCats[index];
+      currentCats[index] = currentCats[index - 1];
+      currentCats[index - 1] = temp;
+    } else if (direction === "down" && index < currentCats.length - 1) {
+      const temp = currentCats[index];
+      currentCats[index] = currentCats[index + 1];
+      currentCats[index + 1] = temp;
+    }
+    setData({
+      ...data,
+      categories: currentCats
+    });
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -329,7 +434,8 @@ export default function HomePageEditor() {
            { id: "hero", label: "Hero-баннер", icon: Layout },
            { id: "about", label: "О компании", icon: Info },
            { id: "brands", label: "Наши бренды", icon: Tag },
-           { id: "recommendations", label: "Рекомендации", icon: Search }
+           { id: "recommendations", label: "Рекомендации", icon: Search },
+           { id: "categories", label: "Категории на главной", icon: Layers }
          ].map(tab => (
            <button
              key={tab.id}
@@ -657,7 +763,115 @@ export default function HomePageEditor() {
                       ))}
                    </div>
                  )}
+            </div>
+         </div>
+       </div>
+     )}
+
+      {/* --- CATEGORIES TAB --- */}
+      {activeTab === "categories" && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start animate-in fade-in slide-in-from-bottom-2 duration-500 max-w-6xl">
+           {/* Left column: Selected Categories in order */}
+           <div className="bg-white border border-[#e3e8ee] rounded-xl p-5 space-y-4 shadow-none">
+              <div className="flex items-center gap-2 mb-2">
+                 <Layers className="w-4 h-4 text-[#2c3b6e]" />
+                 <h3 className="text-[12px] font-bold text-[#1a1f36] uppercase tracking-wider">Выбранные категории и их порядок</h3>
               </div>
+
+              {(data.categories || []).length === 0 ? (
+                <div className="py-8 text-center border-2 border-dashed border-[#e3e8ee] rounded-2xl">
+                   <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Нет выбранных категорий</p>
+                   <p className="text-[10px] text-[#4f566b] mt-1">Добавьте категории из списка доступных справа</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-2.5">
+                   {(data.categories || []).map((catId: number, idx: number) => {
+                     const cat = allCategories.find(c => c.id === catId);
+                     if (!cat) return null;
+                     return (
+                       <div key={cat.id} className="flex items-center gap-3 p-3 bg-[#f7f8f9] border border-[#e3e8ee] hover:border-[#2c3b6e] rounded-xl transition-all group">
+                          <span className="text-[11px] font-black text-slate-400 w-4">{idx + 1}</span>
+                          
+                          <div className="w-10 h-10 rounded-lg bg-white border flex items-center justify-center overflow-hidden flex-shrink-0">
+                             <CategoryIcon imageUrl={cat.image_url} index={idx} />
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                             <p className="text-[12px] font-bold text-[#1a1f36] truncate">{cat.name}</p>
+                             <p className="text-[10px] text-[#4f566b] font-medium">{cat.description ? "С описанием" : "Без описания"}</p>
+                          </div>
+
+                          <div className="flex items-center gap-1">
+                             <button 
+                               onClick={() => moveHomeCategory(idx, "up")} 
+                               disabled={idx === 0}
+                               className={cn(
+                                 "p-1.5 rounded-lg border border-[#e3e8ee] transition-all bg-white shadow-none",
+                                 idx === 0 ? "opacity-30 cursor-not-allowed text-slate-300" : "text-[#2c3b6e] hover:bg-slate-50"
+                               )}
+                             >
+                                <ArrowUp className="w-3.5 h-3.5" />
+                             </button>
+                             <button 
+                               onClick={() => moveHomeCategory(idx, "down")} 
+                               disabled={idx === (data.categories || []).length - 1}
+                               className={cn(
+                                 "p-1.5 rounded-lg border border-[#e3e8ee] transition-all bg-white shadow-none",
+                                 idx === (data.categories || []).length - 1 ? "opacity-30 cursor-not-allowed text-slate-300" : "text-[#2c3b6e] hover:bg-slate-50"
+                               )}
+                             >
+                                <ArrowDown className="w-3.5 h-3.5" />
+                             </button>
+                             <button 
+                               onClick={() => removeHomeCategory(cat.id)} 
+                               className="p-1.5 text-[#cd5c5c] hover:bg-[#cd5c5c]/10 rounded-lg transition-all ml-1"
+                             >
+                                <Trash2 className="w-4 h-4" />
+                             </button>
+                          </div>
+                       </div>
+                     );
+                   })}
+                </div>
+              )}
+           </div>
+
+           {/* Right column: Available main categories to add */}
+           <div className="bg-white border border-[#e3e8ee] rounded-xl p-5 space-y-4 shadow-none">
+              <div className="flex items-center gap-2 mb-2">
+                 <Plus className="w-4 h-4 text-[#2c3b6e]" />
+                 <h3 className="text-[12px] font-bold text-[#1a1f36] uppercase tracking-wider">Доступные категории</h3>
+              </div>
+
+              {allCategories.filter(c => !c.parent_id && !(data.categories || []).includes(c.id)).length === 0 ? (
+                <div className="py-8 text-center border-2 border-dashed border-[#e3e8ee] rounded-2xl">
+                   <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Все категории уже добавлены</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-2.5 max-h-[500px] overflow-y-auto pr-1">
+                   {allCategories
+                     .filter(c => !c.parent_id && !(data.categories || []).includes(c.id))
+                     .map((cat) => (
+                       <div key={cat.id} className="flex items-center gap-3 p-3 bg-white border border-[#e3e8ee] hover:border-[#2c3b6e] rounded-xl transition-all group">
+                          <div className="w-10 h-10 rounded-lg bg-slate-50 border flex items-center justify-center overflow-hidden flex-shrink-0">
+                             <CategoryIcon imageUrl={cat.image_url} index={allCategories.indexOf(cat)} />
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                             <p className="text-[12px] font-bold text-[#1a1f36] truncate">{cat.name}</p>
+                          </div>
+
+                          <button 
+                            onClick={() => addHomeCategory(cat.id)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#2c3b6e] text-white hover:bg-[#232f58] rounded-lg transition-all text-[11px] font-bold shadow-none"
+                          >
+                             <Plus className="w-3 h-3" />
+                             Добавить
+                          </button>
+                       </div>
+                     ))}
+                </div>
+              )}
            </div>
         </div>
       )}

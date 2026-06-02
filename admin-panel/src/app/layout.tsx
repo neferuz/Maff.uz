@@ -1,5 +1,4 @@
 "use client";
-
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { 
@@ -23,6 +22,7 @@ import { evolventa } from "@/lib/fonts";
 import { cn } from "@/lib/utils";
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { Toaster } from "react-hot-toast";
 import "./globals.css";
 
 const mainNav = [
@@ -138,6 +138,33 @@ export default function RootLayout({
   return (
     <html lang="ru" className={evolventa.variable}>
       <body className="antialiased font-evolventa bg-white text-[#1a1f36]">
+        <Toaster 
+          position="bottom-right" 
+          toastOptions={{
+            style: {
+              background: '#0f172a',
+              color: '#fff',
+              padding: '14px 20px',
+              borderRadius: '16px',
+              boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)',
+              fontSize: '13px',
+              fontWeight: 'bold',
+              letterSpacing: '-0.015em',
+            },
+            success: {
+              iconTheme: {
+                primary: '#10b981',
+                secondary: '#fff',
+              },
+            },
+            error: {
+              iconTheme: {
+                primary: '#ef4444',
+                secondary: '#fff',
+              },
+            },
+          }}
+        />
         <div className="min-h-screen flex">
           {/* Sidebar - No Shadows */}
           <aside className="w-64 bg-[#f7f8f9] border-r border-[#e3e8ee] flex flex-col sticky top-0 h-screen flex-shrink-0 z-40 no-shadow">

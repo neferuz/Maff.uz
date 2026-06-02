@@ -1,5 +1,5 @@
 "use client";
-
+import { toast } from "react-hot-toast";
 import { 
   Save, 
   Phone, 
@@ -72,6 +72,7 @@ export default function ContactEditor() {
         setLeads(await leadsRes.json());
       }
     } catch (err) {
+      toast.error("Произошла ошибка: " + (err instanceof Error ? err.message : "Неизвестная ошибка"));
       console.error("Fetch error:", err);
     } finally {
       setFetching(false);
@@ -95,7 +96,7 @@ export default function ContactEditor() {
       });
 
       if (response.ok) {
-        setShowToast(true);
+        toast.success("Изменения успешно сохранены!");
         setHasChanges(false);
         setTimeout(() => setShowToast(false), 3000);
       } else {
@@ -104,6 +105,7 @@ export default function ContactEditor() {
         setTimeout(() => setErrorMsg(null), 4000);
       }
     } catch (err) {
+      toast.error("Произошла ошибка: " + (err instanceof Error ? err.message : "Неизвестная ошибка"));
       setErrorMsg("Ошибка подключения к серверу");
       setTimeout(() => setErrorMsg(null), 4000);
     } finally {
@@ -126,6 +128,7 @@ export default function ContactEditor() {
         setLeads(leads.map(l => l.id === id ? { ...l, status } : l));
       }
     } catch (err) {
+      toast.error("Произошла ошибка: " + (err instanceof Error ? err.message : "Неизвестная ошибка"));
       console.error("Update status error:", err);
     }
   };
@@ -141,6 +144,7 @@ export default function ContactEditor() {
         setLeads(leads.filter(l => l.id !== id));
       }
     } catch (err) {
+      toast.error("Произошла ошибка: " + (err instanceof Error ? err.message : "Неизвестная ошибка"));
       console.error("Delete lead error:", err);
     } finally {
       setLeadDeleting(null);

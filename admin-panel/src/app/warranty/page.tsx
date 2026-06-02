@@ -1,5 +1,5 @@
 "use client";
-
+import { toast } from "react-hot-toast";
 import { 
   Save, ShieldCheck, RotateCcw, BadgeCheck, ShieldPlus, Plus, Trash2, RefreshCw, CheckCircle2, Type, Sparkles, Phone, Shield
 } from "lucide-react";
@@ -95,6 +95,7 @@ export default function WarrantyEditor() {
         setOriginalData(JSON.parse(JSON.stringify(content)));
       }
     } catch (err) {
+      toast.error("Произошла ошибка: " + (err instanceof Error ? err.message : "Неизвестная ошибка"));
       console.error("Failed to fetch data:", err);
     } finally {
       setIsLoading(false);
@@ -119,13 +120,14 @@ export default function WarrantyEditor() {
 
       if (response.ok) {
         setOriginalData(JSON.parse(JSON.stringify(data)));
-        setShowToast(true);
+        toast.success("Изменения успешно сохранены!");
         setTimeout(() => setShowToast(false), 3000);
       } else {
         setErrorMsg("Не удалось сохранить изменения");
         setTimeout(() => setErrorMsg(null), 4000);
       }
     } catch (err) {
+      toast.error("Произошла ошибка: " + (err instanceof Error ? err.message : "Неизвестная ошибка"));
       setErrorMsg("Ошибка подключения");
       setTimeout(() => setErrorMsg(null), 4000);
     } finally {

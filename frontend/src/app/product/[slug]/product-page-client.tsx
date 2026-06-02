@@ -27,6 +27,8 @@ export default function ProductPageClient({ params }: { params: { slug: string }
   // ── State ──
   const [product, setProduct] = useState<any>(null);
   const [similarProducts, setSimilarProducts] = useState<any[]>([]);
+  const [isAccessories, setIsAccessories] = useState(false);
+  const [accessoriesTitle, setAccessoriesTitle] = useState("С этим товаром покупают");
   const [categories, setCategories] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [area, setArea] = useState(1);
@@ -103,24 +105,94 @@ export default function ProductPageClient({ params }: { params: { slug: string }
         setProduct(enrichedProduct);
         setActiveImage(data.image_url || (data.images && data.images[0]) || null);
 
-        // Fetch similar products in the same category
+        // Fetch similar products or accessories
         if (data.category_id) {
           try {
-            const [simRes, catRes] = await Promise.all([
-              fetch(`/api/v1/products/?category_id=${data.category_id}&limit=5`),
-              fetch(`/api/v1/categories`)
-            ]);
-            
-            if (simRes.ok) {
-              const simData = await simRes.json();
-              setSimilarProducts(simData.filter((p: any) => p.id !== data.id).slice(0, 4));
-            }
-            
+            const catRes = await fetch(`/api/v1/categories`);
             if (catRes.ok) {
               const categoriesData = await catRes.json();
               setCategories(categoriesData);
               const cat = categoriesData.find((c: any) => c.id === data.category_id);
               if (cat) {
+                // Traverse up parent categories to find the first configured recommended_accessories
+                let recs = null;
+                let recCat = cat;
+                const recVisited = new Set();
+                while (recCat && !recVisited.has(recCat.id)) {
+                  recVisited.add(recCat.id);
+                  const r = recCat.recommended_accessories;
+                  const hasR = r && (
+                    (r.category_ids && r.category_ids.length > 0) ||
+                    (r.product_ids && r.product_ids.length > 0)
+                  );
+                  if (hasR) {
+                    recs = r;
+                    break;
+                  }
+                  if (recCat.parent_id) {
+                    recCat = categoriesData.find((c: any) => c.id === recCat.parent_id);
+                  } else {
+                    break;
+                  }
+                }
+
+                const hasAccs = recs !== null;
+                if (hasAccs && recs) {
+                  const catFetchPromises = (recs.category_ids || []).map((cid: number) => 
+                    fetch(`/api/v1/products?category_id=${cid}&limit=6`)
+                  );
+                  const prodFetchPromises = (recs.product_ids || []).map((pid: number) => 
+                    fetch(`/api/v1/products/${pid}`)
+                  );
+                  const [catResponses, prodResponses] = await Promise.all([
+                    Promise.all(catFetchPromises),
+                    Promise.all(prodFetchPromises)
+                  ]);
+                  
+                  const accList: any[] = [];
+                  for (const res of prodResponses) {
+                    if (res.ok) {
+                      accList.push(await res.json());
+                    }
+                  }
+                  for (const res of catResponses) {
+                    if (res.ok) {
+                      const prods = await res.json();
+                      accList.push(...prods);
+                    }
+                  }
+                  
+                  // Filter out duplicates and current product
+                  const seen = new Set();
+                  const uniqueAccs = accList.filter((p: any) => {
+                    if (!p || p.id === data.id || seen.has(p.id)) return false;
+                    seen.add(p.id);
+                    return true;
+                  });
+                  
+                  if (uniqueAccs.length > 0) {
+                    setSimilarProducts(uniqueAccs.slice(0, 4));
+                    setIsAccessories(true);
+                    setAccessoriesTitle(recs.title || "С этим товаром покупают");
+                  } else {
+                    // Fallback to similar products
+                    const simRes = await fetch(`/api/v1/products?category_id=${data.category_id}&limit=5`);
+                    if (simRes.ok) {
+                      const simData = await simRes.json();
+                      setSimilarProducts(simData.filter((p: any) => p.id !== data.id).slice(0, 4));
+                    }
+                    setIsAccessories(false);
+                  }
+                } else {
+                  // Fallback: Fetch similar products in same category
+                  const simRes = await fetch(`/api/v1/products?category_id=${data.category_id}&limit=5`);
+                  if (simRes.ok) {
+                    const simData = await simRes.json();
+                    setSimilarProducts(simData.filter((p: any) => p.id !== data.id).slice(0, 4));
+                  }
+                  setIsAccessories(false);
+                }
+
                 let currentCat = cat;
                 let isOrderOnly = cat.is_order_only || false;
                 let isPreorder = cat.is_preorder || false;
@@ -830,8 +902,12 @@ export default function ProductPageClient({ params }: { params: { slug: string }
         <section className="max-w-7xl mx-auto px-4 lg:px-6 py-10 lg:py-16 border-t border-slate-50 dark:border-slate-800">
            <div className="flex items-center justify-between mb-8 lg:mb-12">
               <div>
-                 <h2 className="text-xl lg:text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tighter mb-1 lg:mb-2">Похожие товары</h2>
-                 <p className="text-slate-400 dark:text-slate-500 text-[8px] lg:text-[10px] font-black uppercase tracking-widest">Вам также может понравиться</p>
+                 <h2 className="text-xl lg:text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tighter mb-1 lg:mb-2">
+                    {isAccessories ? accessoriesTitle : "Похожие товары"}
+                 </h2>
+                 <p className="text-slate-400 dark:text-slate-500 text-[8px] lg:text-[10px] font-black uppercase tracking-widest">
+                    {isAccessories ? "Рекомендуемые сопутствующие товары" : "Вам также может понравиться"}
+                 </p>
               </div>
               <Link href="/outlet" className="group flex items-center gap-2 text-[8px] lg:text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white transition-all">
                  Смотреть все

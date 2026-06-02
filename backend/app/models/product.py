@@ -10,11 +10,13 @@ class Category(Base):
     ref_key = Column(String, unique=True, index=True, nullable=True)  # 1C UUID
     parent_id = Column(Integer, ForeignKey("category.id"), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
+    sort_order = Column(Integer, default=0)
     
     is_order_only = Column(Boolean, default=False)
     is_preorder = Column(Boolean, default=False)
     price_prefix = Column(String, nullable=True)
     order_link = Column(String, nullable=True)
+    recommended_accessories = Column(JSON, nullable=True)
     
     products = relationship("Product", back_populates="category")
     children = relationship("Category", backref="parent", remote_side=[id])

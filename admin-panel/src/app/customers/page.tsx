@@ -1,5 +1,5 @@
 "use client";
-
+import { toast } from "react-hot-toast";
 import { 
   MoreHorizontal, 
   Mail, 
@@ -57,6 +57,7 @@ export default function CustomersPage() {
           setCustomers(mapped);
         }
       } catch (err) {
+      toast.error("Произошла ошибка: " + (err instanceof Error ? err.message : "Неизвестная ошибка"));
         console.error("Failed to fetch leads", err);
       } finally {
         setLoading(false);

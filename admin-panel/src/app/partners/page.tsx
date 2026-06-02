@@ -1,5 +1,5 @@
 "use client";
-
+import { toast } from "react-hot-toast";
 import { 
   Save, Handshake, Plus, Trash2, RefreshCw, CheckCircle2, AlertCircle, Layout, ArrowRight, ChevronRight, Type
 } from "lucide-react";
@@ -42,6 +42,7 @@ export default function PartnersEditor() {
         setHasChanges(false);
       }
     } catch (err) {
+      toast.error("Произошла ошибка: " + (err instanceof Error ? err.message : "Неизвестная ошибка"));
       console.error("Failed to fetch data:", err);
     } finally {
       setFetching(false);
@@ -59,11 +60,12 @@ export default function PartnersEditor() {
       });
 
       if (response.ok) {
-        setShowToast(true);
+        toast.success("Изменения успешно сохранены!");
         setHasChanges(false);
         setTimeout(() => setShowToast(false), 3000);
       }
     } catch (err) {
+      toast.error("Произошла ошибка: " + (err instanceof Error ? err.message : "Неизвестная ошибка"));
       setErrorMsg("Ошибка сохранения");
       setTimeout(() => setErrorMsg(null), 4000);
     } finally {

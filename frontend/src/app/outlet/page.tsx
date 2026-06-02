@@ -3,17 +3,19 @@
 import React, { useState, useMemo, useEffect, Suspense } from "react";
 import { 
   ChevronRight, 
-  SlidersHorizontal, 
+  ChevronLeft,
   ChevronDown,
   X,
   Filter,
-  ArrowUpDown,
-  Percent,
+  SlidersHorizontal,
   Image as ImageIcon,
-  RefreshCw
+  RefreshCw,
+  Percent,
+  Box,
+  Layers
 } from "lucide-react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { ProductCard } from "@/components/ui/product-card";
 import { ScrollReveal } from "@/components/ui/scroll-reveal";
@@ -24,6 +26,7 @@ const FILTERS = {
 
 function OutletContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const categoryParam = searchParams.get("category");
   const isCatalogMode = false;
   
@@ -129,6 +132,21 @@ function OutletContent() {
     return Array.from(new Set(ids));
   }, [categories]);
 
+  const categoryPath = useMemo(() => {
+    if (!selectedCategoryId || categories.length === 0) return [];
+    const path = [];
+    let current = categories.find(c => c.id === selectedCategoryId);
+    while (current) {
+      path.unshift(current);
+      if (current.parent_id) {
+        current = categories.find(c => c.id === current.parent_id);
+      } else {
+        break;
+      }
+    }
+    return path;
+  }, [selectedCategoryId, categories]);
+
   const currentProducts = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
     return filteredProducts.slice(start, start + itemsPerPage).map(p => {
@@ -231,22 +249,174 @@ function OutletContent() {
     return cat ? cat.name : null;
   }, [selectedCategoryId, categories]);
 
+  // Nested Category Tree Generator
+  const renderCategoryTree = () => {
+    return (
+      <div className="space-y-1">
+        {/* All Products Element */}
+        <button
+          onClick={() => {
+            router.push("/outlet", { scroll: false });
+            setIsFilterOpen(false);
+          }}
+          className={cn(
+            "w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider text-left transition-all duration-200 group no-shadow border",
+            !selectedCategoryId
+              ? "bg-slate-50/50 dark:bg-slate-800/20 border-slate-100 dark:border-white/5 text-[#2c3b6e] dark:text-blue-400"
+              : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/50 dark:hover:bg-slate-800/30"
+          )}
+        >
+          <div className="flex items-center gap-2">
+            {!selectedCategoryId && <div className="w-1 h-3.5 rounded-full bg-[#2c3b6e] dark:bg-blue-400 flex-shrink-0" />}
+            <Layers className={cn("w-3.5 h-3.5", !selectedCategoryId ? "text-[#2c3b6e] dark:text-blue-400" : "text-current")} />
+            <span>Все товары</span>
+          </div>
+        </button>
+
+        {mainCategories.map(cat => {
+          const childCats = categories.filter(c => c.parent_id === cat.id);
+          const hasChildren = childCats.length > 0;
+          const isActive = selectedCategoryId === cat.id;
+          const isChildActive = selectedCategoryId 
+            ? getAllChildIds(cat.id, categories).includes(selectedCategoryId) && selectedCategoryId !== cat.id
+            : false;
+          const isExpanded = isActive || isChildActive;
+
+          return (
+            <div key={cat.id} className="space-y-0.5">
+              <button
+                onClick={() => {
+                  router.push(`/outlet?category=${cat.id}`, { scroll: false });
+                  if (!hasChildren) {
+                    setIsFilterOpen(false);
+                  }
+                }}
+                className={cn(
+                  "w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider text-left transition-all duration-200 group no-shadow border",
+                  isActive || isChildActive
+                    ? "bg-slate-50/50 dark:bg-slate-800/20 border-slate-100 dark:border-white/5 text-[#2c3b6e] dark:text-blue-400"
+                    : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/50 dark:hover:bg-slate-800/30"
+                )}
+              >
+                <div className="flex items-center gap-2">
+                  {(isActive || isChildActive) && (
+                    <div className={cn(
+                      "w-1 h-3.5 rounded-full flex-shrink-0 transition-all duration-200",
+                      isActive ? "bg-[#2c3b6e] dark:bg-blue-400" : "bg-[#2c3b6e]/40 dark:bg-blue-400/40"
+                    )} />
+                  )}
+                  <span>{cat.name.replace(/\sMAFF$/i, '')}</span>
+                </div>
+                {hasChildren && (
+                  <ChevronDown 
+                    className={cn(
+                      "w-3.5 h-3.5 text-current transition-transform duration-200", 
+                      isExpanded && "rotate-180"
+                    )} 
+                  />
+                )}
+              </button>
+              
+              {hasChildren && isExpanded && (
+                <div className="pl-3.5 pr-1 py-1 border-l border-slate-100 dark:border-white/5 ml-4 mt-0.5 space-y-0.5">
+                  {childCats.map(sub => {
+                    const isSubActive = selectedCategoryId === sub.id;
+                    const grandchildCats = categories.filter(c => c.parent_id === sub.id);
+                    const hasGrandchildren = grandchildCats.length > 0;
+                    const isGrandchildActive = selectedCategoryId
+                      ? getAllChildIds(sub.id, categories).includes(selectedCategoryId) && selectedCategoryId !== sub.id
+                      : false;
+                    const isSubExpanded = isSubActive || isGrandchildActive;
+
+                    return (
+                      <div key={sub.id} className="space-y-0.5">
+                        <button
+                          key={sub.id}
+                          onClick={() => {
+                            router.push(`/outlet?category=${sub.id}`, { scroll: false });
+                            if (!hasGrandchildren) {
+                              setIsFilterOpen(false);
+                            }
+                          }}
+                          className={cn(
+                            "w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-[11px] uppercase tracking-wider text-left transition-all duration-200 no-shadow",
+                            isSubActive || isGrandchildActive
+                              ? "text-[#2c3b6e] dark:text-blue-400 bg-[#2c3b6e]/5 dark:bg-blue-600/10 font-extrabold"
+                              : "text-slate-500 dark:text-slate-400 hover:text-[#2c3b6e] dark:hover:text-blue-400 hover:bg-slate-50/50 dark:hover:bg-slate-800/20 font-bold"
+                          )}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <div className={cn(
+                              "w-1.5 h-1.5 rounded-full transition-all duration-200",
+                              isSubActive 
+                                ? "bg-[#2c3b6e] dark:bg-blue-400 scale-125" 
+                                : "bg-slate-300 dark:bg-slate-700"
+                            )} />
+                            <span className="truncate">{sub.name.replace(/\sMAFF$/i, '')}</span>
+                          </div>
+                          {hasGrandchildren && (
+                            <ChevronDown 
+                              className={cn(
+                                "w-3.5 h-3.5 text-current transition-transform duration-200", 
+                                isSubExpanded && "rotate-180"
+                              )} 
+                            />
+                          )}
+                        </button>
+                        
+                        {hasGrandchildren && isSubExpanded && (
+                          <div className="pl-3.5 pr-1 py-1 border-l border-slate-100 dark:border-white/5 ml-4 mt-0.5 space-y-0.5">
+                            {grandchildCats.map(grand => {
+                              const isGrandActive = selectedCategoryId === grand.id;
+                              return (
+                                <button
+                                  key={grand.id}
+                                  onClick={() => {
+                                    router.push(`/outlet?category=${grand.id}`, { scroll: false });
+                                    setIsFilterOpen(false);
+                                  }}
+                                  className={cn(
+                                    "w-full flex items-center gap-2 px-3 py-1 rounded-lg text-[10px] uppercase tracking-wider text-left transition-all duration-200 no-shadow",
+                                    isGrandActive
+                                      ? "text-[#2c3b6e] dark:text-blue-400 font-extrabold bg-[#2c3b6e]/10 dark:bg-blue-600/20"
+                                      : "text-slate-400 dark:text-slate-500 hover:text-[#2c3b6e] dark:hover:text-blue-400 font-bold"
+                                  )}
+                                >
+                                  <div className={cn(
+                                    "w-1 h-1 rounded-full transition-all duration-200",
+                                    isGrandActive 
+                                      ? "bg-[#2c3b6e] dark:bg-blue-400 scale-125" 
+                                      : "bg-slate-300/60 dark:bg-slate-700"
+                                  )} />
+                                  <span className="truncate">{grand.name.replace(/\sMAFF$/i, '')}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   const FilterContent = (
     <div className="space-y-8">
       <div>
-         <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-900 dark:text-white mb-6 pb-2 border-b border-slate-100 dark:border-white/5">Категории</h3>
+         <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-900 dark:text-white mb-4 pb-2.5 border-b border-slate-100 dark:border-white/5">Каталог</h3>
          <div className="space-y-1">
-            {loading ? (
+            {loading && categories.length === 0 ? (
               Array.from({ length: 4 }).map((_, idx) => (
                 <div key={idx} className="w-full h-8 bg-slate-100 dark:bg-slate-800/40 rounded-xl animate-pulse" />
               ))
             ) : (
-              <>
-                <button onClick={() => setSelectedCategoryId(null)} className={cn("w-full text-left px-3 py-2 rounded-xl text-[11px] font-bold transition-colors", !selectedCategoryId ? "bg-blue-50 dark:bg-blue-900/30 text-[#2c3b6e] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50")}>Все товары</button>
-                {mainCategories.map(cat => (
-                  <button key={cat.id} onClick={() => setSelectedCategoryId(cat.id)} className={cn("w-full text-left px-3 py-2 rounded-xl text-[11px] font-bold transition-colors", selectedCategoryId === cat.id ? "bg-blue-50 dark:bg-blue-900/30 text-[#2c3b6e] dark:text-blue-400" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50")}>{cat.name}</button>
-                ))}
-              </>
+              renderCategoryTree()
             )}
          </div>
       </div>
@@ -335,21 +505,29 @@ function OutletContent() {
           <nav className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
             <Link href="/" className="hover:text-[#2c3b6e] dark:hover:text-blue-400 transition-colors">Главная</Link>
             <ChevronRight className="w-3 h-3" />
-            {isCatalogMode ? (
-              <Link href="/catalog" className="hover:text-[#2c3b6e] dark:hover:text-blue-400 transition-colors">Каталог</Link>
-            ) : (
-              <Link href="/outlet" className="hover:text-[#2c3b6e] dark:hover:text-blue-400 transition-colors">Аутлет</Link>
-            )}
+            <Link href="/outlet" className="hover:text-[#2c3b6e] dark:hover:text-blue-400 transition-colors">Аутлет</Link>
+            
             {loading && categoryParam ? (
               <>
                 <ChevronRight className="w-3 h-3" />
                 <span className="inline-block w-20 h-3.5 bg-slate-200 dark:bg-slate-800/40 rounded animate-pulse" />
               </>
-            ) : selectedCategoryName ? (
-              <>
-                <ChevronRight className="w-3 h-3" />
-                <span className="text-slate-900 dark:text-white">{selectedCategoryName}</span>
-              </>
+            ) : categoryPath.length > 0 ? (
+              categoryPath.map((cat, idx) => {
+                const isLast = idx === categoryPath.length - 1;
+                return (
+                  <React.Fragment key={cat.id}>
+                    <ChevronRight className="w-3 h-3" />
+                    {isLast ? (
+                      <span className="text-slate-900 dark:text-white">{cat.name.replace(/\sMAFF$/i, '')}</span>
+                    ) : (
+                      <Link href={`/outlet?category=${cat.id}`} className="hover:text-[#2c3b6e] dark:hover:text-blue-400 transition-colors">
+                        {cat.name.replace(/\sMAFF$/i, '')}
+                      </Link>
+                    )}
+                  </React.Fragment>
+                );
+              })
             ) : null}
           </nav>
         </div>

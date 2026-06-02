@@ -178,8 +178,17 @@ export default function SocialsPage() {
                 className="group block relative overflow-hidden bg-white dark:bg-white/5 border border-slate-100 dark:border-white/10 rounded-[1.5rem] lg:rounded-[2rem] hover:border-[#2c3b6e]/30 dark:hover:bg-white/10 transition-all p-4 lg:p-6 active:scale-[0.98] shadow-none"
               >
                 <div className="flex items-center gap-4 lg:gap-6">
-                  <div className={cn("w-12 h-12 lg:w-14 lg:h-14 rounded-[1rem] lg:rounded-[1.25rem] bg-gradient-to-br flex items-center justify-center text-white shadow-xl transition-transform group-hover:scale-110", colorClass)}>
-                    <Icon className="w-6 h-6 lg:w-7 lg:h-7" />
+                  <div className={cn(
+                    "w-12 h-12 lg:w-14 lg:h-14 rounded-[1rem] lg:rounded-[1.25rem] flex items-center justify-center shadow-xl transition-transform group-hover:scale-110 overflow-hidden",
+                    (social.icon && (social.icon.startsWith('http') || social.icon.startsWith('/'))) 
+                      ? "bg-[#f7f8f9] dark:bg-slate-800" 
+                      : cn("bg-gradient-to-br text-white", colorClass)
+                  )}>
+                    {social.icon && (social.icon.startsWith('http') || social.icon.startsWith('/')) ? (
+                      <img src={social.icon} alt={social.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <Icon className="w-6 h-6 lg:w-7 lg:h-7" />
+                    )}
                   </div>
                   
                   <div className="flex-grow min-w-0">

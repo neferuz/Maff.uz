@@ -94,7 +94,8 @@ function CatalogContent() {
         ) as string[];
         
         const cleanBrands = uniqueBrands
-          .filter(b => typeof b === 'string' && !/^[0-9a-f-]{36}$/.test(b))
+          .map(b => String(b).trim())
+          .filter(b => b.length > 0 && b.toUpperCase() !== "MAFF" && !/^[0-9a-f-]{36}$/i.test(b))
           .sort();
         setAvailableBrands(cleanBrands);
       } catch (err) {

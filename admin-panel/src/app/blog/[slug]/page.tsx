@@ -1,5 +1,5 @@
 "use client";
-
+import { toast } from "react-hot-toast";
 import React, { useState, useEffect } from "react";
 import { 
   Save, 
@@ -81,6 +81,7 @@ export default function BlogEditor() {
         setCurrentSlug(result.slug);
       }
     } catch (err) {
+      toast.error("Произошла ошибка: " + (err instanceof Error ? err.message : "Неизвестная ошибка"));
       console.error("Failed to fetch blog post:", err);
     } finally {
       setIsLoading(false);
@@ -106,7 +107,7 @@ export default function BlogEditor() {
 
       if (res.ok) {
         setOriginalData(JSON.parse(JSON.stringify(data)));
-        setShowToast(true);
+        toast.success("Изменения успешно сохранены!");
         setTimeout(() => setShowToast(false), 3000);
         if (isNew) {
           router.push(`/blog/${finalSlug}`);
@@ -116,6 +117,7 @@ export default function BlogEditor() {
         setTimeout(() => setErrorMsg(null), 4000);
       }
     } catch (err) {
+      toast.error("Произошла ошибка: " + (err instanceof Error ? err.message : "Неизвестная ошибка"));
       setErrorMsg("Ошибка подключения");
       setTimeout(() => setErrorMsg(null), 4000);
     } finally {
@@ -159,6 +161,7 @@ export default function BlogEditor() {
         }
       }
     } catch (err) {
+      toast.error("Произошла ошибка: " + (err instanceof Error ? err.message : "Неизвестная ошибка"));
       console.error("Upload error:", err);
     }
   };

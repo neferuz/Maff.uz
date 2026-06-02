@@ -1,5 +1,5 @@
 "use client";
-
+import { toast } from "react-hot-toast";
 import { 
   Save, Truck, CreditCard, Plus, Trash2, RefreshCw, CheckCircle2, AlertCircle, Layout, Info, Type, AlignLeft, Package, Clock, ShieldCheck, Globe, MapPin, Wallet, Banknote, Building2, Smartphone, Send, ArrowRight, X, Phone, Check, Sparkles, Tag
 } from "lucide-react";
@@ -58,6 +58,7 @@ export default function DeliveryEditor() {
         setOriginalData(JSON.parse(JSON.stringify(content)));
       }
     } catch (err) {
+      toast.error("Произошла ошибка: " + (err instanceof Error ? err.message : "Неизвестная ошибка"));
       console.error("Failed to fetch data:", err);
     } finally {
       setIsLoading(false);
@@ -82,13 +83,14 @@ export default function DeliveryEditor() {
 
       if (response.ok) {
         setOriginalData(JSON.parse(JSON.stringify(data)));
-        setShowToast(true);
+        toast.success("Изменения успешно сохранены!");
         setTimeout(() => setShowToast(false), 3000);
       } else {
         setErrorMsg("Не удалось сохранить");
         setTimeout(() => setErrorMsg(null), 4000);
       }
     } catch (err) {
+      toast.error("Произошла ошибка: " + (err instanceof Error ? err.message : "Неизвестная ошибка"));
       setErrorMsg("Ошибка подключения");
       setTimeout(() => setErrorMsg(null), 4000);
     } finally {

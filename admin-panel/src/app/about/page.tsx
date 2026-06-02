@@ -192,10 +192,10 @@ export default function AboutEditor() {
            <div className="bg-white border border-[#e3e8ee] rounded-2xl shadow-none">
               <div className="bg-[#f7f8f9] px-6 py-4 border-b border-[#e3e8ee] flex items-center justify-between">
                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-white border border-[#e3e8ee] flex items-center justify-center text-[#2c3b6e]">
-                       <Users className="w-5 h-5" />
+                    <div className="w-8 h-8 rounded-lg bg-[#2c3b6e] flex items-center justify-center text-white">
+                       <Users className="w-4 h-4" />
                     </div>
-                    <h3 className="text-lg font-bold text-[#1a1f36]">Наша команда</h3>
+                    <h3 className="text-[15px] font-bold text-[#1a1f36]">Наша команда</h3>
                  </div>
                  <button 
                     onClick={() => addItem("team", { name: "", role: "", image: "" })} 
@@ -219,17 +219,17 @@ export default function AboutEditor() {
                           </div>
                           <div className="flex-1 grid grid-cols-1 gap-3">
                              <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-1">
-                                   <label className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest">Имя Фамилия</label>
-                                   <input value={m.name} onChange={(e) => updateItem("team", idx, "name", e.target.value)} className="w-full bg-white border border-[#e3e8ee] rounded-lg px-3 py-1.5 text-[13px] font-bold text-[#1a1f36] outline-none focus:border-[#2c3b6e]/30" />
+                                <div className="space-y-1.5">
+                                   <label className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest flex items-center gap-2"><Users className="w-3 h-3 text-[#2c3b6e]" /> Имя Фамилия</label>
+                                   <input value={m.name} onChange={(e) => updateItem("team", idx, "name", e.target.value)} className="w-full bg-[#f8f9fa] border border-[#e3e8ee] rounded-xl px-3 py-1.5 text-[13px] font-bold text-[#1a1f36] outline-none focus:border-[#2c3b6e]/30" />
                                 </div>
-                                <div className="space-y-1">
-                                   <label className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest">Должность</label>
-                                   <input value={m.role} onChange={(e) => updateItem("team", idx, "role", e.target.value)} className="w-full bg-white border border-[#e3e8ee] rounded-lg px-3 py-1.5 text-[13px] text-[#4f566b] outline-none focus:border-[#2c3b6e]/30" />
+                                <div className="space-y-1.5">
+                                   <label className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest flex items-center gap-2"><Award className="w-3 h-3 text-[#2c3b6e]" /> Должность</label>
+                                   <input value={m.role} onChange={(e) => updateItem("team", idx, "role", e.target.value)} className="w-full bg-[#f8f9fa] border border-[#e3e8ee] rounded-xl px-3 py-1.5 text-[13px] text-[#4f566b] outline-none focus:border-[#2c3b6e]/30" />
                                 </div>
                              </div>
-                             <div className="space-y-1">
-                                <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">URL Фотографии</label>
+                             <div className="space-y-1.5">
+                                <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><ImageIcon className="w-2.5 h-2.5" /> URL Фотографии</label>
                                 <input value={m.image} onChange={(e) => updateItem("team", idx, "image", e.target.value)} className="w-full bg-transparent border-b border-slate-100 px-1 py-1 text-[11px] text-blue-500 outline-none focus:border-blue-200" />
                              </div>
                           </div>
@@ -243,10 +243,10 @@ export default function AboutEditor() {
            <div className="bg-white border border-[#e3e8ee] rounded-2xl shadow-none">
               <div className="bg-[#f7f8f9] px-6 py-4 border-b border-[#e3e8ee] flex items-center justify-between">
                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-white border border-[#e3e8ee] flex items-center justify-center text-[#2c3b6e]">
-                       <Target className="w-5 h-5" />
+                    <div className="w-8 h-8 rounded-lg bg-[#2c3b6e] flex items-center justify-center text-white">
+                       <Target className="w-4 h-4" />
                     </div>
-                    <h3 className="text-lg font-bold text-[#1a1f36]">Наши ориентиры (Миссия)</h3>
+                    <h3 className="text-[15px] font-bold text-[#1a1f36]">Наши ориентиры (Миссия)</h3>
                  </div>
                  <button onClick={() => addItem("mission.values", { icon: "Target", title: "", desc: "" })} className="p-1.5 hover:bg-[#2c3b6e]/5 rounded-lg text-[#2c3b6e] transition-all px-4 border border-dashed border-[#2c3b6e]/20">
                     <Plus className="w-4 h-4" />
@@ -275,7 +275,7 @@ export default function AboutEditor() {
                           </div>
                           <input value={v.title} onChange={(e) => updateItem("mission.values", idx, "title", e.target.value)} className="bg-transparent border-none p-0 text-[11px] font-bold uppercase text-[#1a1f36] outline-none w-full" placeholder="Заголовок" />
                        </div>
-                       <textarea value={v.desc} onChange={(e) => updateItem("mission.values", idx, "desc", e.target.value)} className="w-full bg-white border border-[#e3e8ee] rounded-lg px-2 py-1.5 text-[12px] text-[#4f566b] outline-none min-h-[50px] resize-none" placeholder="Описание..." />
+                       <textarea value={v.desc} onChange={(e) => updateItem("mission.values", idx, "desc", e.target.value)} className="w-full bg-[#f8f9fa] border border-[#e3e8ee] rounded-xl px-2 py-1.5 text-[12px] text-[#4f566b] outline-none min-h-[50px] resize-none" placeholder="Описание..." />
                     </div>
                  ))}
               </div>
@@ -284,10 +284,10 @@ export default function AboutEditor() {
            {/* Hero Content */}
            <div className="bg-white border border-[#e3e8ee] rounded-2xl shadow-none">
               <div className="bg-[#f7f8f9] px-6 py-4 border-b border-[#e3e8ee] flex items-center gap-4">
-                 <div className="w-10 h-10 rounded-xl bg-white border border-[#e3e8ee] flex items-center justify-center text-[#2c3b6e]">
-                    <Layout className="w-5 h-5" />
+                 <div className="w-8 h-8 rounded-lg bg-[#2c3b6e] flex items-center justify-center text-white">
+                    <Layout className="w-4 h-4" />
                  </div>
-                 <h3 className="text-lg font-bold text-[#1a1f36]">Главный экран (Hero)</h3>
+                 <h3 className="text-[15px] font-bold text-[#1a1f36]">Главный экран (Hero)</h3>
               </div>
               <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
                  <div className="md:col-span-1">
@@ -297,13 +297,13 @@ export default function AboutEditor() {
                     </div>
                  </div>
                  <div className="md:col-span-2 space-y-4">
-                    <div className="space-y-1">
-                       <label className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest">Заголовок Hero</label>
-                       <input value={data.hero.title} onChange={(e) => setData({...data, hero: {...data.hero, title: e.target.value}})} className="w-full bg-white border border-[#e3e8ee] rounded-lg px-3 py-2 text-[13px] font-bold text-[#1a1f36] outline-none focus:border-[#2c3b6e]/30" />
+                    <div className="space-y-1.5">
+                       <label className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest flex items-center gap-2"><Type className="w-3 h-3 text-[#2c3b6e]" /> Заголовок Hero</label>
+                       <input value={data.hero.title} onChange={(e) => setData({...data, hero: {...data.hero, title: e.target.value}})} className="w-full bg-[#f8f9fa] border border-[#e3e8ee] rounded-xl px-3 py-2 text-[13px] font-bold text-[#1a1f36] outline-none focus:border-[#2c3b6e]/30" />
                     </div>
-                    <div className="space-y-1">
-                       <label className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest">Описание Hero</label>
-                       <textarea value={data.hero.description} onChange={(e) => setData({...data, hero: {...data.hero, description: e.target.value}})} className="w-full bg-white border border-[#e3e8ee] rounded-lg px-3 py-2 text-[13px] text-[#4f566b] outline-none min-h-[80px] resize-none" />
+                    <div className="space-y-1.5">
+                       <label className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest flex items-center gap-2"><Layout className="w-3 h-3 text-[#2c3b6e]" /> Описание Hero</label>
+                       <textarea value={data.hero.description} onChange={(e) => setData({...data, hero: {...data.hero, description: e.target.value}})} className="w-full bg-[#f8f9fa] border border-[#e3e8ee] rounded-xl px-3 py-2 text-[13px] text-[#4f566b] outline-none min-h-[80px] resize-none" />
                     </div>
                  </div>
               </div>
@@ -317,10 +317,10 @@ export default function AboutEditor() {
            <div className="bg-white border border-[#e3e8ee] rounded-2xl shadow-none">
               <div className="bg-[#f7f8f9] px-6 py-4 border-b border-[#e3e8ee] flex items-center justify-between">
                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-white border border-[#e3e8ee] flex items-center justify-center text-[#2c3b6e]">
-                       <Award className="w-5 h-5" />
+                    <div className="w-8 h-8 rounded-lg bg-[#2c3b6e] flex items-center justify-center text-white">
+                       <Award className="w-4 h-4" />
                     </div>
-                    <h3 className="text-lg font-bold text-[#1a1f36]">Ценности</h3>
+                    <h3 className="text-[15px] font-bold text-[#1a1f36]">Ценности</h3>
                  </div>
                  <button onClick={() => addItem("values", { icon: "Award", title: "", description: "" })} className="p-1.5 hover:bg-[#2c3b6e]/5 rounded-lg text-[#2c3b6e] transition-all px-4 border border-dashed border-[#2c3b6e]/20">
                     <Plus className="w-4 h-4" />
@@ -349,7 +349,7 @@ export default function AboutEditor() {
                           </div>
                           <input value={v.title} onChange={(e) => updateItem("values", idx, "title", e.target.value)} className="bg-transparent border-none p-0 text-[12px] font-bold uppercase text-[#1a1f36] outline-none" placeholder="Заголовок" />
                        </div>
-                       <textarea value={v.description} onChange={(e) => updateItem("values", idx, "description", e.target.value)} className="w-full bg-white border border-[#e3e8ee] rounded-lg px-2 py-1.5 text-[12px] text-[#4f566b] outline-none min-h-[45px] resize-none leading-relaxed" placeholder="Описание..." />
+                       <textarea value={v.description} onChange={(e) => updateItem("values", idx, "description", e.target.value)} className="w-full bg-[#f8f9fa] border border-[#e3e8ee] rounded-xl px-2 py-1.5 text-[12px] text-[#4f566b] outline-none min-h-[45px] resize-none leading-relaxed" placeholder="Описание..." />
                     </div>
                  ))}
               </div>
@@ -359,10 +359,10 @@ export default function AboutEditor() {
            <div className="bg-white border border-[#e3e8ee] rounded-2xl shadow-none">
               <div className="bg-[#f7f8f9] px-6 py-4 border-b border-[#e3e8ee] flex items-center justify-between">
                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-white border border-[#e3e8ee] flex items-center justify-center text-[#2c3b6e]">
-                       <History className="w-5 h-5" />
+                    <div className="w-8 h-8 rounded-lg bg-[#2c3b6e] flex items-center justify-center text-white">
+                       <History className="w-4 h-4" />
                     </div>
-                    <h3 className="text-lg font-bold text-[#1a1f36]">История</h3>
+                    <h3 className="text-[15px] font-bold text-[#1a1f36]">История</h3>
                  </div>
                  <button onClick={() => addItem("milestones", { year: "", title: "" })} className="p-1.5 hover:bg-[#2c3b6e]/5 rounded-lg text-[#2c3b6e] transition-all px-4 border border-dashed border-[#2c3b6e]/20"><Plus className="w-4 h-4" /></button>
               </div>
@@ -370,7 +370,7 @@ export default function AboutEditor() {
                  {data.milestones.map((m: any, idx: number) => (
                     <div key={idx} className="flex gap-3 items-center group bg-[#f8f9fa] p-3 rounded-xl border border-[#e3e8ee]">
                        <div className="w-14">
-                          <input value={m.year} onChange={(e) => updateItem("milestones", idx, "year", e.target.value)} className="w-full bg-white border border-[#e3e8ee] rounded-lg px-2 py-1 text-[11px] font-bold text-[#2c3b6e] text-center outline-none" placeholder="2024" />
+                          <input value={m.year} onChange={(e) => updateItem("milestones", idx, "year", e.target.value)} className="w-full bg-[#f8f9fa] border border-[#e3e8ee] rounded-xl px-2 py-1 text-[11px] font-bold text-[#2c3b6e] text-center outline-none" placeholder="2024" />
                        </div>
                        <input value={m.title} onChange={(e) => updateItem("milestones", idx, "title", e.target.value)} className="flex-1 bg-transparent border-none p-0 text-[13px] font-medium text-[#1a1f36] outline-none" placeholder="Событие" />
                        <button onClick={() => setDeleteModal({ show: true, section: "milestones", idx })} className="text-[#cd5c5c] opacity-0 group-hover:opacity-100 transition-opacity p-1"><Trash2 className="w-4 h-4" /></button>
@@ -382,15 +382,15 @@ export default function AboutEditor() {
            {/* Stats Section */}
            <div className="bg-white border border-[#e3e8ee] rounded-2xl shadow-none">
               <div className="bg-[#f7f8f9] px-6 py-4 border-b border-[#e3e8ee] flex items-center gap-4">
-                 <div className="w-10 h-10 rounded-xl bg-white border border-[#e3e8ee] flex items-center justify-center text-[#2c3b6e]">
-                    <BadgePercent className="w-5 h-5" />
+                 <div className="w-8 h-8 rounded-lg bg-[#2c3b6e] flex items-center justify-center text-white">
+                    <BadgePercent className="w-4 h-4" />
                  </div>
-                 <h3 className="text-lg font-bold text-[#1a1f36]">Цифры</h3>
+                 <h3 className="text-[15px] font-bold text-[#1a1f36]">Цифры</h3>
               </div>
               <div className="p-6 grid grid-cols-2 gap-4">
                  {data.stats.map((s: any, idx: number) => (
                     <div key={idx} className="p-4 bg-[#f8f9fa] border border-[#e3e8ee] rounded-xl text-center space-y-1">
-                       <input value={s.value} onChange={(e) => updateItem("stats", idx, "value", e.target.value)} className="w-full bg-white border border-[#e3e8ee] rounded-lg py-1.5 text-center text-xl font-black text-[#2c3b6e] outline-none" />
+                       <input value={s.value} onChange={(e) => updateItem("stats", idx, "value", e.target.value)} className="w-full bg-[#f8f9fa] border border-[#e3e8ee] rounded-xl py-1.5 text-center text-xl font-black text-[#2c3b6e] outline-none" />
                        <input value={s.label} onChange={(e) => updateItem("stats", idx, "label", e.target.value)} className="w-full bg-transparent text-center text-[10px] font-bold uppercase tracking-widest text-[#4f566b] outline-none" />
                     </div>
                  ))}
@@ -400,19 +400,19 @@ export default function AboutEditor() {
            {/* Mission Text */}
            <div className="bg-white border border-[#e3e8ee] rounded-2xl shadow-none">
               <div className="bg-[#f7f8f9] px-6 py-4 border-b border-[#e3e8ee] flex items-center gap-4">
-                 <div className="w-10 h-10 rounded-xl bg-white border border-[#e3e8ee] flex items-center justify-center text-[#2c3b6e]">
-                    <Lightbulb className="w-5 h-5" />
+                 <div className="w-8 h-8 rounded-lg bg-[#2c3b6e] flex items-center justify-center text-white">
+                    <Lightbulb className="w-4 h-4" />
                  </div>
-                 <h3 className="text-lg font-bold text-[#1a1f36]">Текст миссии</h3>
+                 <h3 className="text-[15px] font-bold text-[#1a1f36]">Текст миссии</h3>
               </div>
               <div className="p-6 space-y-4">
-                 <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest">Заголовок миссии</label>
-                    <input value={data.mission.title} onChange={(e) => setData({...data, mission: {...data.mission, title: e.target.value}})} className="w-full bg-white border border-[#e3e8ee] rounded-lg px-3 py-2 text-[13px] font-bold text-[#1a1f36] outline-none" />
+                 <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest flex items-center gap-2"><Type className="w-3 h-3 text-[#2c3b6e]" /> Заголовок миссии</label>
+                    <input value={data.mission.title} onChange={(e) => setData({...data, mission: {...data.mission, title: e.target.value}})} className="w-full bg-[#f8f9fa] border border-[#e3e8ee] rounded-xl px-3 py-2 text-[13px] font-bold text-[#1a1f36] outline-none" />
                  </div>
-                 <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest">Описание миссии</label>
-                    <textarea value={data.mission.description} onChange={(e) => setData({...data, mission: {...data.mission, description: e.target.value}})} className="w-full bg-white border border-[#e3e8ee] rounded-lg px-3 py-2 text-[13px] text-[#4f566b] outline-none min-h-[80px] resize-none" />
+                 <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest flex items-center gap-2"><Lightbulb className="w-3 h-3 text-[#2c3b6e]" /> Описание миссии</label>
+                    <textarea value={data.mission.description} onChange={(e) => setData({...data, mission: {...data.mission, description: e.target.value}})} className="w-full bg-[#f8f9fa] border border-[#e3e8ee] rounded-xl px-3 py-2 text-[13px] text-[#4f566b] outline-none min-h-[80px] resize-none" />
                  </div>
               </div>
            </div>

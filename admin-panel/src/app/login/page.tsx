@@ -1,5 +1,5 @@
 "use client";
-
+import { toast } from "react-hot-toast";
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Shield, Lock, User, ArrowRight, Loader2, AlertCircle } from "lucide-react";
@@ -41,6 +41,7 @@ export default function LoginPage() {
         setError(errData.detail || "Неверный логин или пароль");
       }
     } catch (err) {
+      toast.error("Произошла ошибка: " + (err instanceof Error ? err.message : "Неизвестная ошибка"));
       setError("Ошибка соединения с сервером");
     } finally {
       setIsLoading(false);

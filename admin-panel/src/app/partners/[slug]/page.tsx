@@ -1,5 +1,5 @@
 "use client";
-
+import { toast } from "react-hot-toast";
 import { 
   Save, ArrowLeft, Plus, Trash2, RefreshCw, CheckCircle2, AlertCircle, Upload, User, X, PlusCircle, Handshake, Layout, Award, Zap, Type, MessageSquare, Star
 } from "lucide-react";
@@ -78,6 +78,7 @@ export default function PartnerTypeEditor({ params }: { params: Promise<{ slug: 
           });
       }
     } catch (err) {
+      toast.error("Произошла ошибка: " + (err instanceof Error ? err.message : "Неизвестная ошибка"));
       console.error("Failed to fetch data:", err);
     } finally {
       setFetching(false);
@@ -95,11 +96,12 @@ export default function PartnerTypeEditor({ params }: { params: Promise<{ slug: 
       });
 
       if (response.ok) {
-        setShowToast(true);
+        toast.success("Изменения успешно сохранены!");
         setHasChanges(false);
         setTimeout(() => setShowToast(false), 3000);
       }
     } catch (err) {
+      toast.error("Произошла ошибка: " + (err instanceof Error ? err.message : "Неизвестная ошибка"));
       setErrorMsg("Ошибка сохранения");
       setTimeout(() => setErrorMsg(null), 4000);
     } finally {
@@ -170,7 +172,8 @@ export default function PartnerTypeEditor({ params }: { params: Promise<{ slug: 
         const result = await response.json();
         updateExpert(idx, "photo", result.url);
       }
-    } catch (err) { console.error("Upload failed", err); }
+    } catch (err) {
+      toast.error("Произошла ошибка: " + (err instanceof Error ? err.message : "Неизвестная ошибка")); console.error("Upload failed", err); }
   };
 
   if (fetching) return (
