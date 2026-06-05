@@ -706,9 +706,13 @@ function CatalogContent() {
           >
             <span>
               Все товары
-              <span className="ml-1.5 text-[10.5px] font-normal text-slate-400 dark:text-slate-500">
-                ({totalValidCount})
-              </span>
+              {loading ? (
+                <span className="ml-1.5 inline-block w-5 h-3 bg-slate-200/60 dark:bg-slate-700/60 animate-pulse rounded align-middle" />
+              ) : (
+                <span className="ml-1.5 text-[10.5px] font-normal text-slate-400 dark:text-slate-500">
+                  ({totalValidCount})
+                </span>
+              )}
             </span>
           </button>
         </div>
@@ -750,9 +754,13 @@ function CatalogContent() {
               >
                 <span className="truncate">
                   {cat.name.replace(/\sMAFF$/i, '')}
-                  <span className="ml-1.5 text-[10.5px] font-normal text-slate-400 dark:text-slate-500">
-                    ({categoryProductCounts[cat.id] || 0})
-                  </span>
+                  {loading ? (
+                    <span className="ml-1.5 inline-block w-4 h-3 bg-slate-200/60 dark:bg-slate-700/60 animate-pulse rounded align-middle" />
+                  ) : (
+                    <span className="ml-1.5 text-[10.5px] font-normal text-slate-400 dark:text-slate-500">
+                      ({categoryProductCounts[cat.id] || 0})
+                    </span>
+                  )}
                 </span>
                 {hasChildren && (
                   <ChevronRight 
@@ -811,9 +819,13 @@ function CatalogContent() {
                             >
                               <span className="truncate">
                                 {sub.name.replace(/\sMAFF$/i, '')}
-                                <span className="ml-1.5 text-[10px] font-normal text-slate-400 dark:text-slate-500">
-                                  ({categoryProductCounts[sub.id] || 0})
-                                </span>
+                                {loading ? (
+                                  <span className="ml-1.5 inline-block w-4 h-2.5 bg-slate-200/60 dark:bg-slate-700/60 animate-pulse rounded align-middle" />
+                                ) : (
+                                  <span className="ml-1.5 text-[10px] font-normal text-slate-400 dark:text-slate-500">
+                                    ({categoryProductCounts[sub.id] || 0})
+                                  </span>
+                                )}
                               </span>
                               {hasGrandchildren && (
                                 <ChevronRight 
@@ -853,9 +865,13 @@ function CatalogContent() {
                                         >
                                           <span className="truncate">
                                             {grand.name.replace(/\sMAFF$/i, '')}
-                                            <span className="ml-1.5 text-[9.5px] font-normal text-slate-400/80 dark:text-slate-500/80">
-                                              ({categoryProductCounts[grand.id] || 0})
-                                            </span>
+                                            {loading ? (
+                                              <span className="ml-1.5 inline-block w-3.5 h-2 bg-slate-200/60 dark:bg-slate-700/60 animate-pulse rounded align-middle" />
+                                            ) : (
+                                              <span className="ml-1.5 text-[9.5px] font-normal text-slate-400/80 dark:text-slate-500/80">
+                                                ({categoryProductCounts[grand.id] || 0})
+                                              </span>
+                                            )}
                                           </span>
                                         </button>
                                       );
