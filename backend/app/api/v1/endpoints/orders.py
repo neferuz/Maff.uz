@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import Any, List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,7 +14,7 @@ async def create_order(
     *,
     db: AsyncSession = Depends(deps.get_db),
     order_in: OrderCreate,
-    current_user: User | None = Depends(deps.get_current_user_optional),
+    current_user: Optional[User] = Depends(deps.get_current_user_optional),
 ) -> Any:
     user_id = current_user.id if current_user else None
     order = await crud_order.create_order(db=db, order_in=order_in, user_id=user_id)

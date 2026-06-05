@@ -1,4 +1,4 @@
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt
@@ -46,7 +46,7 @@ async def get_current_user(
 
 async def get_current_user_optional(
     db: AsyncSession = Depends(get_db), token: str = Depends(OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/login/access-token", auto_error=False))
-) -> User | None:
+) -> Optional[User]:
     if not token:
         return None
     try:

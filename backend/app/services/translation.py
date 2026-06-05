@@ -1,5 +1,6 @@
 from __future__ import annotations
 import httpx
+from typing import Optional, Union
 import json
 import re
 from fastapi import Request
@@ -121,7 +122,7 @@ GLOSSARY_UZ_LATIN = {
     "межкомнатные": "Ichki"
 }
 
-def translate_locally(text: str, locale: str) -> str | None:
+def translate_locally(text: str, locale: str) -> Optional[str]:
     if not text:
         return None
     cleaned = text.strip()
@@ -302,7 +303,7 @@ async def translate_text_claude(text: str, target_lang: str, api_key: str) -> st
         translated = data["content"][0]["text"].strip()
         return translated
 
-async def translate_json_content(content: dict | list, locale: str, api_key: str) -> dict | list:
+async def translate_json_content(content: Union[dict, list], locale: str, api_key: str) -> Union[dict, list]:
     if not content:
         return content
     if locale == "ru" or not locale:
@@ -357,7 +358,7 @@ JSON для локализации:
         print(f"Error in JSON translation: {e}")
         return content
 
-async def translate_page_content(db, slug: str, content: dict | list, locale: str, api_key: str) -> dict | list:
+async def translate_page_content(db, slug: str, content: Union[dict, list], locale: str, api_key: str) -> Union[dict, list]:
     if not content:
         return content
     if locale == "ru" or not locale:
