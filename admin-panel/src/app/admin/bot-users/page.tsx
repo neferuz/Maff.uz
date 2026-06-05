@@ -21,7 +21,7 @@ export default function BotUsersPage() {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await fetch("http://127.0.0.1:8000/api/v1/bot-users/");
+        const response = await fetch("/api/v1/bot-users/");
         const data = await response.json();
         if (response.ok) {
           setUsers(data);
