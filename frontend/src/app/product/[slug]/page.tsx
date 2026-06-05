@@ -146,7 +146,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumb) }}
         />
       )}
-      <ProductPageClient params={resolvedParams} />
+      <ProductPageClient params={resolvedParams} initialProduct={product} />
     </>
   );
 }

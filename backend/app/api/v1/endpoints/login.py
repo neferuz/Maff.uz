@@ -22,7 +22,14 @@ async def login_access_token(
     """
     OAuth2 compatible token login, get an access token for future requests
     """
-    query = select(UserModel).filter(UserModel.email == form_data.username)
+    username = form_data.username
+    clean_phone = "".join(filter(str.isdigit, username))
+    if clean_phone.startswith("998"):
+        # Login by phone
+        query = select(UserModel).filter(UserModel.phone == clean_phone)
+    else:
+        # Login by email
+        query = select(UserModel).filter(UserModel.email == username)
     result = await db.execute(query)
     user = result.scalar_one_or_none()
     

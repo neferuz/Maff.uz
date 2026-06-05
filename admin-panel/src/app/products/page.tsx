@@ -20,7 +20,8 @@ import {
   Layers,
   ArrowUpRight,
   Image as ImageIcon,
-  RefreshCw
+  RefreshCw,
+  Archive
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -54,37 +55,9 @@ export default function ProductsPage() {
   const fetchProducts = async () => {
     try {
       setIsLoading(true);
-      const res = await fetch("/api/v1/products/");
+      const res = await fetch("/api/v1/products/?include_inactive=true");
       const data = await res.json();
       let allProducts = Array.isArray(data) ? data : [];
-      // Filter out non-products (accessories, samples, merchandise, 0-price)
-      const nonProductKeywords = [
-        "образец", "образцы", "коробка", "короб", "добор", "наличник",
-        "стенд", "вывеска", "каталог", "буклет", "щит рекл",
-        "футболка", "стойка", "герметик", "защелка", "замок", "agb",
-        "ключ", "связка", "соединение", "соединитель", "петля",
-        "ноутбук", "эмблема", "шуруп", "тяга", "сумка", "стреч", "пленка",
-        "повербанк", "планшет", "подставка", "табличка", "рейка", "флаг", "холдер",
-        "установка", "станок", "жидкий",
-        "router", "роутер", "cpe",
-        "оперативная", "память", "мышь",
-      ];
-      allProducts = allProducts.filter((p: any) => {
-        const priceVal = Number(p.price_outlet || p.price || 0);
-        if (priceVal === 0 || priceVal === null || priceVal === undefined) return false;
-        const nameLower = (p.name || "").toLowerCase();
-        for (const kw of nonProductKeywords) {
-          if (nameLower.includes(kw)) return false;
-        }
-        if (nameLower.includes("полотно")) {
-          const brandLower = (p.brand || "").toLowerCase();
-          const isDoorBrand = ["волховец", "volkhovets", "zadoor", "portika", "profildoors", "filomuro"].some(
-            (b) => brandLower.includes(b)
-          );
-          if (!isDoorBrand) return false;
-        }
-        return true;
-      });
       setProducts(allProducts);
     } catch (error) {
       toast.error("Произошла ошибка: " + (error instanceof Error ? error.message : "Неизвестная ошибка"));
@@ -152,8 +125,42 @@ export default function ProductsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [productCategoryAttributes, setProductCategoryAttributes] = useState<any[]>([]);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [productToToggle, setProductToToggle] = useState<any | null>(null);
+  const [toggleActionType, setToggleActionType] = useState<"archive" | "activate" | null>(null);
+  const [isTogglingStatus, setIsTogglingStatus] = useState(false);
+
+  const handleToggleStatus = async () => {
+    if (!productToToggle) return;
+    const newStatus = productToToggle.is_active ? false : true;
+    try {
+      setIsTogglingStatus(true);
+      const res = await fetch(`/api/v1/products/${productToToggle.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_active: newStatus })
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setProducts(products.map(p => p.id === updated.id ? updated : p));
+        if (selectedProduct && selectedProduct.id === updated.id) {
+          setSelectedProduct(updated);
+        }
+        toast.success(newStatus ? "Товар активирован" : "Товар отправлен в архив");
+        setProductToToggle(null);
+        setToggleActionType(null);
+      } else {
+        toast.error("Не удалось изменить статус");
+      }
+    } catch (err) {
+      toast.error("Ошибка при изменении статуса");
+    } finally {
+      setIsTogglingStatus(false);
+    }
+  };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -188,11 +195,44 @@ export default function ProductsPage() {
     } else {
       document.body.style.overflow = 'unset';
       setIsEditing(false);
+      setProductCategoryAttributes([]);
     }
     return () => {
       document.body.style.overflow = 'unset';
     };
   }, [selectedProduct]);
+
+  useEffect(() => {
+    async function loadCategoryAttributes() {
+      if (!selectedProduct?.category_id) {
+        setProductCategoryAttributes([]);
+        return;
+      }
+      try {
+        const res = await fetch(`/api/v1/categories`);
+        if (res.ok) {
+          const allCats = await res.json();
+          const catMap = new Map(allCats.map((c: any) => [c.id, c]));
+          let currId = selectedProduct.category_id;
+          let foundAttrs: any[] = [];
+          const visited = new Set();
+          while (currId && !visited.has(currId)) {
+            visited.add(currId);
+            const cat: any = catMap.get(currId);
+            if (cat?.attributes?.length) {
+              foundAttrs = cat.attributes;
+              break;
+            }
+            currId = cat?.parent_id;
+          }
+          setProductCategoryAttributes(foundAttrs);
+        }
+      } catch (err) {
+        console.error("Failed to load category attributes:", err);
+      }
+    }
+    loadCategoryAttributes();
+  }, [selectedProduct?.category_id]);
 
   const handleUpdateProduct = async () => {
     if (!selectedProduct) return;
@@ -214,7 +254,9 @@ export default function ProductsPage() {
         category_id: editForm.category_id ? Number(editForm.category_id) : null,
         image_url: editForm.image_url || null,
         is_active: editForm.is_active !== undefined ? editForm.is_active : true,
+        specifications: editForm.specifications || null,
       };
+      console.log('[DEBUG] Saving payload:', JSON.stringify(payload, null, 2));
       const url = isNew ? '/api/v1/products' : `/api/v1/products/${selectedProduct.id}`;
       const method = isNew ? 'POST' : 'PATCH';
       const res = await fetch(url, {
@@ -278,9 +320,13 @@ export default function ProductsPage() {
   };
 
   const filteredProducts = products.filter(product => {
-    const matchesSearch = 
-      product.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      (product.sku && product.sku.toLowerCase().includes(searchQuery.toLowerCase()));
+    const searchTerms = searchQuery.toLowerCase().split(' ').filter(term => term.length > 0);
+    const productName = product.name.toLowerCase();
+    const productSku = product.sku ? product.sku.toLowerCase() : '';
+    
+    const matchesSearch = searchTerms.length === 0 || searchTerms.every(term => 
+      productName.includes(term) || productSku.includes(term)
+    );
     
     const matchesStatus = 
       statusFilter === "all" ? true :
@@ -587,8 +633,24 @@ export default function ProductsPage() {
                           <span className="text-[13px] font-black text-[#1a1f36]">{product.price.toLocaleString('ru-RU')} сум</span>
                         )}
                       </td>
-                      <td className="px-6 py-4 text-right">
-                        <ChevronRight className="w-4 h-4 text-[#e3e8ee] group-hover:text-[#2c3b6e] transition-colors ml-auto" />
+                      <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setProductToToggle(product);
+                              setToggleActionType(product.is_active ? "archive" : "activate");
+                            }}
+                            className={cn(
+                              "p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-slate-100",
+                              product.is_active ? "text-[#4f566b] hover:text-[#cd5c5c]" : "text-[#10b981] hover:text-[#10b981]/80"
+                            )}
+                            title={product.is_active ? "В архив" : "Активировать"}
+                          >
+                            <Archive className="w-3.5 h-3.5" />
+                          </button>
+                          <ChevronRight className="w-4 h-4 text-[#e3e8ee] group-hover:text-[#2c3b6e] transition-colors" />
+                        </div>
                       </td>
                     </motion.tr>
                   ))
@@ -688,12 +750,28 @@ export default function ProductsPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   {!isEditing && selectedProduct.id !== 'new' && (
-                    <button 
-                      onClick={() => setIsEditing(true)}
-                      className="p-2 hover:bg-[#f7f8f9] rounded-lg text-[#2c3b6e] transition-colors"
-                    >
-                      <Edit3 className="w-5 h-5" />
-                    </button>
+                    <>
+                      <button 
+                        onClick={() => {
+                          setProductToToggle(selectedProduct);
+                          setToggleActionType(selectedProduct.is_active ? "archive" : "activate");
+                        }}
+                        disabled={isSaving}
+                        className={cn(
+                          "p-2 hover:bg-[#f7f8f9] rounded-lg transition-colors",
+                          selectedProduct.is_active ? "text-[#4f566b] hover:text-[#cd5c5c]" : "text-[#10b981] hover:text-[#10b981]/80"
+                        )}
+                        title={selectedProduct.is_active ? "Архивировать товар" : "Активировать товар"}
+                      >
+                        <Archive className="w-5 h-5" />
+                      </button>
+                      <button 
+                        onClick={() => setIsEditing(true)}
+                        className="p-2 hover:bg-[#f7f8f9] rounded-lg text-[#2c3b6e] transition-colors"
+                      >
+                        <Edit3 className="w-5 h-5" />
+                      </button>
+                    </>
                   )}
                   <button onClick={() => setSelectedProduct(null)} disabled={isSaving} className="p-2 hover:bg-[#f7f8f9] rounded-lg transition-colors"><XCircle className="w-5 h-5 text-[#4f566b]" /></button>
                 </div>
@@ -862,6 +940,54 @@ export default function ProductsPage() {
                           </div>
                         </div>
 
+                        {/* Category Specifications */}
+                        {productCategoryAttributes.length > 0 && (
+                          <div className="space-y-3 p-4 bg-white border border-[#e3e8ee] rounded-xl">
+                            <p className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest">Характеристики категории</p>
+                            <div className="space-y-3">
+                              {productCategoryAttributes.map((attr: any, idx: number) => {
+                                const attrName = attr.name || attr;
+                                const currentSpecs = editForm.specifications || {};
+                                const value = currentSpecs[attrName] || "";
+                                const hasValues = Array.isArray(attr.values) && attr.values.length > 0;
+                                return (
+                                  <div key={idx}>
+                                    <label className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest mb-1.5 block">{attrName}</label>
+                                    {hasValues ? (
+                                      <select
+                                        value={value}
+                                        onChange={(e) => {
+                                          const nextSpecs = { ...currentSpecs, [attrName]: e.target.value };
+                                          console.log('[DEBUG] Select onChange:', attrName, '->', e.target.value, 'nextSpecs:', nextSpecs);
+                                          setEditForm({ ...editForm, specifications: nextSpecs });
+                                        }}
+                                        className="w-full px-4 py-2.5 bg-[#f7f8f9] border border-transparent focus:border-[#2c3b6e]/30 focus:bg-white rounded-xl text-[13px] font-medium text-[#1a1f36] outline-none transition-all"
+                                      >
+                                        <option value="">— Выберите —</option>
+                                        {attr.values.map((v: string) => (
+                                          <option key={v} value={v}>{v}</option>
+                                        ))}
+                                      </select>
+                                    ) : (
+                                      <input
+                                        type={attr.type === "number" ? "number" : "text"}
+                                        value={value}
+                                        onChange={(e) => {
+                                          const nextSpecs = { ...currentSpecs, [attrName]: e.target.value };
+                                          console.log('[DEBUG] Input onChange:', attrName, '->', e.target.value, 'nextSpecs:', nextSpecs);
+                                          setEditForm({ ...editForm, specifications: nextSpecs });
+                                        }}
+                                        placeholder={`Введите ${attrName.toLowerCase()}`}
+                                        className="w-full px-4 py-2.5 bg-[#f7f8f9] border border-transparent focus:border-[#2c3b6e]/30 focus:bg-white rounded-xl text-[13px] font-medium text-[#1a1f36] outline-none transition-all"
+                                      />
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
                         {/* Status Toggle */}
                         <div className="flex items-center justify-between p-4 bg-[#f7f8f9] rounded-2xl border border-[#e3e8ee]">
                           <div>
@@ -953,6 +1079,20 @@ export default function ProductsPage() {
                            <p className="text-[13px] font-bold text-[#1a1f36]">{selectedProduct.pack_size ? `${selectedProduct.pack_size} м²` : "—"}</p>
                         </div>
                      </div>
+
+                     {selectedProduct.specifications && Object.keys(selectedProduct.specifications).length > 0 && (
+                        <div className="pt-6 border-t border-[#e3e8ee]">
+                           <p className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest mb-4">Характеристики</p>
+                           <div className="grid grid-cols-2 gap-3">
+                              {Object.entries(selectedProduct.specifications).map(([key, val]: [string, any]) => (
+                                <div key={key} className="p-3 bg-[#f7f8f9] rounded-xl border border-[#e3e8ee]">
+                                   <p className="text-[10px] font-bold text-[#4f566b] uppercase tracking-widest mb-1">{key}</p>
+                                   <p className="text-[13px] font-bold text-[#1a1f36]">{val || "—"}</p>
+                                </div>
+                              ))}
+                           </div>
+                        </div>
+                     )}
 
                      {selectedProduct.description && (
                         <div className="pt-6 border-t border-[#e3e8ee]">
@@ -1051,6 +1191,66 @@ export default function ProductsPage() {
                 >
                   {isDeleting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                   Удалить
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      {/* Archive / Activate Confirmation Modal */}
+      <AnimatePresence>
+        {productToToggle && toggleActionType && (
+          <div className="fixed inset-0 z-[11000] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }}
+              onClick={() => { if (!isTogglingStatus) setProductToToggle(null); }}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-3xl p-8 max-w-sm w-full relative z-[11001] shadow-2xl text-center"
+            >
+              <div className={cn(
+                "w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6",
+                toggleActionType === "archive" ? "bg-amber-50" : "bg-emerald-50"
+              )}>
+                {toggleActionType === "archive" ? (
+                  <Archive className="w-10 h-10 text-amber-500" />
+                ) : (
+                  <CheckCircle2 className="w-10 h-10 text-emerald-500" />
+                )}
+              </div>
+              <h3 className="text-xl font-black text-slate-900 mb-2">
+                {toggleActionType === "archive" ? "Архивировать товар?" : "Активировать товар?"}
+              </h3>
+              <p className="text-sm text-slate-500 mb-8 font-medium">
+                {toggleActionType === "archive" 
+                  ? "Товар будет скрыт с сайта и перемещен во вкладку 'Архив'." 
+                  : "Товар снова будет отображаться на сайте во всех соответствующих категориях."}
+              </p>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <button 
+                  onClick={() => setProductToToggle(null)}
+                  disabled={isTogglingStatus}
+                  className="px-4 py-3 rounded-2xl bg-slate-100 text-slate-900 text-sm font-bold hover:bg-slate-200 transition-colors disabled:opacity-50"
+                >
+                  Отмена
+                </button>
+                <button 
+                  onClick={handleToggleStatus}
+                  disabled={isTogglingStatus}
+                  className={cn(
+                    "px-4 py-3 rounded-2xl text-white text-sm font-bold transition-colors flex items-center justify-center gap-2 disabled:opacity-50",
+                    toggleActionType === "archive" ? "bg-amber-500 hover:bg-amber-600" : "bg-emerald-500 hover:bg-emerald-600"
+                  )}
+                >
+                  {isTogglingStatus ? <RefreshCw className="w-4 h-4 animate-spin" /> : null}
+                  {toggleActionType === "archive" ? "Архивировать" : "Активировать"}
                 </button>
               </div>
             </motion.div>

@@ -5,9 +5,11 @@ from app.models.base import Base
 class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     full_name = Column(String, index=True)
-    email = Column(String, unique=True, index=True, nullable=False)
+    email = Column(String, unique=True, index=True, nullable=True)
+    phone = Column(String, index=True, nullable=True)
     hashed_password = Column(String, nullable=False)
     is_active = Column(Boolean(), default=True)
     is_superuser = Column(Boolean(), default=False)
     
     addresses = relationship("Address", back_populates="user", cascade="all, delete-orphan")
+    orders = relationship("Order", back_populates="user", cascade="all, delete-orphan")

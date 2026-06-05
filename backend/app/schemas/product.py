@@ -132,3 +132,4 @@ class Product(ProductBase):
 
 class ProductDetail(Product):
     description: Optional[str] = None
+    category_attributes: Optional[List[dict]] = None  # Category-level spec definitions

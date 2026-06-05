@@ -43,3 +43,27 @@ async def get_current_user(
     if not user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
     return user
+
+async def get_current_user_optional(
+    db: AsyncSession = Depends(get_db), token: str = Depends(OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/login/access-token", auto_error=False))
+) -> User | None:
+    if not token:
+        return None
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[security.ALGORITHM])
+        token_data = TokenPayload(**payload)
+        query = select(User).filter(User.id == int(token_data.sub))
+        result = await db.execute(query)
+        user = result.scalar_one_or_none()
+        if user and user.is_active:
+            return user
+    except:
+        pass
+    return None
+
+async def get_current_active_superuser(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    if not current_user.is_superuser:
+        raise HTTPException(status_code=400, detail="The user doesn't have enough privileges")
+    return current_user

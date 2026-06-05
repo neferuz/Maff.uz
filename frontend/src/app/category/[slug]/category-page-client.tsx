@@ -144,7 +144,7 @@ export default function CategoryPageClient() {
     async function fetchProducts() {
       try {
         setProductsLoading(true);
-        const prodRes = await fetch(`/api/v1/products/?category_id=${currentCategory.id}&t=${Date.now()}`, { cache: "no-store", headers: { "Cache-Control": "no-cache" } });
+        const prodRes = await fetch(`/api/v1/products/?category_id=${currentCategory.id}&group=true&t=${Date.now()}`, { cache: "no-store", headers: { "Cache-Control": "no-cache" } });
         if (prodRes.ok) {
           const prodData = await prodRes.json();
           let safeProducts = Array.isArray(prodData) ? prodData : [];
@@ -250,7 +250,8 @@ export default function CategoryPageClient() {
           ? (p.image_url.startsWith('http') 
               ? p.image_url 
               : `${p.image_url.startsWith('/') ? '' : '/'}${p.image_url}`)
-          : ""
+          : "",
+        images: p.images
       };
     });
   }, [filteredProducts, categories]);

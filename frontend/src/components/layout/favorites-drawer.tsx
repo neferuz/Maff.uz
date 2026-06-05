@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { X, Heart, ShoppingBag, Trash2, ArrowRight, Check } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, cleanNameFromDimensions } from "@/lib/utils";
 import { useShop } from "@/context/shop-context";
 
 export function FavoritesDrawer({ 
@@ -94,12 +94,16 @@ export function FavoritesDrawer({
              favorites.map((item) => (
                <div key={item.id} className="relative group flex gap-3 pb-4 border-b border-slate-50 dark:border-slate-800 last:border-0">
                   <div className="w-14 h-14 bg-[#f8f9fa] dark:bg-slate-800 rounded-xl overflow-hidden flex-shrink-0 border border-slate-100 dark:border-slate-700 relative">
-                      <Image src={item.image} alt={item.name || "Товар"} fill className="object-contain p-1.5" />
+                      {item.image ? (
+                        <Image src={item.image} alt={item.name || "Товар"} fill className="object-contain p-1.5" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-slate-300">No img</div>
+                      )}
                   </div>
                   <div className="flex-grow flex flex-col justify-between py-0.5">
                       <div>
                         <div className="flex items-start justify-between gap-2">
-                           <h4 className="text-[10px] font-black text-slate-900 dark:text-white uppercase tracking-tight leading-tight line-clamp-1">{item.name}</h4>
+                           <h4 className="text-[10px] font-black text-slate-900 dark:text-white uppercase tracking-tight leading-tight line-clamp-1">{cleanNameFromDimensions(item.name)}</h4>
                            <button onClick={() => removeFromFavorites(item.id)} className="text-slate-200 dark:text-slate-700 hover:text-red-500 transition-colors">
                               <Trash2 className="w-2.5 h-2.5" />
                            </button>

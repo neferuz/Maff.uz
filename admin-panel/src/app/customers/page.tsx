@@ -37,33 +37,33 @@ export default function CustomersPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchLeads = async () => {
+    const fetchUsers = async () => {
       try {
-        const response = await fetch("/api/v1/leads/");
+        const response = await fetch("/api/v1/users/");
         const data = await response.json();
         if (response.ok) {
-          // Map leads to customer format
-          const mapped = data.map((lead: any) => ({
-            id: `LEAD-${lead.id}`,
-            name: lead.name,
-            email: lead.subject || "No Email",
+          // Map users to customer format
+          const mapped = data.map((user: any) => ({
+            id: `USR-${user.id}`,
+            name: user.full_name || "Без имени",
+            email: user.email || "—",
             spent: "—",
             orders: 0,
-            lastVisit: new Date(lead.created_at).toLocaleDateString("ru-RU"),
-            status: lead.status === "new" ? "New" : lead.status === "contacted" ? "Active" : "Inactive",
-            phone: lead.phone,
-            location: lead.message ? lead.message.substring(0, 30) + "..." : "Нет сообщения"
+            lastVisit: "—",
+            status: user.is_active ? "Active" : "Inactive",
+            phone: user.phone || "—",
+            location: user.is_superuser ? "Админ" : "Пользователь сайта"
           }));
           setCustomers(mapped);
         }
       } catch (err) {
       toast.error("Произошла ошибка: " + (err instanceof Error ? err.message : "Неизвестная ошибка"));
-        console.error("Failed to fetch leads", err);
+        console.error("Failed to fetch users", err);
       } finally {
         setLoading(false);
       }
     };
-    fetchLeads();
+    fetchUsers();
   }, []);
 
   const filteredCustomers = customers.filter(customer => 

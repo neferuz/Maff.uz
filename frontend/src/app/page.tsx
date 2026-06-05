@@ -457,6 +457,7 @@ export default function Home() {
                       isPreorder={isPreorder}
                       orderLink={orderLink}
                       image={p.image_url || "/kam-idris-U39FPHKfDu0-unsplash.jpg"} 
+                      images={p.images}
                     />
                   );
                 })

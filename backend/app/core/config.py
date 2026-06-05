@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     CLAUDE_API_KEY: str
     CLAUDE_MODEL: str = "claude-sonnet-4-6"
 
-    model_config = SettingsConfigDict(case_sensitive=True, env_file=".env")
+    ESKIZ_EMAIL: Optional[str] = None
+    ESKIZ_PASSWORD: Optional[str] = None
+
+    model_config = SettingsConfigDict(case_sensitive=True, env_file=".env", extra="allow")
 
 settings = Settings()

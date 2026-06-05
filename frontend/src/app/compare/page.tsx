@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useShop } from "@/context/shop-context";
-import { cn } from "@/lib/utils";
+import { cn, cleanNameFromDimensions } from "@/lib/utils";
 
 export default function ComparePage() {
   const { compare, removeFromCompare, addToCart } = useShop();
@@ -100,7 +100,7 @@ export default function ComparePage() {
                 <div className="aspect-[4/3] rounded-xl overflow-hidden bg-white dark:bg-white/95 mb-4 border border-slate-50 dark:border-slate-800 relative">
                   <img src={product.image || "/placeholder.png"} alt={product.title} className="w-full h-full object-contain p-2 transition-transform duration-700 group-hover:scale-105" />
                 </div>
-                <h3 className="text-[10px] lg:text-[11px] font-black text-slate-900 dark:text-white uppercase tracking-tight mb-2 h-8 line-clamp-2 leading-tight">{product.title}</h3>
+                <h3 className="text-[10px] lg:text-[11px] font-black text-slate-900 dark:text-white uppercase tracking-tight mb-2 h-8 line-clamp-2 leading-tight">{cleanNameFromDimensions(product.title)}</h3>
                 <div className="text-base lg:text-lg font-black text-[#2c3b6e] dark:text-blue-400 mb-1">{formatPrice(product.price)} <span className="text-[9px] text-slate-300 dark:text-slate-600 uppercase tracking-widest font-bold">сум</span></div>
                 <p className="text-[8px] font-bold text-slate-300 dark:text-slate-600 uppercase tracking-widest mb-4">за м.кв.</p>
               </div>

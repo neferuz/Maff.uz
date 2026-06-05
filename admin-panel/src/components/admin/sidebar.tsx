@@ -8,6 +8,7 @@ import {
   Box, 
   ShoppingBag, 
   Users, 
+  Bot,
   Settings, 
   ChevronRight,
   LogOut,
@@ -36,6 +37,7 @@ const menuItems = [
     { label: "Категории", href: "/categories", icon: Layers },
     { label: "Товары", href: "/products", icon: Box },
     { label: "Клиенты", href: "/customers", icon: Users },
+    { label: "Бот пользователи", href: "/admin/bot-users", icon: Bot },
     { label: "Интеграции", href: "/integrations", icon: Zap },
   ]},
   { group: "Контент", items: [

@@ -72,8 +72,8 @@ function OutletContent() {
       try {
         setLoading(true);
         const url = selectedCategoryId
-          ? `/api/v1/products/?category_id=${selectedCategoryId}&t=${Date.now()}`
-          : `/api/v1/products/?limit=300&t=${Date.now()}`;
+          ? `/api/v1/products/?category_id=${selectedCategoryId}&group=true&t=${Date.now()}`
+          : `/api/v1/products/?limit=300&group=true&t=${Date.now()}`;
         const prodRes = await fetch(url, { cache: "no-store", headers: { "Cache-Control": "no-cache" } });
         const prodData = await prodRes.json();
         let safeProducts = Array.isArray(prodData) ? prodData : [];
@@ -198,6 +198,7 @@ function OutletContent() {
                 ? `${p.image_url}?v=3`
                 : `${p.image_url.startsWith('/') ? '' : '/'}${p.image_url}?v=3`)
             : "",
+          images: p.images,
           discount: p.price_outlet 
             ? `−${Math.round(((p.price - p.price_outlet) / p.price) * 100)}%` 
             : (p.price < 200000 ? "−20%" : "SALE")
@@ -307,7 +308,7 @@ function OutletContent() {
                       isActive ? "bg-[#2c3b6e] dark:bg-blue-400" : "bg-[#2c3b6e]/40 dark:bg-blue-400/40"
                     )} />
                   )}
-                  <span>{cat.name.replace(/\sMAFF$/i, '')}</span>
+                  <span>{cat.name.replace(/\sMAFF$/i, '').toUpperCase()}</span>
                 </div>
                 {hasChildren && (
                   <ChevronDown 

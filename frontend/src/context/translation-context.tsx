@@ -74,8 +74,6 @@ const RussianToKeyMap: Record<string, string> = {
   "Рекомендуем": "recommended_title",
   "Лучший выбор наших экспертов": "expert_choice",
   "Наши бренды": "our_brands",
-  "Категории": "categories_title",
-  "Смотреть всё": "show_all",
   "Перейти к выбору": "go_to_selection",
   "Смотреть товары": "view_products",
   "В этой категории пока нет товаров": "no_products_yet",

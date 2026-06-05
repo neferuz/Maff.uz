@@ -16,8 +16,13 @@ const nextConfig = {
         basePath: false,
       },
       {
-        source: '/static/uploads/:path*',
-        destination: 'https://maff.uz/static/uploads/:path*',
+        source: '/images/:path*',
+        destination: 'http://localhost:3000/images/:path*',
+        basePath: false,
+      },
+      {
+        source: '/upload/:path*',
+        destination: 'https://maff.uz/upload/:path*',
         basePath: false,
       },
       {

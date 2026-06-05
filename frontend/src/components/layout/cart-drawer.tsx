@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { X, ShoppingBag, Plus, Minus, Trash2, ArrowRight, AlertCircle } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, cleanNameFromDimensions } from "@/lib/utils";
 import { useShop } from "@/context/shop-context";
 
 export function CartDrawer({ 
@@ -106,7 +106,7 @@ export function CartDrawer({
                     </div>
                     <div className="flex-grow flex flex-col justify-between py-0.5">
                         <div>
-                          <h4 className="text-[10px] font-black text-slate-900 dark:text-white uppercase tracking-tight leading-tight line-clamp-1">{item.name}</h4>
+                          <h4 className="text-[10px] font-black text-slate-900 dark:text-white uppercase tracking-tight leading-tight line-clamp-1">{cleanNameFromDimensions(item.name)}</h4>
                           <p className="text-[8px] font-bold text-slate-300 dark:text-slate-500 uppercase tracking-widest mt-0.5">{item.variant}</p>
                         </div>
                         <div className="flex items-center justify-between">

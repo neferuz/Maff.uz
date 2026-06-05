@@ -169,7 +169,18 @@ BRANDS_MAP = {
     "ultrawood": ("Ultrawood", "США"),
     
     "ultradekor": ("Ultradekor", "Россия"),
-    "ультрадекор": ("Ultradekor", "Россия")
+    "ультрадекор": ("Ultradekor", "Россия"),
+    
+    "kronofloor": ("Kronofloor", "Польша"),
+    "кронофлор": ("Kronofloor", "Польша"),
+    "rocko": ("Rocko", "Польша"),
+    "рокко": ("Rocko", "Польша"),
+    
+    "sag": ("SAG", "Узбекистан"),
+    "саг": ("SAG", "Узбекистан"),
+    
+    "system": ("System", "Турция"),
+    "систем": ("System", "Турция"),
 }
 
 COUNTRIES_MAP = {
@@ -255,9 +266,21 @@ def parse_product_characteristics(name: str, category_brand: str = None, categor
         
     # 4. Thickness
     thickness = None
-    thickness_match = re.search(r'(?:^|\s|\()(\d+(?:\.5)?)\s*(?:мм|mm|x|х|\*)', name_lower)
-    if thickness_match:
-        thickness = thickness_match.group(1)
+    # First try: explicit thickness with unit (e.g. "4mm", "12мм", "5.5mm")
+    explicit_thick = re.search(r'(?:^|[\s\*xх×])(\d+(?:\.\d+)?)\s*(?:мм|mm)\b', name_lower)
+    if explicit_thick:
+        thickness = explicit_thick.group(1)
+    else:
+        # Fallback: dimension string like "630*126*4mm" — take the LAST number before mm/мм
+        dim_match = re.search(r'(\d+)\s*[xх\*×]\s*(\d+)\s*[xх\*×]\s*(\d+(?:\.\d+)?)\s*(?:мм|mm)?', name_lower)
+        if dim_match:
+            # The third number is typically the thickness
+            thickness = dim_match.group(3)
+        else:
+            # Simple pattern: standalone number before мм/mm
+            simple_match = re.search(r'(?:^|\s)(\d+(?:\.5)?)\s*(?:мм|mm)', name_lower)
+            if simple_match:
+                thickness = simple_match.group(1)
         
     # Apply collection fallbacks for grade and thickness if not found
     for coll_kw, (def_grade, def_thick) in COLLECTION_DEFAULTS.items():
@@ -287,10 +310,9 @@ def parse_product_characteristics(name: str, category_brand: str = None, categor
 def clean_door_name(name: str) -> str:
     if not name:
         return ""
-    # Remove three-dimensional sizes (e.g. 43х700х2000, 2300*600*40)
-    name = re.sub(r'\b\d+(?:\.\d+)?\s*[xх\*×]\s*\d+(?:\.\d+)?\s*[xх\*×]\s*\d+\b', '', name, flags=re.IGNORECASE)
-    # Remove two-dimensional sizes (e.g. 2000х800, 43*2600)
-    name = re.sub(r'\b\d+(?:\.\d+)?\s*[xх\*×]\s*\d+\b', '', name, flags=re.IGNORECASE)
+    # We DO NOT remove sizes here anymore, because the frontend needs them to build size variants!
+    # The frontend parseVariant function will automatically hide the sizes in the catalog.
+    
     # Clean up standalone dashes, commas, semicolons at the end of words or strings (but not parentheses!)
     name = re.sub(r'\s*[,;\-\s]+\s*(?=\s|$)', ' ', name)
     # Clean up empty brackets

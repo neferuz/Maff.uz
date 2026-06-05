@@ -5,5 +5,8 @@ from app.models.page import PageContent
 from app.models.lead import Lead
 from app.models.address import Address
 from app.models.translation import AutoTranslation
-# from app.models.order import Order
+from app.models.order import Order, OrderItem
 
+from .otp import OTP
+
+from .bot_user import BotUser

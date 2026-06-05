@@ -30,8 +30,6 @@ const NON_PRODUCT_KEYWORDS = [
 
 /** Check if a product is an actual sellable product (not accessory/sample/merchandise) */
 export function isRealProduct(p: any): boolean {
-  const priceVal = Number(p.price_outlet || p.price || 0);
-  if (priceVal === 0 || priceVal === null || priceVal === undefined) return false;
   const nameLower = (p.name || "").toLowerCase();
   for (const kw of NON_PRODUCT_KEYWORDS) {
     if (nameLower.includes(kw)) return false;
@@ -46,3 +44,30 @@ export function isRealProduct(p: any): boolean {
   }
   return true;
 }
+
+/** Clean size dimensions from user-facing names */
+export function cleanNameFromDimensions(name: string): string {
+  if (!name) return "";
+  let cleaned = name;
+
+  // 1. Remove 3D dimensions e.g. 35х600х2000 or 35x600x2000 (with optional space and mm/мм)
+  cleaned = cleaned.replace(/\b\d+(?:\.\d+)?\s*[xх\*×]\s*\d+(?:\.\d+)?\s*[xх\*×]\s*\d+(?:\.\d+)?(?:\s*(?:мм|mm|м|m))?/gi, "");
+
+  // 2. Remove 2D dimensions e.g. 35х600
+  cleaned = cleaned.replace(/\b\d+(?:\.\d+)?\s*[xх\*×]\s*\d+(?:\.\d+)?(?:\s*(?:мм|mm|м|m))?/gi, "");
+
+  // 3. Remove standalone dimension-like numbers with trailing star, e.g. 35*
+  cleaned = cleaned.replace(/\b\d+(?:\.\d+)?\s*\*+/g, "");
+
+  // Clean up punctuation, spaces, and empty parentheses left behind
+  cleaned = cleaned.replace(/\s*-\s*(?=\()/g, " "); // Replace dash before parens
+  cleaned = cleaned.replace(/\s*-\s*$/, ""); // Replace trailing dash
+  cleaned = cleaned.replace(/\s+/g, " ");
+  cleaned = cleaned.replace(/\(\s*\)/g, ""); // Remove empty parentheses
+  
+  cleaned = cleaned.trim();
+  cleaned = cleaned.replace(/^[,\-\s]+|[,\-\s]+$/g, ""); // Strip leading/trailing punctuation/spaces
+
+  return cleaned;
+}
+

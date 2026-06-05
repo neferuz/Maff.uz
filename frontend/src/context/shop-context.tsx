@@ -38,7 +38,7 @@ interface ShopContextType {
   compare: any[];
   user: User | null;
   notification: Notification | null;
-  addToCart: (item: Omit<CartItem, "quantity">) => void;
+  addToCart: (item: Omit<CartItem, "quantity">, quantity?: number) => void;
   removeFromCart: (id: number) => void;
   updateQuantity: (id: number, delta: number) => void;
   addToFavorites: (item: FavoriteItem) => void;
@@ -245,15 +245,15 @@ export function ShopProvider({ children }: { children: React.ReactNode }) {
     }, 3000);
   };
 
-  const addToCart = (product: Omit<CartItem, "quantity">) => {
+  const addToCart = (product: Omit<CartItem, "quantity">, quantity: number = 1) => {
     setCart(prev => {
       const existing = prev.find(item => item.id === product.id);
       if (existing) {
         return prev.map(item => 
-          item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+          item.id === product.id ? { ...item, quantity: item.quantity + quantity } : item
         );
       }
-      return [...prev, { ...product, quantity: 1 }];
+      return [...prev, { ...product, quantity: quantity }];
     });
     notify(`Добавлено в корзину: ${product.name || "Товар"}`);
   };

@@ -31,6 +31,7 @@ const mainNav = [
   { icon: Layers, label: "Категории", href: "/categories" },
   { icon: Box, label: "Товары", href: "/products" },
   { icon: Users, label: "Клиенты", href: "/customers" },
+  { icon: Users, label: "Бот пользователи", href: "/admin/bot-users" },
   { icon: Zap, label: "Интеграции", href: "/integrations" },
 ];
 

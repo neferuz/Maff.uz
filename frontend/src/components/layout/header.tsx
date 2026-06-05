@@ -14,7 +14,7 @@ const lucideMap: Record<string, any> = {
   PenTool, Pipette, Trees, Boxes, Warehouse, Smile, Heart, Sparkle, Gem
 };
 const categoryIcons = [Layers, LayoutGrid, Square, DoorOpen, Layout, Box, Shapes, Hammer, Wind, Sparkles];
-import { cn } from "@/lib/utils";
+import { cn, cleanNameFromDimensions } from "@/lib/utils";
 
 import { CartDrawer } from "./cart-drawer";
 import { FavoritesDrawer } from "./favorites-drawer";
@@ -195,7 +195,42 @@ export function Header() {
   const langDropdownRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const router = useRouter();
-  const user: any = null;
+  const [user, setUser] = useState<{ isLoggedIn: boolean, name: string } | null>(null);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    const name = localStorage.getItem("user_name");
+    
+    if (token) {
+      // For immediate UI update, we check if name exists in localStorage,
+      // otherwise fallback to fetching from API or just show default
+      setUser({ isLoggedIn: true, name: name || "Профиль" });
+      
+      const fetchUser = async () => {
+        try {
+          const res = await fetch("/api/v1/users/me", {
+             headers: { "Authorization": `Bearer ${token}` }
+          });
+          if (res.ok) {
+             const data = await res.json();
+             if (data.full_name) {
+               setUser({ isLoggedIn: true, name: data.full_name });
+               localStorage.setItem("user_name", data.full_name);
+             }
+          } else {
+             // Token invalid, clear it
+             localStorage.removeItem("token");
+             setUser({ isLoggedIn: false, name: "" });
+          }
+        } catch (e) {
+           console.error("Failed to fetch user in header", e);
+        }
+      };
+      fetchUser();
+    } else {
+      setUser({ isLoggedIn: false, name: "" });
+    }
+  }, [pathname]);
 
   const { locale: currentLang, changeLanguage, t } = useTranslation();
   const [isLangOpen, setIsLangOpen] = useState(false);
@@ -452,7 +487,7 @@ export function Header() {
                                     {item.image_url ? <img src={item.image_url} alt={item.name} className="w-full h-full object-cover transition-transform group-hover:scale-110" /> : <div className="w-full h-full flex items-center justify-center opacity-20"><ImageIcon className="w-4 h-4" /></div>}
                                  </div>
                                  <div className="flex-grow flex flex-col justify-center min-w-0">
-                                    <span className="text-[12px] font-bold text-slate-900 dark:text-white group-hover:text-[#2c3b6e] dark:group-hover:text-blue-400 transition-colors truncate">{item.name}</span>
+                                    <span className="text-[12px] font-bold text-slate-900 dark:text-white group-hover:text-[#2c3b6e] dark:group-hover:text-blue-400 transition-colors truncate">{cleanNameFromDimensions(item.name)}</span>
                                     <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tight truncate">
                                        <span className="notranslate" translate="no">{item.brand ? item.brand : ""}</span> {item.brand ? "• " : ""}<span className="notranslate" translate="no">{item.price?.toLocaleString()} сум</span>
                                     </span>
@@ -610,7 +645,7 @@ export function Header() {
                        <div className="w-8 h-8 flex-shrink-0 rounded-lg overflow-hidden flex items-center justify-center bg-slate-100 dark:bg-slate-800">
                          {renderCategoryIcon(cat)}
                        </div>
-                       {cat.title}
+                       {cat.title.toUpperCase()}
                      </Link>
                    ))}
                  </div>

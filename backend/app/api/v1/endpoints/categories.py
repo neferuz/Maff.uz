@@ -57,13 +57,59 @@ async def read_categories(
         
     # 5. Populate product_count for each category
     result = []
+    
+    EXCLUDED_IDS = {427, 449, 457, 464, 377, 143}
+    EXCLUDED_NAMES = {
+        "полотна на заказ",
+        "полотна horizont",
+        "полотна sense",
+        "horizont",
+        "sense",
+    }
+    
     for c in categories:
+        if not include_inactive and c.id in EXCLUDED_IDS:
+            continue
+            
+        name_lower = c.name.lower().strip()
+        if not include_inactive and name_lower in EXCLUDED_NAMES:
+            continue
+            
+        name_clean = c.name
+        parent_id_clean = c.parent_id
+        
+        if not include_inactive:
+            import re
+            # Clean Zadoor prefix
+            name_clean = re.sub(r'^(Полотна|Полотно)\s+', '', c.name, flags=re.IGNORECASE)
+            # Clean Volkhovets prefix
+            name_clean = re.sub(r'^Двери\s+Волховец\s+', '', name_clean, flags=re.IGNORECASE)
+            # Clean Portika suffix
+            name_clean = re.sub(r'\s*/\s*Двери\s*Мебель', '', name_clean, flags=re.IGNORECASE)
+            # Clean Handle prefixes
+            name_clean = re.sub(r'^Дверные\s+ручки\s+', '', name_clean, flags=re.IGNORECASE)
+            name_clean = re.sub(r'^Дверные\s+ограничители\s+', '', name_clean, flags=re.IGNORECASE)
+            
+            # Map Zadoor-S Classic to S-Classic
+            if name_clean == "Zadoor-S Classic":
+                name_clean = "S-Classic"
+            
+            # Bypass parent_id
+            if c.parent_id == 427:
+                parent_id_clean = 426
+            elif c.parent_id == 449:
+                parent_id_clean = 448
+            elif c.parent_id == 464:
+                parent_id_clean = 328
+            elif c.parent_id == 143:
+                parent_id_clean = 356
+                
         # We need to convert from SQLAlchemy model to Pydantic-compatible dict or object
         c_dict = {
             "id": c.id,
-            "name": c.name,
+            "name": name_clean,
             "ref_key": c.ref_key,
-            "parent_id": c.parent_id,
+            "parent_id": parent_id_clean,
             "description": c.description,
             "image_url": c.image_url,
             "product_count": get_total_count(c.id),

@@ -78,6 +78,7 @@ export default function CategoriesPage() {
   const [accProductResults, setAccProductResults] = useState<any[]>([]);
   const [isSearchingAccProducts, setIsSearchingAccProducts] = useState(false);
   const [loadedAccProducts, setLoadedAccProducts] = useState<any[]>([]);
+  const [showAttributesModal, setShowAttributesModal] = useState(false);
 
   const fetchCategories = async () => {
     try {
@@ -1174,66 +1175,20 @@ export default function CategoriesPage() {
 
                   {/* --- Category Attributes (Характеристики) --- */}
                   {selectedCategory.id !== 'new' && (
-                     <div className="space-y-4 p-4 bg-white border border-[#e3e8ee] rounded-xl">
-                        <div>
-                           <p className="text-[13px] font-bold text-[#1a1f36]">Характеристики категории</p>
-                           <p className="text-[10px] text-[#4f566b] mt-0.5">Настройте характеристики, которые будут отображаться у всех товаров этой категории.</p>
-                        </div>
-
-                        <div className="space-y-2 pt-3 border-t border-[#f7f8f9]">
-                           {/* Existing attributes */}
-                           <div className="space-y-1.5">
-                              {editAttributes.map((attr: any, idx: number) => (
-                                <div key={idx} className="flex items-center gap-2 p-2 bg-[#f7f8f9] border border-slate-100 rounded-lg">
-                                   <input
-                                     type="text"
-                                     placeholder="Название характеристики"
-                                     value={attr.name || ""}
-                                     onChange={(e) => {
-                                       const next = [...editAttributes];
-                                       next[idx] = { ...next[idx], name: e.target.value };
-                                       setEditAttributes(next);
-                                     }}
-                                     className="flex-1 px-2 py-1.5 bg-white border border-[#e3e8ee] rounded-lg text-[12px] font-medium text-[#1a1f36] outline-none focus:border-[#2c3b6e]/30"
-                                   />
-                                   <select
-                                     value={attr.type || "text"}
-                                     onChange={(e) => {
-                                       const next = [...editAttributes];
-                                       next[idx] = { ...next[idx], type: e.target.value };
-                                       setEditAttributes(next);
-                                     }}
-                                     className="px-2 py-1.5 bg-white border border-[#e3e8ee] rounded-lg text-[11px] font-medium text-[#1a1f36] outline-none focus:border-[#2c3b6e]/30 w-[110px]"
-                                   >
-                                      <option value="text">Текст</option>
-                                      <option value="number">Число</option>
-                                   </select>
-                                   <button
-                                     type="button"
-                                     onClick={() => {
-                                       const next = editAttributes.filter((_, i) => i !== idx);
-                                       setEditAttributes(next);
-                                     }}
-                                     className="text-red-500 hover:text-red-600 transition-colors p-1"
-                                   >
-                                      <Trash2 className="w-3.5 h-3.5" />
-                                   </button>
-                                </div>
-                              ))}
-                              {editAttributes.length === 0 && (
-                                <p className="text-[10px] text-slate-400 italic">Характеристики не добавлены</p>
-                              )}
+                     <div className="space-y-3 p-4 bg-white border border-[#e3e8ee] rounded-xl">
+                        <div className="flex items-center justify-between">
+                           <div>
+                              <p className="text-[13px] font-bold text-[#1a1f36]">Характеристики категории</p>
+                              <p className="text-[10px] text-[#4f566b] mt-0.5">
+                                 {editAttributes.length > 0 ? `${editAttributes.length} характеристик` : "Не настроены"}
+                              </p>
                            </div>
-
-                           {/* Add new attribute */}
                            <button
                              type="button"
-                             onClick={() => {
-                               setEditAttributes([...editAttributes, { name: "", type: "text" }]);
-                             }}
-                             className="w-full py-2 border border-dashed border-[#e3e8ee] hover:border-[#2c3b6e]/40 rounded-xl text-[11px] font-bold text-[#2c3b6e] hover:bg-[#2c3b6e]/5 transition-all"
+                             onClick={() => setShowAttributesModal(true)}
+                             className="px-3 py-1.5 text-[11px] font-bold text-[#2c3b6e] bg-[#2c3b6e]/5 border border-[#2c3b6e]/20 rounded-lg hover:bg-[#2c3b6e]/10 transition-all"
                            >
-                              + Добавить характеристику
+                              Настроить
                            </button>
                         </div>
                      </div>
@@ -1540,6 +1495,116 @@ export default function CategoriesPage() {
                   )}
                 >
                   {isDeleting ? "Сохранение..." : (categoryToArchive.is_active !== false ? "В архив" : "Восстановить")}
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Category Attributes Modal */}
+      <AnimatePresence>
+        {showAttributesModal && (
+          <>
+            <motion.div
+              key="attr-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowAttributesModal(false)}
+              className="fixed inset-0 w-screen h-screen bg-slate-900/40 backdrop-blur-sm z-[20000]"
+            />
+            <motion.div
+              key="attr-modal"
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white border border-[#e3e8ee] z-[20001] rounded-2xl shadow-2xl p-6 text-left flex flex-col gap-4 max-h-[80vh]"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-[16px] font-bold text-[#1a1f36]">Характеристики категории</h3>
+                  <p className="text-[12px] text-[#4f566b] mt-0.5">Настройте характеристики, которые будут отображаться у всех товаров этой категории.</p>
+                </div>
+                <button onClick={() => setShowAttributesModal(false)} className="p-2 hover:bg-[#f7f8f9] rounded-lg transition-colors">
+                  <XCircle className="w-5 h-5 text-[#4f566b]" />
+                </button>
+              </div>
+
+              <div className="space-y-3 overflow-y-auto pr-1">
+                {editAttributes.map((attr: any, idx: number) => (
+                  <div key={idx} className="p-3 bg-[#f7f8f9] border border-slate-100 rounded-lg space-y-2">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        placeholder="Название характеристики"
+                        value={attr.name || ""}
+                        onChange={(e) => {
+                          const next = [...editAttributes];
+                          next[idx] = { ...next[idx], name: e.target.value };
+                          setEditAttributes(next);
+                        }}
+                        className="flex-1 px-2 py-1.5 bg-white border border-[#e3e8ee] rounded-lg text-[12px] font-medium text-[#1a1f36] outline-none focus:border-[#2c3b6e]/30"
+                      />
+                      <select
+                        value={attr.type || "text"}
+                        onChange={(e) => {
+                          const next = [...editAttributes];
+                          next[idx] = { ...next[idx], type: e.target.value };
+                          setEditAttributes(next);
+                        }}
+                        className="px-2 py-1.5 bg-white border border-[#e3e8ee] rounded-lg text-[11px] font-medium text-[#1a1f36] outline-none focus:border-[#2c3b6e]/30 w-[110px]"
+                      >
+                        <option value="text">Текст</option>
+                        <option value="number">Число</option>
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = editAttributes.filter((_, i) => i !== idx);
+                          setEditAttributes(next);
+                        }}
+                        className="text-red-500 hover:text-red-600 transition-colors p-1"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Варианты значений через запятую (необязательно)"
+                      value={Array.isArray(attr.values) ? attr.values.join(", ") : ""}
+                      onChange={(e) => {
+                        const next = [...editAttributes];
+                        const val = e.target.value.trim();
+                        next[idx] = { ...next[idx], values: val ? val.split(",").map((v) => v.trim()).filter(Boolean) : [] };
+                        setEditAttributes(next);
+                      }}
+                      className="w-full px-2 py-1.5 bg-white border border-[#e3e8ee] rounded-lg text-[11px] font-medium text-[#1a1f36] outline-none focus:border-[#2c3b6e]/30"
+                    />
+                  </div>
+                ))}
+                {editAttributes.length === 0 && (
+                  <p className="text-[12px] text-slate-400 italic text-center py-4">Характеристики не добавлены</p>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setEditAttributes([...editAttributes, { name: "", type: "text", values: [] }]);
+                }}
+                className="w-full py-2.5 border border-dashed border-[#e3e8ee] hover:border-[#2c3b6e]/40 rounded-xl text-[12px] font-bold text-[#2c3b6e] hover:bg-[#2c3b6e]/5 transition-all"
+              >
+                + Добавить характеристику
+              </button>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#f7f8f9]">
+                <button
+                  onClick={() => setShowAttributesModal(false)}
+                  className="px-4 py-2 border border-[#e3e8ee] hover:bg-[#f7f8f9] rounded-lg text-[13px] font-bold text-[#4f566b] transition-all no-shadow"
+                >
+                  Готово
                 </button>
               </div>
             </motion.div>

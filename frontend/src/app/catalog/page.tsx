@@ -1131,30 +1131,42 @@ function CatalogContent() {
 
             {/* Grid list of Products */}
             {!loading && currentProducts.length === 0 ? (
-              <div className="flex flex-col items-center justify-center text-center py-16 px-4 bg-slate-50 dark:bg-slate-950/40 rounded-3xl border border-slate-100 dark:border-white/5 space-y-5">
-                <div className="w-14 h-14 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-2xl flex items-center justify-center">
-                  <Box className="w-6 h-6 opacity-80" />
-                </div>
-                <div className="space-y-1.5 max-w-xs">
-                  <h3 className="text-[11px] font-black text-slate-900 dark:text-white uppercase tracking-widest">Товары не найдены</h3>
-                  <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold leading-normal uppercase tracking-wide opacity-80">
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.5, ease: "easeOut" }}
+                className="flex flex-col items-center justify-center text-center py-20 px-4 bg-slate-50/50 dark:bg-slate-900/30 rounded-[2rem] border border-slate-100 dark:border-white/5 space-y-6"
+              >
+                <motion.div 
+                  initial={{ rotate: -10, y: 10 }}
+                  animate={{ rotate: 0, y: 0 }}
+                  transition={{ type: "spring", stiffness: 200, damping: 12, delay: 0.1 }}
+                  className="w-20 h-20 bg-white dark:bg-slate-800 text-slate-400 dark:text-slate-500 rounded-3xl flex items-center justify-center shadow-lg shadow-slate-200/50 dark:shadow-none border border-slate-100 dark:border-white/5"
+                >
+                  <Box className="w-10 h-10 opacity-80 text-[#2c3b6e] dark:text-blue-500" />
+                </motion.div>
+                <div className="space-y-2 max-w-sm">
+                  <h3 className="text-sm lg:text-base font-black text-slate-900 dark:text-white uppercase tracking-widest">Товары не найдены</h3>
+                  <p className="text-[10px] lg:text-xs text-slate-500 dark:text-slate-400 font-bold leading-relaxed uppercase tracking-widest opacity-80">
                     Пожалуйста, сбросьте фильтры или выберите другую подкатегорию в меню.
                   </p>
                 </div>
                 {(activeFilters.length > 0 || selectedThicknesses.length > 0 || selectedSizes.length > 0) && (
-                  <button 
+                  <motion.button 
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                     onClick={() => {
                       setActiveFilters([]);
                       setSelectedThicknesses([]);
                       setSelectedSizes([]);
                       setCurrentPage(1);
                     }}
-                    className="px-6 py-2.5 bg-[#2c3b6e] dark:bg-blue-600 text-white rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-slate-900 dark:hover:bg-blue-500 transition-colors"
+                    className="mt-2 px-8 py-3 bg-[#2c3b6e] dark:bg-blue-500 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-[#1a2342] dark:hover:bg-blue-600 transition-colors shadow-md shadow-[#2c3b6e]/20 dark:shadow-blue-500/20"
                   >
-                    Сбросить все фильтры
-                  </button>
+                    Сбросить фильтры
+                  </motion.button>
                 )}
-              </div>
+              </motion.div>
             ) : (
               <AnimatePresence mode="wait">
                 <motion.div

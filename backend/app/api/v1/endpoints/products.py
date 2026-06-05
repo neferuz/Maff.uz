@@ -9,6 +9,144 @@ from app.utils.sanitizer import parse_product_characteristics, BRANDS_MAP, clean
 
 router = APIRouter()
 
+def get_base_model_name(name: str) -> str:
+    import re
+    if not name:
+        return ""
+    
+    # 1. Handle products path
+    name_lower = name.lower()
+    is_handle = any(kw in name_lower for kw in ["ручк", "ручка", "ручки", "петли", "ограничител"])
+    
+    if is_handle:
+        name_lower = name_lower.replace("k.sl.fly", "fly sl")
+        name_lower = name_lower.replace("bk6 tl", "blade tl")
+        
+        known_models = [
+            "pixar-l", "pixar l", "axel-l", "axel l", "agate", "mimas", "metis", "concordia", "sarp", "marvel", 
+            "akik", "atlas", "aten", "despina", "odin", "zetta", "gamma", "vega", "sinus", 
+            "rocca", "prizma", "rodin", "rocket", "spinal", "maja", "carme", "linear", 
+            "stark", "jasper", "vision", "libra", "blade tl", "blade-tl", "fly sl", "fly-sl", "columba", 
+            "wave urs", "wave-urs", "wave", "stimul", "wc-bolt", "agb 1367", "agb 1593", "agb 1625", 
+            "agb 1727", "agb 815", "agb 820", "agb 821", "agb 827", "agb 849", "agb 850", 
+            "agb 851", "agb 873", "agb 874", "agb 899", "agb 906", "agb 913", "agb 914", 
+            "agb 915", "agb 928", "agb 929", "agb 944", "agb 949", "agb 950", "agb 951", 
+            "agb 952", "agb 953", "agb 959", "agb 811", "sx 713", "sx 804", "sx 806",
+            "а14-1162", "а32-1771", "а32-1727", "a14-1593", "a32-1625", "columba",
+            "mori", "neo", "sample", "spline jk", "ultra jk", "aqua urs", "aqua-urs", "aqua"
+        ]
+        known_models = sorted(known_models, key=lambda x: -len(x))
+        
+        for model in known_models:
+            pattern = r'\b' + re.escape(model) + r'\b'
+            if re.search(pattern, name_lower):
+                if model in ["pixar-l", "pixar l", "axel-l", "axel l", "agate", "mimas", "metis", "concordia", "sarp", 
+                             "marvel", "akik", "atlas", "aten", "despina", "odin", "zetta", "gamma", 
+                             "vega", "sinus", "rocca", "prizma", "rodin", "rocket", "spinal", "maja", 
+                             "carme", "linear", "stark", "jasper", "vision", "libra"]:
+                    normalized_model = model.replace("-", " ")
+                    capitalized_model = " ".join(w.capitalize() for w in normalized_model.split())
+                    return f"System {capitalized_model}"
+                elif model.startswith("agb ") or model.startswith("sx "):
+                    return model.upper()
+                else:
+                    return " ".join(w.capitalize() for w in model.split())
+
+    # 2. General/Door products path
+    cleaned = name
+    
+    # 1. Normalize brand names and helper tags first
+    for tag in ["Zadoor-S Classic", "S Classic", "Zadoor", "Portika", "Volkhovets", "Волховец", "Filomuro", "Art-Lite", "ArtКлассик", "АртКлассик"]:
+        cleaned = re.sub(re.escape(tag), "", cleaned, flags=re.IGNORECASE)
+        
+    # Clean showroom / stand / sample tags
+    tags_to_remove = [
+        r"\(Образец\)", r"Образец", r"СТЕНД", r"Стенд", r"ДРУЖБА", 
+        r"ПАРКЕНТ ДВЕРИ", r"ПАРКЕНТ", r"Стенд слева", r"Стенд справа", 
+        r"слева", r"справа", r"Дверное полотно", r"Стоевая", r"\(для полотна\)"
+    ]
+    for tag in tags_to_remove:
+        cleaned = re.sub(tag, "", cleaned, flags=re.IGNORECASE)
+        
+    cleaned = re.sub(r'\b(ПО|ПГ|ПГО)\b', '', cleaned, flags=re.IGNORECASE)
+    
+    # Normalize ПТА-50 to -50
+    cleaned = re.sub(r'ПТА-(\d+)', r'-\1', cleaned, flags=re.IGNORECASE)
+    # Strip letters after numbers e.g. 50G -> 50
+    cleaned = re.sub(r'\b(\d+)[A-Z]\b', r'\1', cleaned)
+    # Normalize space around dashes e.g. "Порта -50" -> "Порта-50"
+    cleaned = re.sub(r'\s*-\s*(\d+)', r'-\1', cleaned)
+    
+    # 2. Truncate at variant/color/size/technical details
+    triggers = [
+        r'\b\d+A[A-Z]\b',
+        r'\b[B-Z]\s+ПП\b',
+        r'\b[B-Z]\b',
+        r'\b\d+(?:\.\d+)?\s*[xх\*×]\s*\d+(?:\.\d+)?\s*[xх\*×]\s*\d+\b', # 3D dimensions
+        r'\b\d+(?:\.\d+)?\s*[xх\*×]\s*\d+(?:\.\d+)?\b',                 # 2D dimensions
+        r'\b(400|600|700|800|900)\b',
+        r'\(',
+        r'\bALU\b',
+        r'Revers|Реверс',
+        r'с четвертью|с четв\.|четвертью',
+        r'под покраску|под покр',
+        r'\bПП\b',
+        r'\bФлекс\b',
+        r'\bЭмаль\b',
+        r'\bЭксимер\b',
+        r'\bЭко\b',
+        r'\bЭКО\b',
+        r'\bЭкошпон\b',
+        r'\bШпон\b',
+        r'\bГрунт\b',
+        r'\bЗеркало\b',
+        r'левая|правая|\bлев\b|\bправ\b',
+        r'с врезкой|\bс\s+вр\b|без врезки',
+        r'сатинато|прозрач',
+        r'RAL\s+\d+',
+        r'\bTopan\b',
+        r'\bToppan\b'
+    ]
+    
+    earliest_idx = len(cleaned)
+    for trig in triggers:
+        match = re.search(trig, cleaned, re.IGNORECASE)
+        if match and match.start() < earliest_idx:
+            earliest_idx = match.start()
+            
+    # Check known color triggers
+    known_colors = [
+        "Белый матовый", "Серый матовый", "Матовый графит", "Матовый кремовый",
+        "Нордик", "Орех карамель", "Жемчужно-перламутровый", "Беленый дуб",
+        "Дуб темный", "Дуб темный продольный", "Дуб натуральный", "Дуб натуральный продольный",
+        "Alaska", "Grey Oak", "Natural Oak", "White Oak", "Молочный матовый", "Графит премьер мат",
+        "Тёмный лён", "Бетон светлый", "Светлый лён", "Сканди", "Бетон тёмный", "Бренди",
+        "Светло-серый", "Оливковый", "Белая эмаль", "Бежевый", "Мелон", "Милано", "Венге",
+        "Итальянский орех", "Жасмин белый", "Белый шелк", "Тёмно-серый", "Кофе", "Антрацит", "Хром", "Черный", "Черный лакобель",
+        "Ламинатин Белый", "Keramik Beige", "Keramik Brown", "Ice", "Милквуд", "Опал", "Айвори", "Стоун", "Дэним", "Шэдоу",
+        "Белый", "Серый", "Кремовый", "Меланж", "Светлый кунжут", "Темный кунжут", "Песочный матовый", "Дарквуд", "Дарк Вуд"
+    ]
+    sorted_colors = sorted(known_colors, key=lambda x: -len(x))
+    # Normalize ё->е so colors like "Бетон тёмный" match "Бетон темный" (1:1 char swap keeps indices aligned)
+    cleaned_norm = cleaned.replace("ё", "е").replace("Ё", "Е")
+    for c in sorted_colors:
+        escaped_c = re.escape(c.replace("ё", "е").replace("Ё", "Е"))
+        reg = r"(?:^|[^а-яa-z0-9])" + escaped_c + r"(?:$|[^а-яa-z0-9])"
+        match = re.search(reg, cleaned_norm, re.IGNORECASE)
+        if match and match.start() < earliest_idx:
+            earliest_idx = match.start()
+            
+    cleaned = cleaned[:earliest_idx]
+    
+    cleaned = re.sub(r'Английская классика 2|АК2|АК 2|АК-2', 'Английская классика', cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r'\bАК\b', 'Английская классика', cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r'\bА\s+К\b', 'Английская классика', cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r'(-?\d+)\.\d+', r'\1', cleaned)
+    
+    cleaned = re.sub(r'\s+', ' ', cleaned)
+    cleaned = cleaned.strip().strip(",;-#().")
+    return cleaned
+
 @router.get("", response_model=List[Product])
 async def read_products(
     request: Request,
@@ -18,6 +156,7 @@ async def read_products(
     category_id: int = None,
     q: str = None,
     include_inactive: bool = False,
+    group: bool = False,
 ) -> Any:
     """
     Retrieve products.
@@ -29,10 +168,18 @@ async def read_products(
     query = select(ProductModel).options(defer(ProductModel.description))
     
     if q:
-        query = query.filter(
-            (ProductModel.name.ilike(f"%{q}%")) | 
-            (ProductModel.brand.ilike(f"%{q}%"))
-        )
+        from sqlalchemy import and_, or_
+        terms = [t for t in q.split() if t]
+        if terms:
+            conditions = []
+            for term in terms:
+                conditions.append(
+                    or_(
+                        ProductModel.name.ilike(f"%{term}%"),
+                        ProductModel.brand.ilike(f"%{term}%")
+                    )
+                )
+            query = query.filter(and_(*conditions))
     elif category_id:
         from app.models.product import Category as CategoryModel
         cat_result = await db.execute(select(CategoryModel))
@@ -54,6 +201,79 @@ async def read_products(
     result = await db.execute(query.offset(skip).limit(limit))
     products = result.scalars().all()
     
+    # Detach instances and remap excluded category IDs to their bypassed ancestors
+    from sqlalchemy.orm import make_transient
+    for p in products:
+        make_transient(p)
+        if p.category_id in (449, 457):
+            p.category_id = 448
+        elif p.category_id == 427:
+            p.category_id = 426
+        elif p.category_id == 464:
+            p.category_id = 328
+        elif p.category_id in (143, 377):
+            p.category_id = 356
+            
+    if group:
+        # Load all categories to walk the parent chain
+        from app.models.product import Category as CategoryModel
+        try:
+            _ = all_cats
+        except NameError:
+            cat_result = await db.execute(select(CategoryModel))
+            all_cats = cat_result.scalars().all()
+            
+        def is_under_doors_or_handles(cid: int) -> bool:
+            visited = set()
+            current_id = cid
+            while current_id and current_id not in visited:
+                if current_id in (174, 356):
+                    return True
+                visited.add(current_id)
+                parent = next((c for c in all_cats if c.id == current_id), None)
+                if not parent:
+                    return False
+                if parent.parent_id in (174, 356):
+                    return True
+                current_id = parent.parent_id
+            return False
+
+        def is_placeholder_url(url: str) -> bool:
+            if not url:
+                return True
+            url_lower = url.lower()
+            return "placeholder" in url_lower or "порта-51" in url_lower
+
+        grouped = {}
+        non_grouped = []
+        
+        for p in products:
+            if is_under_doors_or_handles(p.category_id):
+                base_name = get_base_model_name(p.name).lower().strip()
+                if not base_name:
+                    base_name = p.name.lower().strip()
+                if base_name not in grouped:
+                    grouped[base_name] = p
+                else:
+                    existing = grouped[base_name]
+                    existing_has_real = bool(existing.image_url) and not is_placeholder_url(existing.image_url)
+                    current_has_real = bool(p.image_url) and not is_placeholder_url(p.image_url)
+                    
+                    if not existing_has_real and current_has_real:
+                        grouped[base_name] = p
+                    elif existing_has_real == current_has_real:
+                        existing_has_any = bool(existing.image_url)
+                        current_has_any = bool(p.image_url)
+                        if not existing_has_any and current_has_any:
+                            grouped[base_name] = p
+                        elif existing_has_any == current_has_any:
+                            if p.stock > 0 and existing.stock <= 0:
+                                grouped[base_name] = p
+            else:
+                non_grouped.append(p)
+                
+        products = list(grouped.values()) + non_grouped
+        
     from app.services.translation import get_locale_from_request, get_translations_bulk
     from app.core.config import settings
     lang = get_locale_from_request(request)
@@ -204,20 +424,50 @@ async def read_product(
     product = await product_crud.get(db, id=id)
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
-        
+
+    # Load category attributes for this product (inherit from parents if empty)
+    category_attributes = None
+    if product.category_id:
+        # Fetch all categories to walk the tree
+        all_cats = await category_crud.get_multi(db, limit=1000)
+        cat_map = {c.id: c for c in all_cats}
+        curr_id = product.category_id
+        visited = set()
+        while curr_id and curr_id not in visited:
+            visited.add(curr_id)
+            cat = cat_map.get(curr_id)
+            if cat and cat.attributes:
+                category_attributes = cat.attributes
+                break
+            curr_id = cat.parent_id if cat else None
+    # Attach dynamically so Pydantic picks it up
+    product.category_attributes = category_attributes
+
+    # Detach instance and remap excluded category IDs to their bypassed ancestors
+    from sqlalchemy.orm import make_transient
+    make_transient(product)
+    if product.category_id in (449, 457):
+        product.category_id = 448
+    elif product.category_id == 427:
+        product.category_id = 426
+    elif product.category_id == 464:
+        product.category_id = 328
+    elif product.category_id in (143, 377):
+        product.category_id = 356
+
     from app.services.translation import get_locale_from_request, get_translations_bulk
     from app.core.config import settings
     lang = get_locale_from_request(request)
     if lang and lang != "ru":
         await get_translations_bulk(
-            db, 
-            "product", 
-            [product], 
-            ["name", "description", "unit", "brand", "country", "grade", "thickness"], 
-            lang, 
+            db,
+            "product",
+            [product],
+            ["name", "description", "unit", "brand", "country", "grade", "thickness"],
+            lang,
             settings.CLAUDE_API_KEY
         )
-        
+
     return product
 
 @router.post("/sync")
@@ -236,6 +486,101 @@ async def sync_products(
             
     background_tasks.add_task(run_sync)
     return {"status": "success", "message": "Синхронизация запущена в фоновом режиме"}
+
+
+VOLKHOVETS_NON_DOOR_IDS = [
+    2423, 2560, 4901, 4954, 2422, 2353, 4253, 5018, 2815, 2816,
+    2157, 4348, 2366, 5420, 5421, 6421, 1330, 2403, 4252, 2774
+]
+
+def extract_volkhovets_group_key(name: str):
+    import re
+    # 1. Extract model
+    model_match = re.search(r'\b(\d{4}(?:\.\d)?|\d{4}/\d{4})\b', name)
+    model = model_match.group(1) if model_match else "UNKNOWN"
+    
+    # 2. Extract collection
+    collection = "Planum"
+    name_lower = name.lower()
+    for coll in ['rocca', 'wall-door', 'toscana', 'palazzo', 'plano', 'mascot', 'galant', 'paris', 'centro', 'charm', 'neo', 'linea', 'antique', 'esse', 'formato', 'freedom', 'imperial', 'lignum', 'rift', 'velvet']:
+        if coll in name_lower:
+            collection = coll.capitalize()
+            break
+            
+    # 3. Extract color/finish
+    # If the name has parentheses, extract from inside parentheses
+    paren_match = re.search(r'\((.+?)\)', name)
+    if paren_match:
+        color_raw = paren_match.group(1)
+    else:
+        # Otherwise, clean the name string to get the color
+        color_raw = name
+        # Remove model and collection
+        if model != "UNKNOWN":
+            color_raw = color_raw.replace(model, "")
+        color_raw = re.sub(collection, "", color_raw, flags=re.IGNORECASE)
+        # Remove common door keywords
+        stop_words = [
+            "полотно", "дверь", "дв.", "дв", "волнохвец", "волховец", "образец", "левое", "правое",
+            "ответное", "универсальное", "уни", "врезка", "тип", "петли", "петли.", "петлей",
+            "петля", "без", "врезки", "с", "увс", "нестд", "обратное", "открывание", "открыв.",
+            "открывания", "ал.кром.", "ал.кр", "алю", "кр.", "коробка", "комплект", "отк."
+        ]
+        for sw in stop_words:
+            color_raw = re.sub(rf'\b{sw}\b', "", color_raw, flags=re.IGNORECASE)
+            
+    # 4. Clean up color_raw from dimensions, prep and opening tags
+    color_clean = re.sub(r'\b\d+\s+\d+\b', '', color_raw)
+    color_clean = re.sub(r'\b\d+[\*xх×]\d+\b', '', color_clean)
+    color_clean = re.sub(r'\b(вр|отв|откр|лев|прав|петл|пет|обрат\s*открыв|открыв|ответ|нестандартн|универ|врез|тип\s*\d+|врезка)\b', '', color_clean, flags=re.IGNORECASE)
+    color_clean = re.sub(r'[\.]', ' ', color_clean)
+    color_clean = re.sub(r'[\,\@\#\$\%\^\&\*\(\)\_\+\=\[\]\{\}\;\:\'\"\\\|\<\>\/\?]', ' ', color_clean)
+    color_clean = re.sub(r'\s+', ' ', color_clean).strip()
+    color_clean = re.sub(r'^\d+\s+', '', color_clean)
+    
+    if color_clean:
+        color_clean = color_clean[0].upper() + color_clean[1:]
+    else:
+        color_clean = "Под окраску"
+        
+    return model, collection, color_clean
+
+def parse_volkhovets_options(name: str):
+    import re
+    name_lower = name.lower()
+    
+    # Opening options
+    opening = None
+    if "левое обратное" in name_lower or "левое обрат" in name_lower:
+        opening = "Левое (обратное открывание)"
+    elif "правое обратное" in name_lower or "правое обрат" in name_lower:
+        opening = "Правое (обратное открывание)"
+    elif "левое" in name_lower or " лев " in name_lower or " лев." in name_lower:
+        opening = "Левое"
+    elif "правое" in name_lower or " прав " in name_lower or " прав." in name_lower:
+        opening = "Правое"
+    elif "универсальное" in name_lower or "уни" in name_lower or "универс" in name_lower:
+        opening = "Универсальное"
+        
+    # Hinges options
+    hinges = None
+    hinge_match = re.search(r'(\d+)\s+пет[лльеиу]', name_lower)
+    if hinge_match:
+        hinges = f"{hinge_match.group(1)} петли"
+        
+    # Prep options
+    prep = None
+    if "без врезки" in name_lower:
+        prep = "Без врезки"
+    elif "врезка тип 1" in name_lower or "вр. тип 1" in name_lower or "вр.тип 1" in name_lower or "вр тип 1" in name_lower or "тип 1" in name_lower:
+        prep = "Под петли и замок (Тип 1)"
+    elif "врезка тип 6" in name_lower or "вр. тип 6" in name_lower or "вр.тип 6" in name_lower or "вр тип 6" in name_lower or "тип 6" in name_lower:
+        prep = "Под петли и замок (Тип 6)"
+    elif "врезка тип 8" in name_lower or "вр. тип 8" in name_lower or "вр.тип 8" in name_lower or "вр тип 8" in name_lower or "тип 8" in name_lower:
+        prep = "Под петли и замок (Тип 8)"
+        
+    return opening, hinges, prep
+
 
 async def perform_sync(db: AsyncSession):
     # 1. Fetch from 1C (looping through all products)
@@ -487,197 +832,192 @@ async def perform_sync(db: AsyncSession):
                 if not category_id or category_id == 101:
                     category_id = 397
         
+        is_handle_or_fitting = any(kw in name_upper for kw in [
+            'РУЧК', 'РУЧКА', 'РУЧКИ', 'ПЕТЛИ', 'ОГРАНИЧИТЕЛ', 'ЗАВЕРТК', 'ПЕТЛЯ'
+        ])
+        has_sp_prefix = any(kw in name_upper for kw in ['SP51', 'SP57', 'SP64', 'SP66', 'SP63', 'SP67'])
+
         # Override for Door products: map to specific leaf collections instead of Zadoor or None
         is_door = any(kw in name_upper for kw in [
             'ПОЛОТНО', 'ДВЕРЬ', 'ДВЕРН', 'КОРОБ', 'НАЛИЧНИК', 'ДОБОР', 'СТОЕВ', 'ПРИТВОРН',
             'ФАЛЬШ-ФРАМУГА', 'СТОЙКИ ДЛЯ ДВЕРЕЙ', 'ФРАМУГА', 'FILOMURO', 'КВАДРО', 
-            'ВЕНЕЦИЯ', 'НЕАПОЛЬ', 'ТУРИН', 'ПОРТА', 'ZADOOR', 'PORTIKA', 'ВОЛХОВЕЦ', 'КВАЛИТЕТ', 'KVALITET'
+            'ВЕНЕЦИЯ', 'НЕАПОЛЬ', 'ТУРИН', 'ПОРТА', 'ZADOOR', 'PORTIKA', 'ВОЛХОВЕЦ', 'КВАЛИТЕТ', 'KVALITET',
+            'КЛАССИКО', 'CLASSICO', 'НЕОКЛАССИКО', 'NEOCLASSICO'
         ])
         is_flooring_sample = any(kw in name_upper for kw in [
             'ЩИТ РЕКЛ', 'ПЛАНШЕТ РЕКЛАМНЫЙ', 'СТЕНД TAR', 'СТЕНД SWISS', 'СТЕНД KRONO', 
             'СТЕНД AGT', 'СТЕНД JB', 'СТЕНД EGGER', 'КАТАЛОГ ПАРКЕТА', 'ОБРАЗЦЫ TAR', 'ОБРАЗЦЫ COS'
         ])
-        is_door = is_door and not is_flooring_sample
+        is_door = (is_door or has_sp_prefix) and not is_flooring_sample and not is_handle_or_fitting
+        is_volkhovets = is_door and (
+            "ВОЛХОВЕЦ" in name_upper or 
+            "VOLKHOVETS" in name_upper or 
+            (category_id and category_id in [329, 330, 331, 332, 333, 334, 335, 336, 337, 338, 339, 340, 341, 342, 343, 344, 345, 346, 347, 349, 350, 353])
+        )
 
         if is_door and (not category_id or category_id in (174, 176, 323, 328, 357)):
             import re
+            # Extract any 3 or 4 digit model number from the name, excluding common dimensions
             model_match = re.search(r'(?:ПОЛОТНО ДВ\.|ПОЛОТНО)\s+(\d{3,4})', name_upper)
-            model_num = model_match.group(1) if model_match else ""
+            if model_match:
+                model_num = model_match.group(1)
+            else:
+                model_num = ""
+                for num in re.findall(r'\b\d{3,4}\b', name_upper):
+                    if num not in ("600", "700", "800", "900", "2000", "2100", "2200", "2300", "2400", "2600", "1000", "1500", "1600"):
+                        model_num = num
+                        break
             
-            is_volkhovets = False
             v_cat_id = None
             
-            # 1. Rocca (ID 337)
-            if "ROCCA" in name_upper or (model_num and model_num.startswith("83")):
-                v_cat_id = 337
+            if "PLANUM PRO" in name_upper:
+                v_cat_id = 330
                 is_volkhovets = True
-            # 2. Antique (ID 335)
-            elif "ANTIQUE" in name_upper or (model_num and (model_num.startswith("73") or model_num.startswith("71"))):
-                v_cat_id = 335
-                is_volkhovets = True
-            # 3. Mascot (ID 334)
-            elif "MASCOT" in name_upper or (model_num and (model_num.startswith("84") or model_num.startswith("85"))):
-                v_cat_id = 334
-                is_volkhovets = True
-            # 4. Neo Classic (ID 344)
-            elif "NEO CLASSIC" in name_upper or "NEOCLASSICO" in name_upper:
-                v_cat_id = 344
-                is_volkhovets = True
-            # 5. Neo (ID 340)
-            elif "NEO" in name_upper or (model_num and model_num.startswith("21")):
-                v_cat_id = 340
-                is_volkhovets = True
-            # 6. Galant (ID 345)
-            elif "GALANT" in name_upper or (model_num and model_num.startswith("14")):
-                v_cat_id = 345
-                is_volkhovets = True
-            # 7. Paris (ID 331)
-            elif "PARIS" in name_upper or (model_num and model_num.startswith("81")):
-                v_cat_id = 331
-                is_volkhovets = True
-            # 8. Centro (ID 349)
-            elif "CENTRO" in name_upper or (model_num and model_num.startswith("25")):
-                v_cat_id = 349
-                is_volkhovets = True
-            # 9. Toscana (ID 329)
-            elif "TOSCANA" in name_upper or (model_num and model_num.startswith("6")):
-                v_cat_id = 329
-                is_volkhovets = True
-            # 10. Wall-door (ID 353)
             elif "WALL DOOR" in name_upper or "WALL-DOOR" in name_upper:
                 v_cat_id = 353
                 is_volkhovets = True
-            # 11. Planum Pro (ID 330)
-            elif "PLANUM PRO" in name_upper:
-                v_cat_id = 330
-                is_volkhovets = True
-            # 12. Planum (ID 346)
-            elif "PLANUM" in name_upper or model_num in ("0010", "0015", "0020"):
+            elif "PLANUM" in name_upper and model_num in ("0010", "0015", "0020"):
                 v_cat_id = 346
                 is_volkhovets = True
-            # 13. Charm (ID 350)
-            elif "CHARM" in name_upper or (model_num and model_num.startswith("80")):
-                v_cat_id = 350
+            # Rocca (ID 337)
+            elif "ROCCA" in name_upper or (model_num and model_num.startswith("83")):
+                v_cat_id = 337
                 is_volkhovets = True
-            # 14. Ego (ID 341)
-            elif "EGO" in name_upper or (model_num and model_num.startswith("42")):
-                v_cat_id = 341
+            # Antique (ID 335)
+            elif "ANTIQUE" in name_upper or (model_num and (model_num.startswith("73") or model_num.startswith("71"))):
+                v_cat_id = 335
                 is_volkhovets = True
-            # 15. Esse (ID 332)
-            elif "ESSE" in name_upper or (model_num and model_num.startswith("33")):
+            # Mascot (ID 334)
+            elif "MASCOT" in name_upper or (model_num and model_num.startswith("84")):
+                v_cat_id = 334
+                is_volkhovets = True
+            # Esse (ID 332)
+            elif "ESSE" in name_upper or (model_num and model_num.startswith("85")):
                 v_cat_id = 332
                 is_volkhovets = True
-            # 16. Formato (ID 333)
+            # Neo Classic (ID 344)
+            elif "NEO CLASSIC" in name_upper or "NEOCLASSICO" in name_upper or model_num == "8003":
+                v_cat_id = 344
+                is_volkhovets = True
+            # Linea (ID 342)
+            elif "LINEA" in name_upper or model_num == "8059":
+                v_cat_id = 342
+                is_volkhovets = True
+            # Charm (ID 350)
+            elif "CHARM" in name_upper or (model_num and model_num.startswith("80")) or model_num == "6711":
+                v_cat_id = 350
+                is_volkhovets = True
+            # Ego (ID 341)
+            elif "EGO" in name_upper or model_num == "6123":
+                v_cat_id = 341
+                is_volkhovets = True
+            # Toscana (ID 329)
+            elif "TOSCANA" in name_upper or "PALAZZO" in name_upper or "PLANO" in name_upper or "GRIGLIATO" in name_upper or "LITERA" in name_upper or (model_num and (model_num.startswith("63") or model_num.startswith("68"))):
+                v_cat_id = 329
+                is_volkhovets = True
+            # Imperial (ID 338)
+            elif "IMPERIAL" in name_upper or model_num == "6503":
+                v_cat_id = 338
+                is_volkhovets = True
+            # Formato (ID 333)
             elif "FORMATO" in name_upper or (model_num and model_num.startswith("040")):
                 v_cat_id = 333
                 is_volkhovets = True
-            # 17. Freedom (ID 336)
-            elif "FREEDOM" in name_upper or (model_num and model_num.startswith("77")):
+            # Freedom (ID 336)
+            elif "FREEDOM" in name_upper or (model_num and (model_num.startswith("42") or model_num.startswith("77"))):
                 v_cat_id = 336
                 is_volkhovets = True
-            # 18. Imperial (ID 338)
-            elif "IMPERIAL" in name_upper or (model_num and model_num.startswith("38")):
-                v_cat_id = 338
-                is_volkhovets = True
-            # 19. Lignum (ID 339)
-            elif "LIGNUM" in name_upper or (model_num and model_num.startswith("39")):
+            # Lignum (ID 339)
+            elif "LIGNUM" in name_upper or (model_num and model_num.startswith("07")):
                 v_cat_id = 339
                 is_volkhovets = True
-            # 20. Linea (ID 342)
-            elif "LINEA" in name_upper or (model_num and model_num.startswith("34")):
-                v_cat_id = 342
-                is_volkhovets = True
-            # 21. Rift (ID 343)
-            elif "RIFT" in name_upper or (model_num and model_num.startswith("43")):
-                v_cat_id = 343
-                is_volkhovets = True
-            # 22. Velvet (ID 347)
-            elif "VELVET" in name_upper:
+            # Velvet (ID 347)
+            elif "VELVET" in name_upper or (model_num and model_num.startswith("82")):
                 v_cat_id = 347
                 is_volkhovets = True
-            # 23. Generic Волховец
-            elif "ВОЛХОВЕЦ" in name_upper:
-                v_cat_id = 328
+            # Rift (ID 343)
+            elif "RIFT" in name_upper or (model_num and model_num.startswith("02")):
+                v_cat_id = 343
+                is_volkhovets = True
+            # Paris (ID 331)
+            elif "PARIS" in name_upper or (model_num and model_num.startswith("81")):
+                v_cat_id = 331
+                is_volkhovets = True
+            # Galant (ID 345)
+            elif "GALANT" in name_upper or (model_num and model_num.startswith("14")):
+                v_cat_id = 345
+                is_volkhovets = True
+            # Neo (ID 340)
+            elif "NEO" in name_upper or (model_num and model_num.startswith("21")):
+                v_cat_id = 340
+                is_volkhovets = True
+            # Centro (ID 349)
+            elif "CENTRO" in name_upper or (model_num and model_num.startswith("25")):
+                v_cat_id = 349
+                is_volkhovets = True
+            # Planum (ID 346)
+            elif "PLANUM" in name_upper or model_num in ("0010", "0015", "0020"):
+                v_cat_id = 346
+                is_volkhovets = True
+            # Generic/Fallback Волховец
+            elif "ВОЛХОВЕЦ" in name_upper or "VOLKHOVETS" in name_upper:
+                v_cat_id = 464
                 is_volkhovets = True
                 
             if is_volkhovets:
                 category_id = v_cat_id
             else:
                 # Zadoor / Portika / other doors rules
-                is_portika = "PORTIKA" in name_upper or "ПОРТИКА" in name_upper or "ПОРТА-" in name_upper or "ПОРТА " in name_upper or "PORTA" in name_upper
+                zadoor_fallback_id = cat_map.get("14b504b0-4609-11ed-aa23-505dac4282cc") or cat_map.get("906172ca-5fd0-11ec-a9fd-505dac4282cc") or 449
+                portika_fallback_id = cat_map.get("b779d45d-727f-11ef-8c32-c42dcda0bdba") or cat_map.get("a9fac7e2-727f-11ef-8c32-c42dcda0bdba") or 426
+                is_portika = (
+                    "PORTIKA" in name_upper or "ПОРТИКА" in name_upper or 
+                    "ПОРТА-" in name_upper or "ПОРТА " in name_upper or "PORTA" in name_upper or
+                    "КЛАССИКО" in name_upper or "CLASSICO" in name_upper or
+                    "НЕОКЛАССИКО" in name_upper or "NEOCLASSICO" in name_upper
+                )
                 
                 if is_portika:
-                    category_id = 323  # Portika
-                elif "SP51" in name_upper:
-                    category_id = 212
-                elif "SP57" in name_upper:
-                    category_id = 213
-                elif "SP64" in name_upper:
-                    category_id = 214
-                elif "SP66" in name_upper:
-                    category_id = 183
-                elif "SP63" in name_upper or "SP67" in name_upper or "SP" in name_upper:
-                    category_id = 355
-                elif "ELEN" in name_upper:
-                    category_id = 190
-                elif "FILOMURO" in name_upper:
-                    category_id = 189
-                elif "КВАЛИТЕТ" in name_upper or "TOPAN" in name_upper or "TOPPAN" in name_upper or "KVALITET" in name_upper:
-                    if "K11 ALU BLACK" in name_upper or "К11 ALU BLACK" in name_upper or ("K11" in name_upper and "BLACK" in name_upper) or ("К11" in name_upper and "BLACK" in name_upper):
-                        category_id = 185
-                    elif "K11" in name_upper or "К11" in name_upper:
-                        category_id = 184
-                    elif "K2" in name_upper or "К2" in name_upper:
-                        category_id = 186
-                    elif "K7" in name_upper or "К7" in name_upper:
-                        category_id = 187
-                    elif "K15" in name_upper or "К15" in name_upper:
-                        category_id = 380
-                    elif "K14" in name_upper or "К14" in name_upper:
-                        category_id = 381
-                    elif "K13" in name_upper or "К13" in name_upper:
-                        category_id = 382
+                    if "INVISIBLE" in name_upper:
+                        category_id = cat_map.get("966f0549-b3b9-11ef-8c33-ac5a3889fd1c") or portika_fallback_id
+                    elif "НЕОКЛАССИКО" in name_upper or "NEOCLASSICO" in name_upper:
+                        category_id = cat_map.get("f9769a49-8889-11ef-8c32-c42dcda0bdba") or portika_fallback_id
+                    elif "КЛАССИКО" in name_upper or "CLASSICO" in name_upper:
+                        category_id = cat_map.get("0af9ee79-7280-11ef-8c32-c42dcda0bdba") or portika_fallback_id
+                    elif "ПОРТА" in name_upper or "PORTA" in name_upper:
+                        category_id = cat_map.get("1388b45a-8889-11ef-8c32-c42dcda0bdba") or portika_fallback_id
                     else:
-                        category_id = 357
-                elif "ВЕНЕЦИЯ" in name_upper or "VENICE" in name_upper:
-                    if any(k in name_upper for k in ["ПГ В4", "ПГ В-4", "ПГ B4", "ПГ B-4"]):
-                        category_id = 194
-                    elif any(k in name_upper for k in ["ПГ В5.3", "ПГ В-5.3", "ПГ B5.3", "ПГ B-5.3"]):
-                        category_id = 195
-                    elif any(k in name_upper for k in ["ПО В5.3", "ПО В-5.3", "ПО B5.3", "ПО B-5.3"]):
-                        category_id = 197
-                    elif "ПО САТИНАТО С РАМКОЙ" in name_upper or "САТИНАТО С РАМКОЙ" in name_upper or "САТИНАТО" in name_upper:
-                        category_id = 196
-                    else:
-                        category_id = 191
-                elif "НЕАПОЛЬ" in name_upper or "NEAPOL" in name_upper:
-                    if any(k in name_upper for k in ["ПГ В1", "ПГ В-1", "ПГ B1", "ПГ B-1"]):
-                        category_id = 385
-                    elif any(k in name_upper for k in ["ПГ В3", "ПГ В-3", "ПГ B3", "ПГ B-3"]):
-                        category_id = 198
-                    elif any(k in name_upper for k in ["ПО АК2", "ПО АК-2", "ПО AK2", "ПО AK-2", "ПО АК 2", "ПО AK 2"]):
-                        category_id = 384
-                    elif "ПО АНГЛИЙСКАЯ КЛАССИКА 2" in name_upper or "АК2" in name_upper or "АК 2" in name_upper:
-                        category_id = 202
-                    elif "ПО АНГЛИЙСКАЯ КЛАССИКА" in name_upper or "АК" in name_upper:
-                        category_id = 203
-                    elif any(k in name_upper for k in ["ПО В3", "ПО В-3", "ПО B3", "ПО B-3"]):
-                        category_id = 199
-                    else:
-                        category_id = 192
-                elif "ТУРИН" in name_upper or "TURIN" in name_upper:
-                    if any(k in name_upper for k in ["ПО В4", "ПО В-4", "ПО B4", "ПО B-4"]):
-                        category_id = 201
-                    elif any(k in name_upper for k in ["ПГ В4", "ПГ В-4", "ПГ B4", "ПГ B-4"]):
-                        category_id = 200
-                    else:
-                        category_id = 200
+                        category_id = cat_map.get("b779d45d-727f-11ef-8c32-c42dcda0bdba") or cat_map.get("a9fac7e2-727f-11ef-8c32-c42dcda0bdba") or portika_fallback_id
+                elif "FILOMURO" in name_upper or "ELEN" in name_upper:
+                    category_id = cat_map.get("30e0b783-357a-11ed-aa22-505dac4282cc") or zadoor_fallback_id
                 elif "BAGUETTE" in name_upper or "БАГЕТ" in name_upper:
-                    category_id = 191
-                elif "ZADOOR-S" in name_upper or "ZADOOR S" in name_upper or "S-21" in name_upper or "S -21" in name_upper or "S-23" in name_upper or "S-25" in name_upper or "S-26" in name_upper:
-                    category_id = 383
+                    category_id = cat_map.get("127131ea-357a-11ed-aa22-505dac4282cc") or zadoor_fallback_id
+                elif "HORIZONT" in name_upper:
+                    category_id = cat_map.get("ad5af5a0-a771-11ec-aa0b-505dac4282cc") or zadoor_fallback_id
+                elif "LEGNO" in name_upper:
+                    category_id = cat_map.get("d8d1d84b-be18-11f0-8c5f-c63bcafa6d19") or zadoor_fallback_id
+                elif "ART LITE" in name_upper or "ART-LITE" in name_upper:
+                    category_id = cat_map.get("e3fa7cb9-3579-11ed-aa22-505dac4282cc") or zadoor_fallback_id
+                elif "ART CLASSIC" in name_upper or "ART-CLASSIC" in name_upper or "ARTКЛАССИК" in name_upper or "АРТКЛАССИК" in name_upper:
+                    category_id = cat_map.get("de8dc177-980f-11ee-8c27-c862deca6261") or zadoor_fallback_id
+                elif "FORMA" in name_upper:
+                    category_id = cat_map.get("52eaeb61-357a-11ed-aa22-505dac4282cc") or zadoor_fallback_id
+                elif "ZADOOR-S CLASSIC" in name_upper or "S CLASSIC" in name_upper or "S-CLASSIC" in name_upper or "ВЕНЕЦИЯ" in name_upper or "VENICE" in name_upper or "НЕАПОЛЬ" in name_upper or "NEAPOL" in name_upper or "ТУРИН" in name_upper or "TURIN" in name_upper:
+                    category_id = cat_map.get("00a290f8-5fd6-11ec-a9fd-505dac4282cc") or zadoor_fallback_id
+                elif "SK" in name_upper:
+                    category_id = cat_map.get("3f75b95b-d29e-11ed-aa29-505dac4282cc") or zadoor_fallback_id
+                elif "SP51" in name_upper or "SP57" in name_upper or "SP64" in name_upper or "SP66" in name_upper or "SP63" in name_upper or "SP67" in name_upper or "SP" in name_upper:
+                    category_id = cat_map.get("11e6fc9e-a4f0-11ec-aa0b-505dac4282cc") or zadoor_fallback_id
+                elif "SENSE" in name_upper:
+                    category_id = cat_map.get("9e9b49e0-be1b-11f0-8c5f-c63bcafa6d19") or zadoor_fallback_id
+                elif "ZADOOR-S" in name_upper or "ZADOOR S" in name_upper or "S-" in name_upper or "S -" in name_upper or "S2" in name_upper:
+                    category_id = cat_map.get("e679f9c3-904b-11ef-8c32-c42dcda0bdba") or zadoor_fallback_id
+                elif "КВАЛИТЕТ" in name_upper or "TOPAN" in name_upper or "TOPPAN" in name_upper or "KVALITET" in name_upper:
+                    category_id = cat_map.get("7fd24a38-357a-11ed-aa22-505dac4282cc") or zadoor_fallback_id
+                elif "ЗАКАЗ" in name_upper:
+                    category_id = cat_map.get("d771779e-2166-11ee-8c1f-81d2968293f9") or zadoor_fallback_id
                 else:
-                    category_id = 176 # Generic Zadoor
+                    category_id = cat_map.get("14b504b0-4609-11ed-aa23-505dac4282cc") or cat_map.get("906172ca-5fd0-11ec-a9fd-505dac4282cc") or zadoor_fallback_id
 
         if not category_id:
             # 0.5 Swiss Krono & Bosco & Kronopol keyword overrides
@@ -850,6 +1190,23 @@ async def perform_sync(db: AsyncSession):
                     else:
                         category_id = 406
                     
+                # --- Explicit Zadoor / Art Lite mapping ---
+                elif 'ART-LITE' in name_upper or 'ART LITE' in name_upper:
+                    category_id = 451 # Полотна Art Lite
+                elif 'ART CLASSIC' in name_upper or 'ART-CLASSIC' in name_upper:
+                    category_id = 450 # Полотна Art Classic
+                elif 'CLASSIC BAGUETTE' in name_upper:
+                    category_id = 452 # Полотна Classic Baguette
+                elif 'ZADOOR-S CLASSIC' in name_upper or 'ZADOOR S CLASSIC' in name_upper:
+                    category_id = 461 # Полотна Zadoor-S Classic
+                elif 'ZADOOR' in name_upper:
+                    category_id = 449 # Полотна Zadoor
+                elif 'KRONOPOL' in name_upper:
+                    category_id = 362  # Kronopol
+                elif 'KRONOTEX' in name_upper:
+                    category_id = 64  # Kronotex
+                elif 'KRONOSTAR' in name_upper or 'КРОНОСТАР' in name_upper:
+                    category_id = 107
                 # --- Plinths & Plinth Accessories ---
                 elif any(kw in name_upper for kw in ['ПЛИНТУС', 'АНТИПЛИНТУС', 'Модель-L', 'MODEL-L', 'МОДЕЛ-L', 'МОДЕЛЬ L']):
                     category_id = cat_name_map.get('ПЛИНТУС')
@@ -979,17 +1336,579 @@ async def perform_sync(db: AsyncSession):
             name, c_brand, c_country
         )
         
+        # Override for Tarwood brand and category
+        is_tarwood = False
+        name_upper = (name or "").upper()
+        if "ДОСКА ПАРКЕТНАЯ 14" in name_upper or "ПАРКЕТНАЯ ДОСКА 14" in name_upper or "TARWOOD" in name_upper:
+            is_tarwood = True
+            category_id = 112
+            parsed_brand = "Tarwood"
+            parsed_country = "Беларусь"
+            
+            # Map image using DECOR_IMAGE_MAP
+            decor_map = {
+                "аляска": "tarwood-alyaska.webp",
+                "арава": "tarwood-arava.webp",
+                "балтик": "tarwood-baltik.jpg",
+                "бронза": "tarwood-bronza.jpg",
+                "бурбон": "tarwood-burbon.jpg",
+                "экстра белый": "tarwood-ekstra-belyi.webp",
+                "экстра соло": "tarwood-ekstra-solo.jpg",
+                "копченый": "tarwood-kopchenyi.jpg",
+                "корица": "tarwood-koritsa.jpg",
+                "корсика": "tarwood-korsika.webp",
+                "нежный песок": "tarwood-nezhnui-pesok.jpg",
+                "орех": "tarwood-oreh.jpg",
+                "оригинальный": "tarwood-original.jpg",
+                "оригинал": "tarwood-original.jpg",
+                "прованс": "tarwood-provans.jpg",
+                "сатин": "tarwood-satin.jpg",
+                "серый винтаж": "tarwood-seryi-vintazh.jpg",
+                "шелк": "tarwood-shelk.jpg",
+                "слоновая кость": "tarwood-slonovaya-kost.jpg",
+                "cлоновая кость": "tarwood-slonovaya-kost.jpg",
+                "слонавая кость": "tarwood-slonovaya-kost.jpg",
+                "старый": "tarwood-staryi.jpg",
+                "тавор": "tarwood-tavor.jpg",
+                "темный шоколад": "tarwood-temnyi-shokolad.jpg",
+                "жемчуг": "tarwood-zhemchug.jpg",
+                "золотой": "tarwood-zolotoy.jpg"
+            }
+            decor_file = None
+            for dec_name, filename in decor_map.items():
+                if dec_name in name.lower():
+                    decor_file = filename
+                    break
+            if decor_file:
+                image_url = f"/images/products/tarwood/{decor_file}"
+
+        # Override for Zadoor SP door image mapping
+        is_sp_door = is_door and any(kw in name_upper for kw in ['SP51', 'SP57', 'SP64', 'SP66'])
+        if is_sp_door:
+            category_id = 459
+            parsed_brand = "Zadoor"
+            parsed_country = "Россия"
+            
+            # Map image using SP_DECOR_MAP
+            sp_img_name = None
+            if 'SP51' in name_upper:
+                if 'БЕЛЕН' in name_upper:
+                    sp_img_name = "sp51_sp_belennyy_dub.jpg"
+                elif 'БРЕНД' in name_upper:
+                    sp_img_name = "sp51_sp_brendi.jpg"
+                elif 'СВЕТЛО-СЕР' in name_upper or 'СВЕТЛО СЕР' in name_upper:
+                    sp_img_name = "sp51_sp_svetlo_seryy.jpg"
+                elif 'НОРДИК' in name_upper:
+                    sp_img_name = "sp51_sp_nordik.jpg"
+            elif 'SP57' in name_upper:
+                if 'ТЕМНО-СЕР' in name_upper or 'ТЕМНО СЕР' in name_upper or 'ТЁМНО-СЕР' in name_upper or 'ТЁМНО СЕР' in name_upper:
+                    sp_img_name = "sp57_sp_temno_seryy_chernyy_lakobel.jpg"
+                elif 'БЕТОН СВЕТ' in name_upper:
+                    sp_img_name = "sp57_sp_beton_svetlyy_chernyy_lakobel.jpg"
+                elif 'БЕТОН ТЕМ' in name_upper or 'БЕТОН ТЁМ' in name_upper:
+                    sp_img_name = "sp57_sp_beton_temnyy_chernyy_lakobel.jpg"
+                elif 'НОРДИК' in name_upper:
+                    sp_img_name = "sp57_sp_nordik_chernyy_lakobel.jpg"
+                elif 'ОРЕХ' in name_upper:
+                    sp_img_name = "sp57_sp_orekh_karamel_chernyy_lakobel.jpg"
+                elif 'СВЕТЛЫЙ Л' in name_upper or 'СВЕТЛЫЙЛ' in name_upper:
+                    sp_img_name = "sp57_sp_svetlyy_len_chernyy_lakobel.jpg"
+                elif 'ТЕМНЫЙ Л' in name_upper or 'ТЁМНЫЙ Л' in name_upper or 'ТЕМНЫЙЛ' in name_upper or 'ТЁМНЫЙЛ' in name_upper:
+                    sp_img_name = "sp57_sp_tyomnyy_len_chernyy_lakobel.jpg"
+                elif 'СКАНДИ' in name_upper:
+                    sp_img_name = "sp57_sp_skandi_chernyy_lakobel.jpg"
+            elif 'SP64' in name_upper:
+                if 'БЕТОН ТЕМ' in name_upper or 'БЕТОН ТЁМ' in name_upper:
+                    sp_img_name = "sp64_sp_beton_temnyy_chernyy_lakobel.jpg"
+                elif 'НОРДИК САТ' in name_upper:
+                    sp_img_name = "sp64_sp_nordik_satinato.jpg"
+                elif 'НОРДИК Ч' in name_upper or 'НОРДИК' in name_upper:
+                    sp_img_name = "sp64_sp_nordik_chernyy_lakobel.jpg"
+                elif 'СКАНДИ САТ' in name_upper:
+                    sp_img_name = "sp64_sp_skandi_satinato.jpg"
+                elif 'СКАНДИ Ч' in name_upper or 'СКАНДИ' in name_upper:
+                    sp_img_name = "sp64_sp_skandi_chernyy_lakobel.jpg"
+                elif 'ТЕМНО-СЕР' in name_upper or 'ТЕМНО СЕР' in name_upper or 'ТЁМНО-СЕР' in name_upper or 'ТЁМНО СЕР' in name_upper:
+                    sp_img_name = "sp64_sp_temno_seryy_chernyy_lakobel.jpg"
+            elif 'SP66' in name_upper:
+                if 'ТЕМНО-СЕР' in name_upper or 'ТЕМНО СЕР' in name_upper or 'ТЁМНО-СЕР' in name_upper or 'ТЁМНО СЕР' in name_upper:
+                    sp_img_name = "sp66_sp_temno_seryy_chernyy_lakobel.jpg"
+                elif 'ТЕМНЫЙ Л' in name_upper or 'ТЁМНЫЙ Л' in name_upper or 'ТЕМНЫЙЛ' in name_upper or 'ТЁМНЫЙЛ' in name_upper:
+                    sp_img_name = "sp66_sp_temnyy_len_chernyy_lakobel.jpg"
+                elif 'ЗЕРКАЛО' in name_upper:
+                    sp_img_name = "sp66_sp_svetlyy_len_zerkalo_lyuks.jpg"
+                elif 'БЕТОН СВЕТ' in name_upper:
+                    sp_img_name = "sp66_sp_beton_svetlyy_chernyy_lakobel.jpg"
+                elif 'БЕТОН ТЕМ' in name_upper or 'БЕТОН ТЁМ' in name_upper:
+                    sp_img_name = "sp66_sp_beton_temnyy_chernyy_lakobel.jpg"
+                elif 'НОРДИК' in name_upper:
+                    sp_img_name = "sp66_sp_nordik_chernyy_lakobel.jpg"
+                elif 'СВЕТЛЫЙ Л' in name_upper or 'СВЕТЛЫЙЛ' in name_upper or 'СВЕТЛЫЙ ЛЕН' in name_upper:
+                    sp_img_name = "sp66_sp_svetlyy_len_chernyy_lakobel.jpg"
+                elif 'ОРЕХ' in name_upper:
+                    sp_img_name = "sp66_sp_orekh_karamel_chernyy_lakobel.jpg"
+                elif 'СВЕТЛО-СЕР' in name_upper or 'СВЕТЛО СЕР' in name_upper:
+                    sp_img_name = "sp66_sp_svetlo_seryy_chernyy_lakobel.jpg"
+                elif 'СКАНДИ' in name_upper:
+                    sp_img_name = "sp66_sp_skandi_chernyy_lakobel.jpg"
+
+            if sp_img_name:
+                image_url = f"/static/uploads/doors/{sp_img_name}"
+        else:
+            is_sp_door = False
+
+        # Override for Venice door image mapping during sync
+        is_venice_door = is_door and "ВЕНЕЦИЯ" in name_upper and category_id == 452
+        if is_venice_door:
+            if "ПО" in name_upper and "В3" in name_upper:
+                if "БЕЛ" in name_upper:
+                    image_url = "/images/products/zadoor/7fswt4d1xbzbo1cfe3eyjzxfe2q836wq.jpg"
+                elif "СЕР" in name_upper:
+                    image_url = "/static/uploads/doors/classic_baguette_венеция_пг_в3_графит_премьер_мат_пг_image_1633783169_15.jpg"
+                elif "ГРАФИТ" in name_upper:
+                    image_url = "/static/uploads/doors/classic_baguette_венеция_пг_в3_белый_матовый_пг_image_1633783169_13.jpg"
+            elif "ПГ" in name_upper and "В3" in name_upper:
+                if "БЕЛ" in name_upper:
+                    image_url = "/static/uploads/doors/classic_baguette_венеция_пг_в3_белый_матовый_пг_image_1633783169_0.jpg"
+                elif "СЕР" in name_upper:
+                    image_url = "/static/uploads/doors/classic_baguette_венеция_пг_в3_серый_матовый_пг_image_1633783169_7.jpg"
+                elif "ГРАФИТ" in name_upper:
+                    image_url = "/static/uploads/doors/classic_baguette_венеция_пг_в3_графит_премьер_мат_пг_image_1633783169_6.jpg"
+
+        # Override for Kvalitet Standart door image mapping during sync
+        is_kvalitet_door = is_door and any(kw in name_upper for kw in ["КВАЛИТЕТ", "KVALITET"])
+        if is_kvalitet_door:
+            is_k11 = "К11" in name_upper or "K11" in name_upper
+            is_k14 = "К14" in name_upper or "K14" in name_upper
+            is_k15 = "К15" in name_upper or "K15" in name_upper
+            is_k13 = "К13" in name_upper or "K13" in name_upper
+            is_k17 = "К17" in name_upper or "K17" in name_upper
+            is_k21 = "К21" in name_upper or "K21" in name_upper
+            is_k10 = "К10" in name_upper or "K10" in name_upper
+            is_k2 = "К2" in name_upper or "K2" in name_upper
+            is_k7 = "К7" in name_upper or "K7" in name_upper
+            is_k1 = "К1" in name_upper or "K1" in name_upper
+            
+            is_alu_black = "ALU BLACK" in name_upper
+            
+            kv_img = "kvalitet_k7_dub_naturalnyy_prodolnyy.jpg"
+            if is_k11 and is_alu_black:
+                kv_img = "kvalitet_k11_alu_black_seryy_poperechnyy.jpg"
+            elif is_k11:
+                if "СЕРЫЙ" in name_upper:
+                    kv_img = "kvalitet_k11_topan_dub_seryy_poperechnyy.jpg"
+                else:
+                    kv_img = "kvalitet_k11_dub_naturalnyy_poperechnyy.jpg"
+            elif is_k14:
+                kv_img = "kvalitet_k14_alu_gold_grafit_premer_mat_mg.jpg"
+            elif is_k15 or is_k13 or is_k17 or is_k21:
+                kv_img = "kvalitet_k15_alu_gold_molochnyy_matovyy_mg.jpg"
+            elif is_k2:
+                if "БЕЛЫЙ МАТОВЫЙ" in name_upper or "БЕЛЫЙ МАТ" in name_upper:
+                    kv_img = "kvalitet_k2_alu_black_belyy_matovyy_black_lacobel.jpg"
+                else:
+                    kv_img = "kvalitet_k2_alu_black_dub_naturalnyy_prodolnyy.jpg"
+            elif is_k7:
+                if "БЕЛЫЙ МАТОВЫЙ" in name_upper or "БЕЛЫЙ МАТ" in name_upper:
+                    kv_img = "kvalitet_k7_belyy_matovyy.jpg"
+                elif "СЕРЫЙ" in name_upper:
+                    kv_img = "kvalitet_k7_dub_seryy_prodolnyy.jpg"
+                elif "ТЕМНЫЙ" in name_upper or "ТЁМНЫЙ" in name_upper:
+                    kv_img = "kvalitet_k7_dub_temnyy_prodolnyy.jpg"
+                elif "ОРЕХ" in name_upper:
+                    kv_img = "kvalitet_k7_orekh_shokolad_prodolnyy.jpg"
+                else:
+                    kv_img = "kvalitet_k7_dub_naturalnyy_prodolnyy.jpg"
+            else:
+                if is_k10:
+                    if "БЕЛЫЙ" in name_upper:
+                        kv_img = "kvalitet_k7_belyy_matovyy.jpg"
+                    else:
+                        kv_img = "kvalitet_k15_alu_gold_molochnyy_matovyy_mg.jpg"
+                elif is_k1:
+                    kv_img = "kvalitet_k2_alu_black_belyy_matovyy_black_lacobel.jpg"
+                    
+            image_url = f"/static/uploads/doors/{kv_img}"
+
+        # Override for Zadoor / Portika / Filomuro door image mapping during sync
+        is_zadoor_portika = is_door and not is_sp_door and not is_kvalitet_door and not is_venice_door and not is_volkhovets and any(kw in name_upper for kw in ["ZADOOR", "PORTIKA", "FILOMURO", "НЕАПОЛЬ", "ТУРИН", "ВЕНЕЦИЯ", "КЛАССИКО", "НЕОКЛАССИКО", "ПОРТА"])
+        if is_zadoor_portika:
+            zadoor_img = None
+            if 'НЕАПОЛЬ' in name_upper:
+                if 'БЕЛ' in name_upper:
+                    zadoor_img = '2h1nq27n2oejjshepu01hom5mpmjdw1u.jpg'
+                elif 'СЕР' in name_upper:
+                    zadoor_img = '7rh5mmmplrzz0w7olc7lkkvoof388qt2.jpg'
+                elif any(kw in name_upper for kw in ['ГРАФИТ', 'ДАРК', 'DARK']):
+                    zadoor_img = 'hxsocykii22kmksfyhm9u9g7w13cgf3b.jpg'
+                elif any(kw in name_upper for kw in ['КРЕМ', 'ГОЛД', 'GOLD', 'МОЛОЧН', 'МИЛК']):
+                    zadoor_img = 'pv0pfrvm3necldk8v7co9g7d3mz4k2sw.jpg'
+                else:
+                    zadoor_img = '2h1nq27n2oejjshepu01hom5mpmjdw1u.jpg'
+            elif 'ВЕНЕЦИЯ' in name_upper:
+                if 'БЕЛ' in name_upper:
+                    zadoor_img = '0fg3rzn37qujzdhedjy6i3ytosyk4x30.jpg'
+                elif 'СЕР' in name_upper:
+                    zadoor_img = 'l2s21af3ybv41jr3n48j60vj1ah8rbp9.jpg'
+                elif any(kw in name_upper for kw in ['ГРАФИТ', 'ДАРК', 'DARK']):
+                    zadoor_img = 'hxsocykii22kmksfyhm9u9g7w13cgf3b.jpg'
+                elif any(kw in name_upper for kw in ['САТИНАТ', 'КРЕМ', 'ГОЛД', 'GOLD', 'МОЛОЧН', 'МИЛК']):
+                    zadoor_img = '7fswt4d1xbzbo1cfe3eyjzxfe2q836wq.jpg'
+                else:
+                    zadoor_img = '0fg3rzn37qujzdhedjy6i3ytosyk4x30.jpg'
+            elif 'ТУРИН' in name_upper:
+                if 'СЕР' in name_upper:
+                    zadoor_img = 'jxhxv89opoc758rq3uegwoh8whg0tws9.jpg'
+                elif any(kw in name_upper for kw in ['КРЕМ', 'ГОЛД', 'GOLD', 'МОЛОЧН', 'МИЛК']):
+                    zadoor_img = '8z0uzdhgqjreoa7ip7wdfd1uq6y2g3ag.jpg'
+                elif any(kw in name_upper for kw in ['ГРАФИТ', 'ДАРК', 'DARK']):
+                    zadoor_img = 'jxhxv89opoc758rq3uegwoh8whg0tws9.jpg'
+                else:
+                    zadoor_img = '47jyoz7ew91x4wihpac27cqmcivk2rrk.jpg'
+            elif 'КОЛЛЕКЦИЯ S' in name_upper or 'ПОЛОТНА S ' in name_upper or 'ПОЛОТНА S2' in name_upper:
+                if 'МОЛОЧН' in name_upper:
+                    zadoor_img = '11t6utfvy0e2u9rf3o3k23p3nmghbfdh.jpg'
+                elif 'ГРАФИТ' in name_upper:
+                    zadoor_img = 'gjmri0q7e73g07lfk1l93mw4osnlx2i6.jpg'
+                else:
+                    zadoor_img = 'd1qkjre40mijnzwbani08bajxj0jtsur.jpg'
+            elif 'НЕОКЛАССИКО' in name_upper:
+                if '2' in name_upper and 'ICE' in name_upper and 'PRO' in name_upper:
+                    image_url = '/static/uploads/doors/neoclassico_2_pro_eco_ice_official.jpg'
+                    zadoor_img = None
+                elif '3' in name_upper and 'ICE' in name_upper and 'PRO' in name_upper:
+                    image_url = '/static/uploads/doors/neoclassico_3_pro_eco_ice_official.jpg'
+                    zadoor_img = None
+                elif '11' in name_upper:
+                    if 'BEIGE' in name_upper:
+                        image_url = '/static/uploads/doors/neoclassico_11_keramik_beige_official.jpg'
+                    elif 'ALASKA' in name_upper:
+                        image_url = '/static/uploads/doors/neoclassico_11_alaska_official.jpg'
+                    elif 'GREY' in name_upper:
+                        image_url = '/static/uploads/doors/neoclassico_11_nardo_grey_official.jpg'
+                    elif 'BROWN' in name_upper:
+                        image_url = '/static/uploads/doors/neoclassico_11_keramik_brown_official.png'
+                    elif 'VALSE' in name_upper:
+                        image_url = '/static/uploads/doors/neoclassico_11_keramik_valse_official.png'
+                    elif 'WHITE' in name_upper:
+                        image_url = '/static/uploads/doors/neoclassico_11_alaska_official.jpg' # fallback
+                    else:
+                        image_url = '/static/uploads/doors/neoclassico_11_alaska_official.jpg'
+                    zadoor_img = None
+                elif '12' in name_upper:
+                    if 'BEIGE' in name_upper:
+                        image_url = '/static/uploads/doors/neoclassico_12_keramik_beige_official.jpg'
+                    elif 'ALASKA' in name_upper:
+                        image_url = '/static/uploads/doors/neoclassico_12_alaska_official.jpg'
+                    elif 'GREY' in name_upper:
+                        image_url = '/static/uploads/doors/neoclassico_12_nardo_grey_official.jpg'
+                    elif 'BROWN' in name_upper:
+                        image_url = '/static/uploads/doors/neoclassico_12_keramik_brown_official.png'
+                    elif 'VALSE' in name_upper:
+                        image_url = '/static/uploads/doors/neoclassico_12_keramik_valse_official.png'
+                    else:
+                        image_url = '/static/uploads/doors/neoclassico_12_alaska_official.jpg'
+                    zadoor_img = None
+                else:
+                    # Generic fallback if no match
+                    image_url = '/static/uploads/doors/neoclassico_11_alaska_official.jpg'
+                    zadoor_img = None
+            elif 'КЛАССИКО' in name_upper:
+                zadoor_img = 'Классико 12-1 Shellac White.jpg'
+                if '12.2' in name_upper and 'WHITE' in name_upper:
+                    image_url = '/static/uploads/doors/classico_12_2_shellac_white.png'
+                    zadoor_img = None
+                elif '13.1' in name_upper and 'WHITE' in name_upper:
+                    image_url = '/static/uploads/doors/classico_13_1_shellac_white.jpg'
+                    zadoor_img = None
+                elif '32' in name_upper and 'ALASKA' in name_upper:
+                    image_url = '/static/uploads/doors/classico_32_alaska_new.jpg'
+                    zadoor_img = None
+                elif '33' in name_upper and 'ALASKA' in name_upper:
+                    image_url = '/static/uploads/doors/classico_33_alaska_white_crystal.webp'
+                    zadoor_img = None
+                elif '42' in name_upper:
+                    if 'ALASKA' in name_upper:
+                        image_url = '/static/uploads/doors/classico_42_alaska.jpg'
+                        zadoor_img = None
+                    elif 'GREY' in name_upper:
+                        image_url = '/static/uploads/doors/classico_42_nardo_grey.jpg'
+                        zadoor_img = None
+                    elif 'ICE' in name_upper:
+                        image_url = '/static/uploads/doors/classico_42_eco_ice.jpg'
+                        zadoor_img = None
+                elif '43' in name_upper:
+                    if 'ALASKA' in name_upper:
+                        image_url = '/static/uploads/doors/classico_43_alaska_white_crystal.jpg'
+                        zadoor_img = None
+                    elif 'GREY' in name_upper:
+                        image_url = '/static/uploads/doors/classico_43_nardo_grey_white_crystal.jpg'
+                        zadoor_img = None
+                    elif 'ICE' in name_upper:
+                        image_url = '/static/uploads/doors/classico_43_eco_ice_white_ii.jpg'
+                        zadoor_img = None
+                elif '82' in name_upper and 'ALASKA' in name_upper:
+                    image_url = '/static/uploads/doors/classico_82_alaska.jpg'
+                    zadoor_img = None
+                elif '83' in name_upper and 'ALASKA' in name_upper:
+                    image_url = '/static/uploads/doors/classico_83_alaska_white_crystal.jpg'
+                    zadoor_img = None
+            elif 'НЕОКЛАССИКО' in name_upper:
+                zadoor_img = 'Неоклассико-2 PRO ЭКО Ice.jpg'
+            elif 'ПОРТА' in name_upper:
+                # Porta collection overrides
+                if 'ПОРТА-1 ' in name_upper or 'ПОРТА-1 ' in name_upper.replace('-', '- '):
+                    if 'ALASKA' in name_upper:
+                        image_url = '/static/uploads/doors/porta_1_alaska_official_v3.jpg'
+                    elif 'GREY' in name_upper:
+                        image_url = '/static/uploads/doors/porta_1_nardo_grey_official.jpg'
+                    else:
+                        image_url = '/static/uploads/doors/porta_1_alaska_official_v3.jpg'
+                    zadoor_img = None
+                elif 'ПОРТА-50 ' in name_upper or 'ПОРТА-50 ' in name_upper.replace('-', '- '):
+                    if 'VALSE' in name_upper:
+                        image_url = '/static/uploads/doors/porta_50_4ab_keramik_valse_black_official.jpg'
+                    elif 'BROWN' in name_upper:
+                        image_url = '/static/uploads/doors/porta_50_4ab_keramik_brown_black_official.jpg'
+                    else:
+                        image_url = '/static/uploads/doors/porta_50_4ab_keramik_valse_black_official.jpg'
+                    zadoor_img = None
+                elif 'ПОРТА-50.1 ' in name_upper or 'ПОРТА-50.10' in name_upper or 'ПОРТА-50.11' in name_upper:
+                    if 'OAK' in name_upper:
+                        image_url = '/static/uploads/doors/porta_50_1_4ab_natural_oak_official.jpg'
+                    elif 'BEIGE' in name_upper:
+                        image_url = '/static/uploads/doors/porta_50_b_rocks_beige_official.jpg'
+                    elif 'PEARL' in name_upper:
+                        image_url = '/static/uploads/doors/porta_50_b_rocks_pearl_official.jpg'
+                    else:
+                        image_url = '/static/uploads/doors/porta_50_1_4ab_natural_oak_official.jpg'
+                    zadoor_img = None
+                elif 'ПОРТА-50 B' in name_upper:
+                    if 'BEIGE' in name_upper:
+                        image_url = '/static/uploads/doors/porta_50_b_rocks_beige_official.jpg'
+                    elif 'PEARL' in name_upper:
+                        image_url = '/static/uploads/doors/porta_50_b_rocks_pearl_official.jpg'
+                    else:
+                        image_url = '/static/uploads/doors/porta_50_b_rocks_beige_official.jpg'
+                    zadoor_img = None
+                elif 'ПОРТА-51' in name_upper:
+                    if 'ALASKA BLACK STAR' in name_upper and '4AB' in name_upper:
+                        image_url = '/static/uploads/doors/porta_51_4ab_alaska_black_star_official.jpg'
+                    elif 'ALASKA' in name_upper:
+                        image_url = '/static/uploads/doors/porta_1_alaska_official_v3.jpg'
+                    elif 'OAK' in name_upper:
+                        image_url = '/static/uploads/doors/porta_50_1_4ab_natural_oak_official.jpg'
+                    else:
+                        image_url = '/static/uploads/doors/porta_1_alaska_official_v3.jpg'
+                    zadoor_img = None
+                elif 'ПОРТА-52' in name_upper:
+                    if 'SHELLAC CREAM' in name_upper:
+                        image_url = '/static/uploads/doors/porta_52_4ab_shellac_cream_official.png'
+                    zadoor_img = None
+                elif 'ПОРТА-54' in name_upper:
+                    if 'NARDO GREY' in name_upper:
+                        image_url = '/static/uploads/doors/porta_54_4ab_nardo_grey_official.jpg'
+                    zadoor_img = None
+                elif 'ПОРТА-58' in name_upper:
+                    if 'GREY OAK' in name_upper:
+                        image_url = '/static/uploads/doors/porta_58_4ab_grey_oak_official.jpg'
+                    elif 'NATURAL OAK' in name_upper:
+                        image_url = '/static/uploads/doors/porta_58_4ab_natural_oak_official.jpg'
+                    else:
+                        image_url = '/static/uploads/doors/porta_1_nardo_grey_official.jpg'
+                    zadoor_img = None
+                elif 'ПОРТА INVISIBLE' in name_upper:
+                    if 'WHITE' in name_upper or 'ПРАЙМЕР' in name_upper or 'PRIMER' in name_upper:
+                        image_url = '/static/uploads/doors/porta_invisible_4a_primer_white_official.png'
+                    zadoor_img = None
+                elif 'ART-LITE' in name_upper or 'ART LITE' in name_upper:
+                    norm_name = name_upper.replace("ВЕНЕЦИЯ 2", "ВЕНЕЦИЯ-2")
+                    if 'НЕАПОЛЬ' in norm_name and ('БЕЛАЯ' in norm_name or 'БЕЛЫЙ' in norm_name):
+                        image_url = '/static/uploads/doors/art_lite_neapol_white_official.jpg'
+                    elif 'ВЕНЕЦИЯ-2' in norm_name and 'ПЕРЛАМУТР' in norm_name:
+                        image_url = '/static/uploads/doors/art_lite_venezia_2_pearl_official.jpg'
+                    elif 'ВЕНЕЦИЯ' in norm_name and ('БЕЛАЯ' in norm_name or 'БЕЛЫЙ' in norm_name):
+                        image_url = '/static/uploads/doors/art_lite_venezia_white_official.jpg'
+                    elif 'CHAOS' in norm_name and 'RAL 7044' in norm_name:
+                        image_url = '/static/uploads/doors/art_lite_chaos_ral_7044_official.webp'
+                    elif 'ПО А2' in norm_name and 'RAL 7044' in norm_name and 'ЧЕРНЫЙ ЛАКОБЕЛЬ' in norm_name:
+                        image_url = '/static/uploads/doors/art_lite_po_a2_ral_7044_black_lakobel_official.jpg'
+                    zadoor_img = None
+                elif 'CLASSIC BAGUETTE' in name_upper:
+                    import re
+                    is_po = bool(re.search(r'\bПО\b', name_upper))
+                    
+                    # Determine color category
+                    color = "beliy"
+                    if any(kw in name_upper for kw in ["ГРАФИТ", "DARK", "ДАРК"]):
+                        color = "grafit"
+                    elif any(kw in name_upper for kw in ["СЕРЫЙ", "СЕРЫЙ МАТОВЫЙ"]):
+                        color = "sery"
+                    elif any(kw in name_upper for kw in ["КРЕМ", "ГОЛД", "GOLD", "МОЛОЧН", "МИЛК"]):
+                        color = "kremoviy"
+                        
+                    if "ТУРИН" in name_upper:
+                        if "ПО АК" in name_upper or "ПО АК2" in name_upper or "B5" in name_upper or "В5" in name_upper:
+                            image_url = "/static/uploads/doors/cb_turin_po_ak_b5_cream_official.png"
+                        elif is_po:
+                            if color == "grafit":
+                                image_url = "/static/uploads/doors/cb_turin_po_b4_grafit.jpg"
+                            elif color == "sery":
+                                image_url = "/static/uploads/doors/cb_turin_po_b4_sery.jpg"
+                            else:
+                                image_url = "/static/uploads/doors/cb_turin_po_b4_beliy.jpg"
+                        else: # ПГ
+                            if color == "grafit":
+                                image_url = "/static/uploads/doors/cb_turin_pg_b4_grafit.jpg"
+                            elif color == "sery":
+                                image_url = "/static/uploads/doors/cb_turin_pg_b4_sery.jpg"
+                            elif color == "kremoviy":
+                                image_url = "/static/uploads/doors/cb_turin_pg_b4_kremoviy.jpg"
+                            else:
+                                image_url = "/static/uploads/doors/cb_turin_pg_b4_beliy.jpg"
+                                
+                    elif "ВЕНЕЦИЯ" in name_upper:
+                        if "ПО АК" in name_upper or "ПО АК2" in name_upper:
+                            image_url = "/static/uploads/doors/cb_venezia_po_ak_beliy.jpg"
+                        elif is_po:
+                            if "В5.3" in name_upper or "B5.3" in name_upper or "В5" in name_upper or "B5" in name_upper:
+                                if color == "sery":
+                                    image_url = "/static/uploads/doors/cb_venezia_po_b53_sery.jpg"
+                                else:
+                                    image_url = "/static/uploads/doors/cb_venezia_po_b3_beliy.jpg"
+                            else:
+                                if color == "grafit":
+                                    image_url = "/static/uploads/doors/cb_venezia_po_b3_grafit.jpg"
+                                elif color == "sery":
+                                    image_url = "/static/uploads/doors/cb_venezia_po_b3_sery.jpg"
+                                else:
+                                    image_url = "/static/uploads/doors/cb_venezia_po_b3_beliy.jpg"
+                        else: # ПГ
+                            if "В4" in name_upper or "B4" in name_upper:
+                                if color == "sery":
+                                    image_url = "/static/uploads/doors/cb_venezia_pg_b4_sery.jpg"
+                                else:
+                                    image_url = "/static/uploads/doors/cb_venezia_pg_b4_beliy.jpg"
+                            elif "В5.3" in name_upper or "B5.3" in name_upper or "В5" in name_upper or "B5" in name_upper:
+                                image_url = "/static/uploads/doors/cb_venezia_pg_b53_beliy.jpg"
+                            else: # В3
+                                if color == "grafit":
+                                    image_url = "/static/uploads/doors/cb_venezia_pg_b3_grafit.jpg"
+                                elif color == "sery":
+                                    image_url = "/static/uploads/doors/cb_venezia_pg_b3_sery.jpg"
+                                else:
+                                    image_url = "/static/uploads/doors/cb_venezia_pg_b3_beliy.jpg"
+                                    
+                    elif "НЕАПОЛЬ" in name_upper:
+                        if is_po:
+                            if color == "kremoviy":
+                                image_url = "/static/uploads/doors/cb_neapol_po_b3_kremoviy.jpg"
+                            elif color == "grafit":
+                                image_url = "/static/uploads/doors/cb_venezia_po_b3_grafit.jpg"
+                            elif color == "sery":
+                                image_url = "/static/uploads/doors/cb_venezia_po_b3_sery.jpg"
+                            else:
+                                image_url = "/static/uploads/doors/cb_neapol_po_b3_beliy.jpg"
+                        else: # ПГ
+                            if "В3" in name_upper or "B3" in name_upper:
+                                if color == "sery":
+                                    image_url = "/static/uploads/doors/cb_neapol_pg_b1_sery.jpg"
+                                elif color == "kremoviy":
+                                    image_url = "/static/uploads/doors/cb_neapol_pg_b1_kremoviy.jpg"
+                                elif color == "grafit":
+                                    image_url = "/static/uploads/doors/cb_neapol_pg_b4_grafit_official.jpg"
+                                else:
+                                    image_url = "/static/uploads/doors/cb_neapol_pg_b3_beliy.jpg"
+                            else: # B1
+                                if color == "sery":
+                                    image_url = "/static/uploads/doors/cb_neapol_pg_b1_sery.jpg"
+                                elif color == "kremoviy":
+                                    image_url = "/static/uploads/doors/cb_neapol_pg_b1_kremoviy.jpg"
+                                else:
+                                    image_url = "/static/uploads/doors/cb_ampir_pg_beliy.jpg"
+                                    
+                    elif "АМПИР" in name_upper:
+                        if is_po:
+                            image_url = "/static/uploads/doors/cb_ampir_po_b5_beliy_official.jpg"
+                        else:
+                            if color == "kremoviy":
+                                image_url = "/static/uploads/doors/cb_neapol_pg_b1_kremoviy.jpg"
+                            else:
+                                image_url = "/static/uploads/doors/cb_ampir_pg_beliy.jpg"
+                    zadoor_img = None
+                else:
+                    # Fallback for Porta
+                    image_url = '/static/uploads/doors/porta_1_alaska_official_v3.jpg'
+                    zadoor_img = None
+            elif 'ELEN' in name_upper or 'FILOMURO' in name_upper:
+                zadoor_img = '4luduzxj155pp1ut0vbue628mb3dxxow.jpg'
+                
+            if zadoor_img:
+                image_url = f"/images/products/zadoor/{zadoor_img}"
+
         # Clean name for doors to remove sizes (e.g. 43х700х2000)
         display_name = name
         if is_door:
             display_name = clean_door_name(name)
             
-        # Check if exists
+        is_active_target = True
+        # Hide samples, booklets, catalogs, showroom stands, and t-shirts
+        name_lower = name.lower()
+        if any(pat in name_lower for pat in ["образец", "стенд", "буклет", "футболк", "каталог", "дружба", "нестандарт", "стандарт zadoor"]):
+            is_active_target = False
+        
+        # Check if exists (needed before Coswick logic to preserve existing image_url)
         db_obj = product_map.get(ref_key)
+        
+        # Override for Coswick 9 products constraint by SKU
+        coswick_9_skus = {
+            '1167-1201-10', '1174-1281-10', '1174-3247-20', '1174-4217-20',
+            '1175-1831-10', '1192-1825-10', '1167-1809-10', '1176-4841-20',
+            '1174-1854-10'
+        }
+        
+        is_coswick = (category_id == 406 or parsed_brand == "Coswick" or sku in coswick_9_skus)
+        if is_coswick:
+            if sku in coswick_9_skus:
+                is_active_target = True
+                category_id = 406
+                parsed_brand = "Coswick"
+                parsed_country = "Беларусь"
+                if db_obj and db_obj.image_url and "/images/products/coswick/" in db_obj.image_url:
+                    image_url = db_obj.image_url
+                else:
+                    image_url = f"/images/products/coswick/coswick-{sku}.png"
+            else:
+                is_active_target = False
+        if is_volkhovets:
+            parsed_brand = "Волховец"
+            parsed_country = "Россия"
+
         if db_obj:
             # Update fields directly
             db_obj.sku = sku
-            db_obj.price = price
+            
+            # Preserve Volkhovets custom prices, images, and names
+            if is_volkhovets:
+                if not db_obj.price or db_obj.price <= 0:
+                    db_obj.price = price
+                if not db_obj.image_url:
+                    db_obj.image_url = image_url
+                if not db_obj.name or "Volkhovets" not in db_obj.name:
+                    db_obj.name = display_name
+            else:
+                db_obj.price = price
+                db_obj.image_url = image_url if (
+                    not db_obj.image_url 
+                    or (is_tarwood and image_url) 
+                    or (is_sp_door and image_url)
+                    or (is_venice_door and image_url)
+                    or (is_kvalitet_door and image_url)
+                    or (is_zadoor_portika and image_url)
+                ) else db_obj.image_url
+                if is_door or not db_obj.description:
+                    db_obj.name = display_name
+
             db_obj.price_outlet = price_outlet
             db_obj.price_outlet_usd = price_outlet_usd
             db_obj.price_outlet_wholesale = price_outlet_wholesale
@@ -999,11 +1918,7 @@ async def perform_sync(db: AsyncSession):
             db_obj.country = parsed_country
             db_obj.grade = parsed_grade
             db_obj.thickness = parsed_thickness
-            if is_door or not db_obj.description:
-                db_obj.name = display_name
-            if not db_obj.image_url:
-                db_obj.image_url = image_url
-            db_obj.is_active = True
+            db_obj.is_active = is_active_target
             db.add(db_obj)
         else:
             # Create a new product object and add to session
@@ -1011,12 +1926,79 @@ async def perform_sync(db: AsyncSession):
                 name=display_name, sku=sku, ref_key=ref_key, price=price, price_outlet=price_outlet,
                 price_outlet_usd=price_outlet_usd, price_outlet_wholesale=price_outlet_wholesale, stock=stock,
                 category_id=category_id, image_url=image_url,
-                brand=parsed_brand, country=parsed_country, grade=parsed_grade, thickness=parsed_thickness
+                brand=parsed_brand, country=parsed_country, grade=parsed_grade, thickness=parsed_thickness,
+                is_active=is_active_target
             )
             db.add(new_obj)
             product_map[ref_key] = new_obj
         
         synced_count += 1
+            
+    # === Volkhovets Post-Sync Cleanup & Grouping ===
+    from sqlalchemy import select, update
+    
+    # 1. Deactivate promotional items
+    await db.execute(
+        update(ProductModel)
+        .where(ProductModel.id.in_(VOLKHOVETS_NON_DOOR_IDS))
+        .values(is_active=False, image_url=None)
+    )
+    
+    # 2. Group all active Volkhovets products (excluding non-doors)
+    stmt_vol = select(ProductModel).where(
+        (ProductModel.brand.ilike("%волховец%") | ProductModel.brand.ilike("%volkhovets%")) &
+        (ProductModel.id.not_in(VOLKHOVETS_NON_DOOR_IDS))
+    )
+    res_vol = await db.execute(stmt_vol)
+    vol_products = res_vol.scalars().all()
+    
+    vol_groups = {}
+    for p in vol_products:
+        model, collection, color = extract_volkhovets_group_key(p.name)
+        key = (model, collection, color)
+        if key not in vol_groups:
+            vol_groups[key] = []
+        vol_groups[key].append(p)
+        
+    for key, prods in vol_groups.items():
+        model, collection, color = key
+        
+        # Sort to prioritize products with custom image URL, lower ID first
+        def sort_key(p):
+            has_custom_img = p.image_url and "/images/products/volkhovets/" in p.image_url
+            return (not has_custom_img, p.id)
+            
+        prods.sort(key=sort_key)
+        rep_prod = prods[0]
+        rep_prod.is_active = True
+        
+        # Deactivate duplicates
+        for dup in prods[1:]:
+            dup.is_active = False
+            
+        # Parse and combine options
+        openings = set()
+        hinges = set()
+        preps = set()
+        for p in prods:
+            op, hg, pr = parse_volkhovets_options(p.name)
+            if op: openings.add(op)
+            if hg: hinges.add(hg)
+            if pr: preps.add(pr)
+            
+        # Preserve existing detailed specifications
+        if rep_prod.specifications and len(rep_prod.specifications) > 5:
+            pass
+        else:
+            rep_prod.specifications = {}
+        
+        # Clean representative name
+        clean_name = f"Дверь межкомнатная Volkhovets {collection} {model}"
+        if color and color.lower() != "под окраску":
+            clean_name += f" ({color})"
+        else:
+            clean_name += " под окраску"
+        rep_prod.name = clean_name
         
     await db.commit()
     
