@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect, Suspense } from "react";
+import React, { useState, useMemo, useEffect, Suspense, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { 
   ChevronRight, 
@@ -14,13 +14,35 @@ import {
   Sparkles,
   ArrowLeft,
   Box,
-  Layers
+  Layers,
+  ArrowDownRight
 } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { cn, isRealProduct } from "@/lib/utils";
 import { ProductCard } from "@/components/ui/product-card";
-import { ScrollReveal } from "@/components/ui/scroll-reveal";
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.03
+    }
+  }
+} as const;
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 12 },
+  show: { 
+    opacity: 1, 
+    y: 0, 
+    transition: { 
+      type: "spring" as const, 
+      stiffness: 110, 
+      damping: 17 
+    } 
+  }
+} as const;
 
 function CatalogContent() {
   const searchParams = useSearchParams();
@@ -39,8 +61,52 @@ function CatalogContent() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedThicknesses, setSelectedThicknesses] = useState<string[]>([]);
+  const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const itemsPerPage = 24; // 24 products per page feels more professional than 100
+
+  // Track expanded category IDs in catalog
+  const [expandedCategoryIds, setExpandedCategoryIds] = useState<number[]>([]);
+  const [topOffset, setTopOffset] = useState(126); // Default mobile offset
+  const productsCache = useRef<Record<string, { products: any[], brands: string[] }>>({});
+
+  // Prevent background scrolling when mobile filter is open
+  useEffect(() => {
+    if (isFilterOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isFilterOpen]);
+
+  // Automatically expand parents of selected category on mount or change
+  useEffect(() => {
+    if (selectedCategoryId && categories.length > 0) {
+      const getAncestors = (catId: number, cats: any[]): number[] => {
+        const ancestors: number[] = [];
+        let current = cats.find(c => c && c.id === catId);
+        while (current && current.parent_id) {
+          ancestors.push(current.parent_id);
+          current = cats.find(c => c && c.id === current.parent_id);
+        }
+        return ancestors;
+      };
+
+      const ancestors = getAncestors(selectedCategoryId, categories);
+      setExpandedCategoryIds(prev => {
+        const next = new Set([...prev, ...ancestors]);
+        // Also expand the selected category itself if it has children
+        const hasChildren = categories.some(c => c && c.parent_id === selectedCategoryId);
+        if (hasChildren) {
+          next.add(selectedCategoryId);
+        }
+        return Array.from(next);
+      });
+    }
+  }, [selectedCategoryId, categories]);
 
   // Handle query parameter sync
   useEffect(() => {
@@ -50,8 +116,61 @@ function CatalogContent() {
       setSelectedCategoryId(null);
     }
     setSelectedThicknesses([]);
+    setSelectedSizes([]);
     setCurrentPage(1);
   }, [categoryParam]);
+
+  // Scroll to catalog workspace start when filters change and user is scrolled down
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const el = document.getElementById("catalog-workspace");
+      if (el) {
+        const rect = el.getBoundingClientRect();
+        if (rect.top < 0) {
+          scrollToCatalogStart('smooth');
+        }
+      }
+    }
+  }, [selectedCategoryId, activeFilters, selectedThicknesses, selectedSizes]);
+
+  const scrollToCatalogStart = (behavior: any = 'smooth') => {
+    if (typeof window === 'undefined') return;
+    const el = document.getElementById("catalog-workspace");
+    if (el) {
+      const rect = el.getBoundingClientRect();
+      const scrollTop = window.pageYOffset + rect.top - 100;
+      window.scrollTo({ top: scrollTop, behavior });
+    }
+  };
+
+  // Dynamically calculate sticky top offset for the sorting bar and sidebar under catalog header
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const updateOffset = () => {
+      const el = document.getElementById("catalog-sticky-header");
+      if (el) {
+        const height = el.getBoundingClientRect().height;
+        const baseOffset = window.innerWidth >= 1024 ? 160 : 64;
+        setTopOffset(baseOffset + height - 2); // overlap by 2px to prevent gaps
+      }
+    };
+    
+    updateOffset();
+    
+    const observer = new ResizeObserver(updateOffset);
+    const el = document.getElementById("catalog-sticky-header");
+    if (el) {
+      observer.observe(el);
+    }
+    
+    window.addEventListener('resize', updateOffset);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', updateOffset);
+    };
+  }, [selectedCategoryId, categories]);
+
+
 
   // Fetch categories once on mount
   useEffect(() => {
@@ -99,12 +218,21 @@ function CatalogContent() {
 
   // Fetch products when selectedCategoryId changes
   useEffect(() => {
+    const cacheKey = selectedCategoryId ? String(selectedCategoryId) : "all";
+    
+    if (productsCache.current[cacheKey]) {
+      setProducts(productsCache.current[cacheKey].products);
+      setAvailableBrands(productsCache.current[cacheKey].brands);
+      setLoading(false);
+      return;
+    }
+
     const fetchProducts = async () => {
       try {
         setLoading(true);
         const url = selectedCategoryId
-          ? `/api/v1/products/?category_id=${selectedCategoryId}&t=${Date.now()}`
-          : `/api/v1/products/?limit=300&t=${Date.now()}`;
+          ? `/api/v1/products/?category_id=${selectedCategoryId}&group=true&t=${Date.now()}`
+          : `/api/v1/products/?limit=300&group=true&t=${Date.now()}`;
         
         const prodRes = await fetch(url, { 
           cache: "no-store", 
@@ -126,6 +254,12 @@ function CatalogContent() {
           .filter(b => b.length > 0 && b.toUpperCase() !== "MAFF" && !/^[0-9a-f-]{36}$/i.test(b))
           .sort();
         setAvailableBrands(cleanBrands);
+
+        // Save to cache
+        productsCache.current[cacheKey] = {
+          products: safeProducts,
+          brands: cleanBrands
+        };
       } catch (err) {
         console.error("Fetch products failed", err);
       } finally {
@@ -178,6 +312,59 @@ function CatalogContent() {
     return Array.from(new Set(ids));
   }, [categories]);
 
+  // Helper to extract product thickness format (e.g. "9")
+  const getProductThickness = (p: any) => {
+    const t = p.thickness || p.name.match(/\d+\s*(?:мм|mm)/i)?.[0] || p.name.match(/\d+(?:мм|mm)/i)?.[0] || "";
+    if (!t) return "";
+    const m = t.match(/\d+/);
+    if (m) {
+      const val = parseInt(m[0], 10);
+      if (val > 150) return ""; // filter out bogus thicknesses like 1000, 2000
+      return `${val}`;
+    }
+    return "";
+  };
+
+  // Helper to extract product size format (e.g. "2440x1220")
+  const getProductSize = (p: any) => {
+    const m = p.name.match(/(?:\b|^)(\d+(?:\.\d+)?\s*[xх\*×]\s*\d+(?:\.\d+)?)/i);
+    if (!m) return "";
+    return m[1].replace(/\s+/g, "").replace(/[х\*×]/g, "x");
+  };
+
+  const availableThicknesses = useMemo(() => {
+    const thicknesses = new Set<string>();
+    products.forEach((p: any) => {
+      const pt = getProductThickness(p);
+      if (pt) {
+        thicknesses.add(pt);
+      }
+    });
+    return Array.from(thicknesses).sort((a, b) => {
+      const na = parseInt(a) || 0;
+      const nb = parseInt(b) || 0;
+      return na - nb;
+    });
+  }, [products]);
+
+  const availableSizes = useMemo(() => {
+    const sizes = new Set<string>();
+    products.forEach((p: any) => {
+      const ps = getProductSize(p);
+      if (ps) {
+        sizes.add(ps);
+      }
+    });
+    return Array.from(sizes).sort((a, b) => {
+      const wA = parseInt(a.split('x')[0]) || 0;
+      const wB = parseInt(b.split('x')[0]) || 0;
+      if (wA !== wB) return wA - wB;
+      const hA = parseInt(a.split('x')[1]) || 0;
+      const hB = parseInt(b.split('x')[1]) || 0;
+      return hA - hB;
+    });
+  }, [products]);
+
   // Compute filtered and sorted products on client side
   const filteredProducts = useMemo(() => {
     let result = [...products];
@@ -209,13 +396,16 @@ function CatalogContent() {
     // Thickness filtering
     if (selectedThicknesses.length > 0) {
       result = result.filter(p => {
-        const cleanThickness = (t: string) => {
-          if (!t) return "";
-          const m = t.match(/\d+/);
-          return m ? `${m[0]} мм` : "";
-        };
-        const pt = cleanThickness(p.thickness || p.name.match(/\d+мм/)?.[0] || "");
+        const pt = getProductThickness(p);
         return selectedThicknesses.includes(pt);
+      });
+    }
+
+    // Size/Dimension filtering
+    if (selectedSizes.length > 0) {
+      result = result.filter(p => {
+        const ps = getProductSize(p);
+        return selectedSizes.includes(ps);
       });
     }
     
@@ -235,7 +425,7 @@ function CatalogContent() {
         break;
     }
     return result;
-  }, [products, selectedCategoryId, categories, activeFilters, selectedThicknesses, sortBy]);
+  }, [products, selectedCategoryId, categories, activeFilters, selectedThicknesses, selectedSizes, sortBy]);
 
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
   
@@ -298,7 +488,7 @@ function CatalogContent() {
       const rawCountry = p.country || (name.toLowerCase().includes('турц') ? "Турция" : name.toLowerCase().includes('росс') ? "Россия" : "");
       const rawBrand = p.brand || "";
       const parsedGrade = p.grade || (name.includes('33') ? "33 класс" : name.includes('32') ? "32 класс" : "");
-      const parsedThickness = p.thickness || name.match(/\d+\s*мм/i)?.[0] || name.match(/\d+мм/)?.[0] || "";
+      const parsedThickness = getProductThickness(p);
 
       // 1. Format brand name nicely
       let parsedBrand = rawBrand;
@@ -373,6 +563,7 @@ function CatalogContent() {
               ? `${p.image_url}?v=3`
               : `${p.image_url.startsWith('/') ? '' : '/'}${p.image_url}?v=3`)
           : "",
+        images: p.images,
         discount: p.price_outlet && p.price > 0
           ? `−${Math.round(((p.price - p.price_outlet) / p.price) * 100)}%` 
           : undefined
@@ -382,7 +573,7 @@ function CatalogContent() {
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    scrollToCatalogStart('smooth');
   };
 
   const toggleBrandFilter = (brand: string) => {
@@ -430,29 +621,97 @@ function CatalogContent() {
     return cat ? cat.name : null;
   }, [selectedCategoryId, categories]);
 
+  const categoryProductCounts = useMemo(() => {
+    const activeCategoryIds = new Set(categories.map(c => c.id));
+    const validProducts = products.filter(p => {
+      if (!p.category_id || !activeCategoryIds.has(p.category_id)) return false;
+      const isFreePriceCategory = allFreePriceCategoryIds.includes(p.category_id);
+      return p.price >= 1000 || isFreePriceCategory;
+    });
+
+    const counts: Record<number, number> = {};
+    categories.forEach(cat => {
+      const allRelatedIds = getAllChildIds(cat.id, categories);
+      counts[cat.id] = validProducts.filter(p => p.category_id && allRelatedIds.includes(p.category_id)).length;
+    });
+    return counts;
+  }, [products, categories, allFreePriceCategoryIds]);
+
+  const totalValidCount = useMemo(() => {
+    const activeCategoryIds = new Set(categories.map(c => c.id));
+    return products.filter(p => {
+      if (!p.category_id || !activeCategoryIds.has(p.category_id)) return false;
+      const isFreePriceCategory = allFreePriceCategoryIds.includes(p.category_id);
+      return p.price >= 1000 || isFreePriceCategory;
+    }).length;
+  }, [products, categories, allFreePriceCategoryIds]);
+
+  const currentCategoryDescription = useMemo(() => {
+    if (!selectedCategoryId || categories.length === 0) {
+      return "Более 2000 товаров: напольные покрытия, двери и аксессуары.";
+    }
+
+    let currentCat = categories.find(c => c.id === selectedCategoryId);
+    if (!currentCat) return "Более 2000 товаров: напольные покрытия, двери и аксессуары.";
+
+    let depth = 0;
+    while (currentCat.parent_id && depth < 10) {
+      const parent = categories.find(c => c.id === currentCat.parent_id);
+      if (!parent) break;
+      currentCat = parent;
+      depth++;
+    }
+
+    const mainCatName = currentCat.name.toLowerCase();
+
+    if (mainCatName.includes("напольн") || mainCatName.includes("покрыт")) {
+      return "Ламинат, паркетная доска, кварцвинил и аксессуары.";
+    }
+    if (mainCatName.includes("двер")) {
+      return "Входные, межкомнатные и скрытые двери Invisible.";
+    }
+    if (mainCatName.includes("декор") || mainCatName.includes("панел") || mainCatName.includes("настенн")) {
+      return "Стеновые панели, рейки, декор и плинтусы.";
+    }
+    if (mainCatName.includes("плит") || mainCatName.includes("керамогранит")) {
+      return "Керамогранит, плитка и мозаика для стен и пола.";
+    }
+    if (mainCatName.includes("ручк") || mainCatName.includes("фурнитур")) {
+      return "Дверные ручки, замки, петли и фурнитура.";
+    }
+    if (mainCatName.includes("дополн") || mainCatName.includes("сопут")) {
+      return "Подложки, клеи и сопутствующие материалы.";
+    }
+
+    return "Более 2000 товаров: напольные покрытия, двери и аксессуары.";
+  }, [selectedCategoryId, categories]);
+
   // Nested Category Tree Generator
   const renderCategoryTree = () => {
     return (
-      <div className="space-y-1">
+      <div className="space-y-1.5">
         {/* All Products Element */}
-        <button
-          onClick={() => {
-            router.push("/catalog", { scroll: false });
-            setIsFilterOpen(false);
-          }}
-          className={cn(
-            "w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider text-left transition-all duration-200 group no-shadow border",
-            !selectedCategoryId
-              ? "bg-slate-50/50 dark:bg-slate-800/20 border-slate-100 dark:border-white/5 text-[#2c3b6e] dark:text-blue-400"
-              : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/50 dark:hover:bg-slate-800/30"
-          )}
-        >
-          <div className="flex items-center gap-2">
-            {!selectedCategoryId && <div className="w-1 h-3.5 rounded-full bg-[#2c3b6e] dark:bg-blue-400 flex-shrink-0" />}
-            <Layers className={cn("w-3.5 h-3.5", !selectedCategoryId ? "text-[#2c3b6e] dark:text-blue-400" : "text-current")} />
-            <span>Все товары</span>
-          </div>
-        </button>
+        <div className="py-2.5">
+          <button
+            onClick={() => {
+              router.replace("/catalog", { scroll: false });
+              setIsFilterOpen(false);
+            }}
+            className={cn(
+              "w-full flex items-center justify-between text-left text-[13px] font-semibold transition-colors duration-200 cursor-pointer",
+              !selectedCategoryId
+                ? "text-[#2c3b6e] dark:text-blue-400"
+                : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+            )}
+          >
+            <span>
+              Все товары
+              <span className="ml-1.5 text-[10.5px] font-normal text-slate-400 dark:text-slate-500">
+                ({totalValidCount})
+              </span>
+            </span>
+          </button>
+        </div>
 
         {mainCategories.map(cat => {
           const childCats = categories.filter(c => c.parent_id === cat.id);
@@ -461,125 +720,157 @@ function CatalogContent() {
           const isChildActive = selectedCategoryId 
             ? getAllChildIds(cat.id, categories).includes(selectedCategoryId) && selectedCategoryId !== cat.id
             : false;
-          const isExpanded = isActive || isChildActive;
+          const isExpanded = expandedCategoryIds.includes(cat.id);
 
           return (
-            <div key={cat.id} className="space-y-0.5">
+            <div key={cat.id} className="py-2.5">
               <button
                 onClick={() => {
-                  router.push(`/catalog?category=${cat.id}`, { scroll: false });
+                  router.replace(`/catalog?category=${cat.id}`, { scroll: false });
                   if (!hasChildren) {
                     setIsFilterOpen(false);
+                  } else {
+                    setExpandedCategoryIds(prev => {
+                      if (prev.includes(cat.id)) {
+                        return prev.filter(id => id !== cat.id);
+                      } else {
+                        const siblings = mainCategories.map(c => c.id);
+                        const newPrev = prev.filter(id => !siblings.includes(id));
+                        return [...newPrev, cat.id];
+                      }
+                    });
                   }
                 }}
                 className={cn(
-                  "w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider text-left transition-all duration-200 group no-shadow border",
+                  "w-full flex items-center justify-between text-left text-[13px] font-semibold transition-all duration-200 cursor-pointer",
                   isActive || isChildActive
-                    ? "bg-slate-50/50 dark:bg-slate-800/20 border-slate-100 dark:border-white/5 text-[#2c3b6e] dark:text-blue-400"
-                    : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/50 dark:hover:bg-slate-800/30"
+                    ? "text-[#2c3b6e] dark:text-blue-400"
+                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
                 )}
               >
-                <div className="flex items-center gap-2">
-                  {(isActive || isChildActive) && (
-                    <div className={cn(
-                      "w-1 h-3.5 rounded-full flex-shrink-0 transition-all duration-200",
-                      isActive ? "bg-[#2c3b6e] dark:bg-blue-400" : "bg-[#2c3b6e]/40 dark:bg-blue-400/40"
-                    )} />
-                  )}
-                  <span>{cat.name.replace(/\sMAFF$/i, '')}</span>
-                </div>
+                <span className="truncate">
+                  {cat.name.replace(/\sMAFF$/i, '')}
+                  <span className="ml-1.5 text-[10.5px] font-normal text-slate-400 dark:text-slate-500">
+                    ({categoryProductCounts[cat.id] || 0})
+                  </span>
+                </span>
                 {hasChildren && (
-                  <ChevronDown 
+                  <ChevronRight 
                     className={cn(
-                      "w-3.5 h-3.5 text-current transition-transform duration-200", 
-                      isExpanded && "rotate-180"
+                      "w-3.5 h-3.5 text-slate-400 dark:text-slate-500 transition-transform duration-200 ease-in-out", 
+                      isExpanded && "rotate-90 text-[#2c3b6e] dark:text-blue-400"
                     )} 
                   />
                 )}
               </button>
               
-              {hasChildren && isExpanded && (
-                <div className="pl-3.5 pr-1 py-1 border-l border-slate-100 dark:border-white/5 ml-4 mt-0.5 space-y-0.5">
-                  {childCats.map(sub => {
-                    const isSubActive = selectedCategoryId === sub.id;
-                    const grandchildCats = categories.filter(c => c.parent_id === sub.id);
-                    const hasGrandchildren = grandchildCats.length > 0;
-                    const isGrandchildActive = selectedCategoryId
-                      ? getAllChildIds(sub.id, categories).includes(selectedCategoryId) && selectedCategoryId !== sub.id
-                      : false;
-                    const isSubExpanded = isSubActive || isGrandchildActive;
+              <AnimatePresence initial={false}>
+                {hasChildren && isExpanded && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2, ease: "easeInOut" }}
+                    className="overflow-hidden"
+                  >
+                    <div className="mt-2 pl-2 space-y-2">
+                      {childCats.map(sub => {
+                        const isSubActive = selectedCategoryId === sub.id;
+                        const grandchildCats = categories.filter(c => c.parent_id === sub.id);
+                        const hasGrandchildren = grandchildCats.length > 0;
+                        const isGrandchildActive = selectedCategoryId
+                          ? getAllChildIds(sub.id, categories).includes(selectedCategoryId) && selectedCategoryId !== sub.id
+                          : false;
+                        const isSubExpanded = expandedCategoryIds.includes(sub.id);
 
-                    return (
-                      <div key={sub.id} className="space-y-0.5">
-                        <button
-                          key={sub.id}
-                          onClick={() => {
-                            router.push(`/catalog?category=${sub.id}`, { scroll: false });
-                            if (!hasGrandchildren) {
-                              setIsFilterOpen(false);
-                            }
-                          }}
-                          className={cn(
-                            "w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-[11px] uppercase tracking-wider text-left transition-all duration-200 no-shadow",
-                            isSubActive || isGrandchildActive
-                              ? "text-[#2c3b6e] dark:text-blue-400 bg-[#2c3b6e]/5 dark:bg-blue-600/10 font-extrabold"
-                              : "text-slate-500 dark:text-slate-400 hover:text-[#2c3b6e] dark:hover:text-blue-400 hover:bg-slate-50/50 dark:hover:bg-slate-800/20 font-bold"
-                          )}
-                        >
-                          <div className="flex items-center gap-2.5">
-                            <div className={cn(
-                              "w-1.5 h-1.5 rounded-full transition-all duration-200",
-                              isSubActive 
-                                ? "bg-[#2c3b6e] dark:bg-blue-400 scale-125" 
-                                : "bg-slate-300 dark:bg-slate-700"
-                            )} />
-                            <span className="truncate">{sub.name.replace(/\sMAFF$/i, '')}</span>
-                          </div>
-                          {hasGrandchildren && (
-                            <ChevronDown 
+                        return (
+                          <div key={sub.id} className="space-y-1.5">
+                            <button
+                              onClick={() => {
+                                router.replace(`/catalog?category=${sub.id}`, { scroll: false });
+                                if (!hasGrandchildren) {
+                                  setIsFilterOpen(false);
+                                } else {
+                                  setExpandedCategoryIds(prev => {
+                                    if (prev.includes(sub.id)) {
+                                      return prev.filter(id => id !== sub.id);
+                                    } else {
+                                      const siblings = childCats.map(c => c.id);
+                                      const newPrev = prev.filter(id => !siblings.includes(id));
+                                      return [...newPrev, sub.id];
+                                    }
+                                  });
+                                }
+                              }}
                               className={cn(
-                                "w-3 h-3 text-current transition-transform duration-200", 
-                                isSubExpanded && "rotate-180"
-                              )} 
-                            />
-                          )}
-                        </button>
-                        
-                        {hasGrandchildren && isSubExpanded && (
-                          <div className="pl-3.5 pr-1 py-1 border-l border-slate-100 dark:border-white/5 ml-4 mt-0.5 space-y-0.5">
-                            {grandchildCats.map(grand => {
-                              const isGrandActive = selectedCategoryId === grand.id;
-                              return (
-                                <button
-                                  key={grand.id}
-                                  onClick={() => {
-                                    router.push(`/catalog?category=${grand.id}`, { scroll: false });
-                                    setIsFilterOpen(false);
-                                  }}
+                                "w-full flex items-center justify-between text-left text-[12.5px] transition-all duration-200 cursor-pointer",
+                                isSubActive || isGrandchildActive
+                                  ? "text-[#2c3b6e] dark:text-blue-400 font-medium"
+                                  : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white font-medium"
+                              )}
+                            >
+                              <span className="truncate">
+                                {sub.name.replace(/\sMAFF$/i, '')}
+                                <span className="ml-1.5 text-[10px] font-normal text-slate-400 dark:text-slate-500">
+                                  ({categoryProductCounts[sub.id] || 0})
+                                </span>
+                              </span>
+                              {hasGrandchildren && (
+                                <ChevronRight 
                                   className={cn(
-                                    "w-full flex items-center gap-2 px-3 py-1 rounded-lg text-[10px] uppercase tracking-wider text-left transition-all duration-200 no-shadow",
-                                    isGrandActive
-                                      ? "text-[#2c3b6e] dark:text-blue-400 font-extrabold bg-[#2c3b6e]/10 dark:bg-blue-600/20"
-                                      : "text-slate-400 dark:text-slate-500 hover:text-[#2c3b6e] dark:hover:text-blue-400 font-bold"
-                                  )}
+                                    "w-3 h-3 text-slate-400 dark:text-slate-500 transition-transform duration-200 ease-in-out", 
+                                    isSubExpanded && "rotate-90 text-[#2c3b6e] dark:text-blue-400"
+                                  )} 
+                                />
+                              )}
+                            </button>
+                            
+                            <AnimatePresence initial={false}>
+                              {hasGrandchildren && isSubExpanded && (
+                                <motion.div
+                                  initial={{ height: 0, opacity: 0 }}
+                                  animate={{ height: "auto", opacity: 1 }}
+                                  exit={{ height: 0, opacity: 0 }}
+                                  transition={{ duration: 0.2, ease: "easeInOut" }}
+                                  className="overflow-hidden"
                                 >
-                                  <div className={cn(
-                                    "w-1 h-1 rounded-full transition-all duration-200",
-                                    isGrandActive 
-                                      ? "bg-[#2c3b6e] dark:bg-blue-400 scale-125" 
-                                      : "bg-slate-300/60 dark:bg-slate-700"
-                                  )} />
-                                  <span className="truncate">{grand.name.replace(/\sMAFF$/i, '')}</span>
-                                </button>
-                              );
-                            })}
+                                  <div className="pl-3 space-y-1.5 pt-1 pb-1">
+                                    {grandchildCats.map(grand => {
+                                      const isGrandActive = selectedCategoryId === grand.id;
+                                      return (
+                                        <button
+                                          key={grand.id}
+                                          onClick={() => {
+                                            router.replace(`/catalog?category=${grand.id}`, { scroll: false });
+                                            setIsFilterOpen(false);
+                                          }}
+                                          className={cn(
+                                            "w-full flex items-center gap-2 text-left text-[12px] transition-all duration-200 cursor-pointer",
+                                            isGrandActive
+                                              ? "text-[#2c3b6e] dark:text-blue-400 font-medium"
+                                              : "text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white font-medium"
+                                          )}
+                                        >
+                                          <span className="truncate">
+                                            {grand.name.replace(/\sMAFF$/i, '')}
+                                            <span className="ml-1.5 text-[9.5px] font-normal text-slate-400/80 dark:text-slate-500/80">
+                                              ({categoryProductCounts[grand.id] || 0})
+                                            </span>
+                                          </span>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
                           </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           );
         })}
@@ -588,114 +879,119 @@ function CatalogContent() {
   };
 
   const FilterContent = (
-    <div className="space-y-8">
-      {/* Category Selection Tree */}
-      <div>
-         <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-900 dark:text-white mb-4 pb-2.5 border-b border-slate-100 dark:border-white/5">Каталог</h3>
-         {loading && categories.length === 0 ? (
-           <div className="space-y-2">
-             {Array.from({ length: 5 }).map((_, idx) => (
-               <div key={idx} className="w-full h-9 bg-slate-100 dark:bg-slate-800/40 rounded-xl animate-pulse" />
-             ))}
-           </div>
-         ) : (
-           renderCategoryTree()
-         )}
+    <div className="relative">
+      <div className="sticky top-0 z-10 bg-white/95 dark:bg-slate-900/95 flex items-center justify-between pb-2.5 pt-2 -mt-2 border-b border-slate-100 dark:border-white/5 mb-3">
+         <div className="flex items-center gap-1.5">
+           <h2 className="text-[13px] font-semibold tracking-wider text-slate-900 dark:text-white uppercase">Фильтры</h2>
+           <Filter className="w-3.5 h-3.5 text-[#2c3b6e] dark:text-blue-400" />
+         </div>
       </div>
-
-      {/* Thickness Filter for Laminates */}
-      {isLaminateCategorySelected && (
+      <div className="space-y-4.5 mt-3">
+        {/* Category Selection Tree */}
         <div>
-           <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-900 dark:text-white mb-4 pb-2.5 border-b border-slate-100 dark:border-white/5 flex items-center justify-between">
-              Толщина
-              {selectedThicknesses.length > 0 && (
-                <span className="bg-[#2c3b6e] dark:bg-blue-600 text-white w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold">{selectedThicknesses.length}</span>
+          {loading && categories.length === 0 ? (
+            <div className="space-y-1.5">
+              {Array.from({ length: 5 }).map((_, idx) => (
+                <div key={idx} className="w-full h-8.5 bg-slate-100 dark:bg-slate-800/40 rounded-xl animate-pulse" />
+              ))}
+            </div>
+          ) : (
+            renderCategoryTree()
+          )}
+        </div>
+
+        {/* Thickness Filter */}
+        {availableThicknesses.length > 0 && (
+          <div className="pt-3 border-t border-slate-100 dark:border-white/5">
+             <h3 className="text-[12.5px] font-semibold text-slate-900 dark:text-white uppercase tracking-wider mb-2">
+                Толщина
+             </h3>
+             <div className="relative">
+               <select 
+                 value={selectedThicknesses.length > 0 ? selectedThicknesses[0] : ""}
+                 onChange={(e) => {
+                   setSelectedThicknesses(e.target.value ? [e.target.value] : []);
+                   setCurrentPage(1);
+                 }}
+                 className="w-full bg-slate-50/50 dark:bg-slate-950/20 border border-slate-200/30 dark:border-white/5 rounded-xl px-3 py-2 text-[12.5px] font-medium text-slate-900 dark:text-white focus:outline-none focus:border-[#2c3b6e]/30 dark:focus:border-blue-500/30 transition-colors appearance-none cursor-pointer"
+               >
+                 <option value="" className="dark:bg-slate-900">Все</option>
+                 {availableThicknesses.map(t => (
+                   <option key={t} value={t} className="dark:bg-slate-900">{t}{String(t).toLowerCase().includes('мм') ? '' : ' мм'}</option>
+                 ))}
+               </select>
+               <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
+                 <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+               </div>
+             </div>
+          </div>
+        )}
+
+        {/* Size Filter */}
+        {availableSizes.length > 0 && (
+          <div className="pt-3 border-t border-slate-100 dark:border-white/5">
+             <h3 className="text-[12.5px] font-semibold text-slate-900 dark:text-white uppercase tracking-wider mb-2">
+                Размеры
+             </h3>
+             <div className="relative">
+               <select 
+                 value={selectedSizes.length > 0 ? selectedSizes[0] : ""}
+                 onChange={(e) => {
+                   setSelectedSizes(e.target.value ? [e.target.value] : []);
+                   setCurrentPage(1);
+                 }}
+                 className="w-full bg-slate-50/50 dark:bg-slate-950/20 border border-slate-200/30 dark:border-white/5 rounded-xl px-3 py-2 text-[12.5px] font-medium text-slate-900 dark:text-white focus:outline-none focus:border-[#2c3b6e]/30 dark:focus:border-blue-500/30 transition-colors appearance-none cursor-pointer"
+               >
+                 <option value="" className="dark:bg-slate-900">Все</option>
+                 {availableSizes.map(size => (
+                   <option key={size} value={size} className="dark:bg-slate-900">{size}{String(size).toLowerCase().includes('мм') ? '' : ' мм'}</option>
+                 ))}
+               </select>
+               <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
+                 <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+               </div>
+             </div>
+          </div>
+        )}
+
+        {/* Brand Filters */}
+        <div className="pt-3 border-t border-slate-100 dark:border-white/5">
+           <h3 className="text-[12.5px] font-semibold text-slate-900 dark:text-white uppercase tracking-wider mb-2.5 flex items-center justify-between">
+              Бренды
+              {activeFilters.length > 0 && (
+                <span className="bg-[#2c3b6e] dark:bg-blue-600 text-white w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-semibold">{activeFilters.length}</span>
               )}
            </h3>
-           <div className="space-y-1">
-              {["8 мм", "10 мм", "12 мм"].map(thickness => {
-                const isSelected = selectedThicknesses.includes(thickness);
-                return (
-                  <button 
-                    key={thickness} 
-                    onClick={() => {
-                      setSelectedThicknesses(prev => 
-                        prev.includes(thickness) 
-                          ? prev.filter(t => t !== thickness) 
-                          : [...prev, thickness]
-                      );
-                      setCurrentPage(1);
-                    }} 
-                    className={cn(
-                      "w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 group text-left no-shadow",
-                      isSelected ? "bg-blue-50/50 dark:bg-blue-900/10" : "hover:bg-slate-50 dark:hover:bg-slate-800/50"
-                    )}
-                  >
-                    <div className={cn(
-                      "w-4 h-4 rounded border flex items-center justify-center transition-colors flex-shrink-0",
-                      isSelected ? "bg-[#2c3b6e] border-[#2c3b6e] dark:bg-blue-600 dark:border-blue-600" : "border-slate-300 dark:border-slate-700 group-hover:border-[#2c3b6e] dark:group-hover:border-blue-500"
-                    )}>
-                      {isSelected && <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
-                    </div>
-                    <span className={cn(
-                      "text-[11px] font-bold uppercase tracking-wider",
-                      isSelected ? "text-[#2c3b6e] dark:text-blue-400 font-extrabold" : "text-slate-500 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white"
-                    )}>
-                      {thickness}
-                    </span>
-                  </button>
-                );
-              })}
+           <div className="flex flex-wrap gap-1.5 max-h-[300px] overflow-y-auto overscroll-y-contain pr-1 pb-8 no-scrollbar">
+              {loading && products.length === 0 ? (
+                Array.from({ length: 5 }).map((_, idx) => (
+                  <div key={idx} className="w-14 h-7.5 bg-slate-100 dark:bg-slate-800/40 rounded-full animate-pulse" />
+                ))
+              ) : availableBrands.length === 0 ? (
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold uppercase tracking-widest leading-none">Бренды отсутствуют</span>
+              ) : (
+                availableBrands.map(brand => {
+                  const isSelected = activeFilters.includes(brand);
+                  const formattedBrand = brand.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+
+                  return (
+                    <button 
+                      key={brand} 
+                      onClick={() => toggleBrandFilter(brand)} 
+                      className={cn(
+                        "px-3 py-1.5 rounded-full border text-[10px] font-medium uppercase tracking-wider transition-all duration-200 text-center cursor-pointer",
+                        isSelected 
+                          ? "bg-[#2c3b6e] text-white border-[#2c3b6e] dark:bg-blue-600 dark:border-blue-600" 
+                          : "bg-white/50 dark:bg-slate-900/50 backdrop-blur-md border-slate-200/40 dark:border-slate-700/80 text-slate-600 dark:text-slate-400 hover:border-[#2c3b6e] dark:hover:border-blue-500 hover:text-slate-900 dark:hover:text-white"
+                      )}
+                    >
+                      {formattedBrand}
+                    </button>
+                  );
+                })
+              )}
            </div>
         </div>
-      )}
-
-      {/* Brand Filters */}
-      <div>
-         <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-900 dark:text-white mb-4 pb-2.5 border-b border-slate-100 dark:border-white/5 flex items-center justify-between">
-            Бренды
-            {activeFilters.length > 0 && (
-              <span className="bg-[#2c3b6e] dark:bg-blue-600 text-white w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold">{activeFilters.length}</span>
-            )}
-         </h3>
-         <div className="space-y-1 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar">
-            {loading && products.length === 0 ? (
-              Array.from({ length: 5 }).map((_, idx) => (
-                <div key={idx} className="w-full h-9 bg-slate-100 dark:bg-slate-800/40 rounded-xl animate-pulse" />
-              ))
-            ) : availableBrands.length === 0 ? (
-              <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest leading-none">Бренды отсутствуют</span>
-            ) : (
-              availableBrands.map(brand => {
-                const isSelected = activeFilters.includes(brand);
-                const formattedBrand = brand.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
-
-                return (
-                  <button 
-                    key={brand} 
-                    onClick={() => toggleBrandFilter(brand)} 
-                    className={cn(
-                      "w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 group text-left no-shadow",
-                      isSelected ? "bg-blue-50/50 dark:bg-blue-900/10" : "hover:bg-slate-50 dark:hover:bg-slate-800/50"
-                    )}
-                  >
-                    <div className={cn(
-                      "w-4 h-4 rounded border flex items-center justify-center transition-colors flex-shrink-0",
-                      isSelected ? "bg-[#2c3b6e] border-[#2c3b6e] dark:bg-blue-600 dark:border-blue-600" : "border-slate-300 dark:border-slate-700 group-hover:border-[#2c3b6e] dark:group-hover:border-blue-500"
-                    )}>
-                      {isSelected && <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
-                    </div>
-                    <span className={cn(
-                      "text-[11px] font-bold uppercase tracking-wider truncate",
-                      isSelected ? "text-[#2c3b6e] dark:text-blue-400 font-extrabold" : "text-slate-500 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white"
-                    )}>
-                      {formattedBrand}
-                    </span>
-                  </button>
-                );
-              })
-            )}
-         </div>
       </div>
     </div>
   );
@@ -704,6 +1000,13 @@ function CatalogContent() {
     <div className="min-h-screen bg-white dark:bg-slate-900 transition-colors duration-300 pb-20">
       {/* Custom styled scrollbars for sidebar lists */}
       <style dangerouslySetInnerHTML={{__html: `
+        .no-scrollbar::-webkit-scrollbar {
+          display: none !important;
+        }
+        .no-scrollbar {
+          -ms-overflow-style: none !important;
+          scrollbar-width: none !important;
+        }
         .custom-scrollbar::-webkit-scrollbar {
           width: 4px;
         }
@@ -726,27 +1029,27 @@ function CatalogContent() {
       `}} />
       {/* ── Breadcrumbs ── */}
       <div className="w-full bg-slate-50/50 dark:bg-slate-950/30 border-b border-slate-100 dark:border-white/5">
-        <div className="max-w-7xl mx-auto px-4 lg:px-6 py-4">
-          <nav className="flex items-center gap-2 text-[9px] lg:text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
-            <Link href="/" className="hover:text-[#2c3b6e] dark:hover:text-blue-400 transition-colors">Главная</Link>
-            <ChevronRight className="w-3 h-3" />
-            <Link href="/catalog" className="hover:text-[#2c3b6e] dark:hover:text-blue-400 transition-colors">Каталог</Link>
+        <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 py-2 sm:py-3 lg:py-4">
+          <nav className="flex items-center gap-2 text-[9px] lg:text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 overflow-x-auto no-scrollbar whitespace-nowrap">
+            <Link href="/" className="hover:text-[#2c3b6e] dark:hover:text-blue-400 transition-colors shrink-0">Главная</Link>
+            <ChevronRight className="w-3 h-3 shrink-0" />
+            <Link href="/catalog" className="hover:text-[#2c3b6e] dark:hover:text-blue-400 transition-colors shrink-0">Каталог</Link>
             
             {loading && categoryParam ? (
               <>
-                <ChevronRight className="w-3.5 h-3.5" />
-                <span className="inline-block w-20 h-3 bg-slate-200 dark:bg-slate-800/40 rounded animate-pulse" />
+                <ChevronRight className="w-3.5 h-3.5 shrink-0" />
+                <span className="inline-block w-20 h-3 bg-slate-200 dark:bg-slate-800/40 rounded animate-pulse shrink-0" />
               </>
             ) : categoryPath.length > 0 ? (
               categoryPath.map((cat, idx) => {
                 const isLast = idx === categoryPath.length - 1;
                 return (
                   <React.Fragment key={cat.id}>
-                    <ChevronRight className="w-3.5 h-3.5" />
+                    <ChevronRight className="w-3.5 h-3.5 shrink-0" />
                     {isLast ? (
-                      <span className="text-slate-900 dark:text-white">{cat.name.replace(/\sMAFF$/i, '')}</span>
+                      <span className="text-slate-900 dark:text-white shrink-0">{cat.name.replace(/\sMAFF$/i, '')}</span>
                     ) : (
-                      <Link href={`/catalog?category=${cat.id}`} className="hover:text-[#2c3b6e] dark:hover:text-blue-400 transition-colors">
+                      <Link href={`/catalog?category=${cat.id}`} className="hover:text-[#2c3b6e] dark:hover:text-blue-400 transition-colors shrink-0">
                         {cat.name.replace(/\sMAFF$/i, '')}
                       </Link>
                     )}
@@ -759,20 +1062,50 @@ function CatalogContent() {
       </div>
 
       {/* ── Header Area ── */}
-      <section className="w-full bg-slate-50/30 dark:bg-slate-950/40 py-4 lg:py-5 border-b border-slate-100/80 dark:border-slate-900/50">
-        <div className="max-w-7xl mx-auto px-4 lg:px-6">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <section id="catalog-sticky-header" className="w-full sticky top-16 lg:top-40 z-30 bg-white dark:bg-slate-900 py-2 sm:py-3 lg:py-5 border-b border-slate-100/80 dark:border-slate-900/50">
+        <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 lg:gap-4">
             <div className="max-w-2xl">
-              <h1 className="text-lg lg:text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight mb-1 leading-tight">
+              <h1 className="text-lg lg:text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight mb-1.5 leading-tight">
                 {loading && categoryParam ? (
                   <span className="inline-block w-48 h-5 lg:h-7 bg-slate-200 dark:bg-slate-800 animate-pulse rounded-xl" />
                 ) : (
                   selectedCategoryName || <>Каталог <span className="text-[#2c3b6e] dark:text-blue-500">продукции</span></>
                 )}
               </h1>
-              <p className="text-slate-400 dark:text-slate-500 text-[9px] lg:text-[10px] font-bold opacity-80 uppercase tracking-widest leading-none">
-                Более 2000 наименований напольных покрытий, дверей и аксессуаров.
+              <p className="text-slate-500 dark:text-slate-400 text-[11px] lg:text-[12.5px] font-medium leading-relaxed">
+                {currentCategoryDescription}
               </p>
+            </div>
+
+            {/* Found products stat info and sorting */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6 shrink-0 mt-1 lg:mt-0">
+              <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                Найдено: <span className="text-[#2c3b6e] dark:text-blue-400 font-bold">{filteredProducts.length}</span>
+              </span>
+
+              {!loading && (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider leading-none">Сортировка:</span>
+                  <div className="relative flex items-center">
+                    <select 
+                      value={sortBy} 
+                      onChange={(e) => {
+                        setSortBy(e.target.value);
+                        setCurrentPage(1);
+                      }} 
+                      className="bg-transparent border-0 p-0 pr-5 text-[11px] font-semibold outline-none text-[#2c3b6e] dark:text-blue-400 appearance-none cursor-pointer uppercase tracking-wider focus:ring-0 leading-none h-4 -mt-[1px]"
+                    >
+                      {["Популярные", "Сначала дешевле", "Сначала дороже", "По названию"].map(opt => (
+                        <option key={opt} value={opt} className="dark:bg-slate-900 uppercase">{opt.toUpperCase()}</option>
+                      ))}
+                    </select>
+                    <div className="absolute inset-y-0 right-0.5 flex items-center pointer-events-none">
+                      <ChevronDown className="w-3 h-3 text-[#2c3b6e] dark:text-blue-400" />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
           </div>
@@ -780,43 +1113,21 @@ function CatalogContent() {
       </section>
 
       {/* ── Main Catalog Workspace ── */}
-      <section className="max-w-7xl mx-auto px-4 lg:px-6 py-6 lg:py-10">
+      <section id="catalog-workspace" className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-10">
         <div className="flex flex-col lg:flex-row gap-10">
           
           {/* 1. Left Sidebar (Desktop always visible) */}
           <aside className="hidden lg:block w-72 flex-shrink-0">
-            <div className="sticky top-28 max-h-[calc(100vh-140px)] overflow-y-auto pr-2 custom-scrollbar">
+            <div 
+              style={{ top: `${topOffset + 12}px`, maxHeight: `calc(100vh - ${topOffset + 32}px)` }}
+              className="sticky z-20 overflow-y-auto overscroll-y-contain pr-2 pb-20 no-scrollbar"
+            >
               {FilterContent}
             </div>
           </aside>
 
           {/* 2. Main content area (Desktop right side) */}
           <main className="flex-grow min-w-0">
-            
-            {/* Found products stat info and sorting */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 bg-slate-50/50 dark:bg-slate-950/20 px-4 py-3.5 rounded-2xl border border-slate-100 dark:border-white/5">
-              <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">
-                Найдено товаров: <span className="text-[#2c3b6e] dark:text-blue-400 font-extrabold">{filteredProducts.length}</span>
-              </span>
-
-              {!loading && (
-                <div className="flex items-center gap-3">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Сортировка:</span>
-                  <select 
-                    value={sortBy} 
-                    onChange={(e) => {
-                      setSortBy(e.target.value);
-                      setCurrentPage(1);
-                    }} 
-                    className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-xl px-3 py-1.5 text-[11px] font-bold outline-none text-slate-900 dark:text-white flex-grow sm:flex-grow-0"
-                  >
-                    {["Популярные", "Сначала дешевле", "Сначала дороже", "По названию"].map(opt => (
-                      <option key={opt}>{opt}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            </div>
 
             {/* Grid list of Products */}
             {!loading && currentProducts.length === 0 ? (
@@ -830,11 +1141,12 @@ function CatalogContent() {
                     Пожалуйста, сбросьте фильтры или выберите другую подкатегорию в меню.
                   </p>
                 </div>
-                {(activeFilters.length > 0 || selectedThicknesses.length > 0) && (
+                {(activeFilters.length > 0 || selectedThicknesses.length > 0 || selectedSizes.length > 0) && (
                   <button 
                     onClick={() => {
                       setActiveFilters([]);
                       setSelectedThicknesses([]);
+                      setSelectedSizes([]);
                       setCurrentPage(1);
                     }}
                     className="px-6 py-2.5 bg-[#2c3b6e] dark:bg-blue-600 text-white rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-slate-900 dark:hover:bg-blue-500 transition-colors"
@@ -844,42 +1156,54 @@ function CatalogContent() {
                 )}
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3 gap-3.5 lg:gap-4.5">
-                {loading ? (
-                  Array.from({ length: 6 }).map((_, idx) => (
-                    <div 
-                      key={idx} 
-                      className="bg-white dark:bg-[#161d2f] rounded-2xl lg:rounded-[2.5rem] border border-slate-100 dark:border-white/5 p-2 lg:p-3 flex flex-col h-full animate-pulse"
-                    >
-                      {/* Image Area Skeleton */}
-                      <div className="aspect-square rounded-xl lg:rounded-[2rem] bg-slate-100 dark:bg-slate-800/85 mb-3 lg:mb-4 w-full" />
-                      
-                      {/* Content Area Skeleton */}
-                      <div className="px-1 lg:px-2 pb-1 lg:pb-2 flex flex-col flex-grow space-y-3">
-                        <div className="h-4 bg-slate-100 dark:bg-slate-800/85 rounded w-3/4" />
-                        <div className="space-y-1.5 pt-2">
-                           <div className="flex justify-between">
-                              <div className="h-2.5 bg-slate-100 dark:bg-slate-800/85 rounded w-1/4" />
-                              <div className="h-2.5 bg-slate-100 dark:bg-slate-800/85 rounded w-1/3" />
-                           </div>
-                           <div className="flex justify-between">
-                              <div className="h-2.5 bg-slate-100 dark:bg-slate-800/85 rounded w-1/4" />
-                              <div className="h-2.5 bg-slate-100 dark:bg-slate-800/85 rounded w-1/3" />
-                           </div>
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={`grid-${categoryParam}-${sortBy}-${activeFilters.join(",")}-${selectedThicknesses.join(",")}-${selectedSizes.join(",")}-${currentPage}`}
+                  className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3 gap-3.5 lg:gap-4.5"
+                  variants={containerVariants}
+                  initial="hidden"
+                  animate="show"
+                  exit={{ opacity: 0, transition: { duration: 0.15 } }}
+                >
+                  {loading ? (
+                    Array.from({ length: 6 }).map((_, idx) => (
+                      <motion.div
+                        key={`skeleton-${idx}`}
+                        variants={itemVariants}
+                        className="bg-white dark:bg-[#161d2f] rounded-2xl lg:rounded-[2.5rem] border border-slate-100 dark:border-white/5 p-2 lg:p-3 flex flex-col h-full animate-pulse"
+                      >
+                        {/* Image Area Skeleton */}
+                        <div className="aspect-square rounded-xl lg:rounded-[2rem] bg-slate-100 dark:bg-slate-800/85 mb-3 lg:mb-4 w-full" />
+                        
+                        {/* Content Area Skeleton */}
+                        <div className="px-1 lg:px-2 pb-1 lg:pb-2 flex flex-col flex-grow space-y-3">
+                          <div className="h-4 bg-slate-100 dark:bg-slate-800/85 rounded w-3/4" />
+                          <div className="space-y-1.5 pt-2">
+                             <div className="flex justify-between">
+                                <div className="h-2.5 bg-slate-100 dark:bg-slate-800/85 rounded w-1/4" />
+                                <div className="h-2.5 bg-slate-100 dark:bg-slate-800/85 rounded w-1/3" />
+                             </div>
+                             <div className="flex justify-between">
+                                <div className="h-2.5 bg-slate-100 dark:bg-slate-800/85 rounded w-1/4" />
+                                <div className="h-2.5 bg-slate-100 dark:bg-slate-800/85 rounded w-1/3" />
+                             </div>
+                          </div>
+                          <div className="mt-auto pt-4 space-y-2">
+                             <div className="h-8 bg-slate-100 dark:bg-slate-800/85 rounded-full w-full" />
+                             <div className="h-10 bg-slate-100 dark:bg-slate-800/85 rounded-full w-full" />
+                          </div>
                         </div>
-                        <div className="mt-auto pt-4 space-y-2">
-                           <div className="h-8 bg-slate-100 dark:bg-slate-800/85 rounded-full w-full" />
-                           <div className="h-10 bg-slate-100 dark:bg-slate-800/85 rounded-full w-full" />
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  currentProducts.map((product) => (
-                    <ProductCard key={product.id} {...product} />
-                  ))
-                )}
-              </div>
+                      </motion.div>
+                    ))
+                  ) : (
+                    currentProducts.map((product) => (
+                      <motion.div key={product.id} variants={itemVariants}>
+                        <ProductCard {...product} />
+                      </motion.div>
+                    ))
+                  )}
+                </motion.div>
+              </AnimatePresence>
             )}
 
             {/* Pagination Controls */}
@@ -953,9 +1277,9 @@ function CatalogContent() {
         >
           <SlidersHorizontal className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           <span>Каталог и фильтры</span>
-          {(activeFilters.length > 0 || selectedThicknesses.length > 0) && (
+          {(activeFilters.length > 0 || selectedThicknesses.length > 0 || selectedSizes.length > 0) && (
             <span className="bg-[#f0a400] text-slate-950 w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center text-[8px] sm:text-[9px] font-black ml-0.5 sm:ml-1">
-              {(activeFilters.length + selectedThicknesses.length)}
+              {(activeFilters.length + selectedThicknesses.length + selectedSizes.length)}
             </span>
           )}
         </button>
@@ -971,38 +1295,38 @@ function CatalogContent() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.3 }}
-              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm pointer-events-auto" 
+              className="absolute inset-0 bg-slate-950/40 backdrop-blur-md pointer-events-auto" 
               onClick={() => setIsFilterOpen(false)} 
             />
             {/* Sliding Content Container */}
             <motion.div 
-              initial={{ y: "100%" }}
-              animate={{ y: 0 }}
-              exit={{ y: "100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="relative w-full h-full bg-white dark:bg-slate-900 shadow-2xl flex flex-col rounded-t-2xl overflow-hidden pointer-events-auto"
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
+              className="relative w-full max-w-[320px] h-full bg-white/95 dark:bg-slate-900/95 backdrop-blur-md shadow-2xl flex flex-col rounded-l-3xl border-l border-slate-100/50 dark:border-white/5 overflow-hidden pointer-events-auto"
             >
               <div className="p-4 border-b border-slate-100 dark:border-white/5 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <SlidersHorizontal className="w-4 h-4 text-[#2c3b6e] dark:text-blue-400" />
-                  <h2 className="font-black text-slate-900 dark:text-white uppercase tracking-widest text-xs">Фильтры</h2>
+                  <SlidersHorizontal className="w-4 h-4 text-slate-800 dark:text-slate-200" />
+                  <h2 className="font-semibold text-slate-800 dark:text-white tracking-widest text-xs uppercase">Фильтры</h2>
                 </div>
                 <button 
                   onClick={() => setIsFilterOpen(false)} 
-                  className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
+                  className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
                 >
-                  <X className="w-5 h-5 dark:text-white" />
+                  <X className="w-5 h-5 text-slate-500 dark:text-slate-400" />
                 </button>
               </div>
               
-              <div className="p-5 overflow-y-auto flex-grow no-scrollbar">
+              <div className="p-4 overflow-y-auto flex-grow no-scrollbar">
                 {FilterContent}
               </div>
               
-              <div className="p-4 border-t border-slate-100 dark:border-white/5 bg-slate-50 dark:bg-slate-950/20">
+              <div className="p-4 border-t border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-slate-950/20">
                 <button 
                   onClick={() => setIsFilterOpen(false)} 
-                  className="w-full bg-[#2c3b6e] dark:bg-blue-600 hover:bg-[#1a1a1a] text-white font-bold py-4 rounded-xl uppercase tracking-widest text-[10px] transition-colors shadow-lg shadow-[#2c3b6e]/10 dark:shadow-none"
+                  className="w-full bg-slate-900 dark:bg-blue-600 hover:bg-slate-800 text-white font-semibold py-3.5 rounded-xl uppercase tracking-widest text-[10px] transition-colors shadow-lg shadow-slate-900/10 dark:shadow-none"
                 >
                   Показать ({filteredProducts.length})
                 </button>

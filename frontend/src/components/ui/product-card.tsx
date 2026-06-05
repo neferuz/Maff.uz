@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { cn } from "@/lib/utils";
+import { cn, cleanNameFromDimensions } from "@/lib/utils";
 import { Heart, BarChart2, ShoppingBag, Image as ImageIcon, Zap } from "lucide-react";
 import { useShop } from "@/context/shop-context";
 import { getProductUnit } from "@/lib/units";
@@ -17,6 +17,7 @@ interface ProductCardProps {
   priceOutlet?: number;
   inStock: boolean;
   image: string;
+  images?: string[];
   isDoor?: boolean;
   isOrderOnly?: boolean;
   isPreorder?: boolean;
@@ -34,6 +35,7 @@ export function ProductCard({
   priceOutlet,
   inStock,
   image,
+  images,
   isDoor: isDoorProp,
   isOrderOnly,
   isPreorder,
@@ -48,6 +50,28 @@ export function ProductCard({
   const isFavorite = isInFavorites(id);
   const isCompared = isInCompare(id);
 
+  let parsedImages = images;
+  if (typeof images === 'string') {
+    try {
+      parsedImages = JSON.parse(images);
+    } catch {
+      parsedImages = [];
+    }
+  }
+
+  // Check if we should show the second image (for AGT wall decors/panels, where the first image is a duplicate room scene)
+  const isAgtWallPanel = brand && brand.toLowerCase() === 'agt' && (
+    /\blb\b/i.test(title) || 
+    title.toLowerCase().includes('декор') ||
+    title.toLowerCase().includes('панел') ||
+    title.toLowerCase().includes('акустическ')
+  );
+
+  const mainImage = (isAgtWallPanel && Array.isArray(parsedImages) && parsedImages.length > 1) ? parsedImages[1] : image;
+
+  // Normalize image URL path to prevent protocol-relative (//) URL interpretation by browsers
+  const cleanImage = mainImage ? (mainImage.startsWith('http') ? mainImage : `/${mainImage.replace(/^\/+/, "")}`) : "";
+
   const isDoorBrands = ['portika', 'zadoor', 'profildoors', 'волховец', 'volkhovets', 'filomuro'];
   const isDoorKeywords = ['двер', 'door', 'классико', 'порта', 'centro', 'неоклассико'];
   const isDoor = isDoorProp ?? (
@@ -57,73 +81,33 @@ export function ProductCard({
 
   const unit = isDoor ? "шт" : getProductUnit(title, brand);
 
-  // Extract color from product title
-  const extractColor = (name: string): string | null => {
-    if (!name) return null;
-    const lower = name.toLowerCase();
-    const colorMap: Record<string, string[]> = {
-      "Белый": ["белый", "белая эмаль", "white"],
-      "Серый": ["серый", "серая", "grey", "gray"],
-      "Кремовый": ["кремовый", "крем", "cream"],
-      "Графит": ["графит", "graphite"],
-      "Орех": ["орех", "ореховый", "walnut"],
-      "Дуб": ["дуб", "дубовый", "oak"],
-      "Бетон": ["бетон", "concrete"],
-      "Нордик": ["нордик", "nordic"],
-      "Сканди": ["сканди", "scandi"],
-      "Бренди": ["бренди", "brandy"],
-      "Чёрный": ["чёрный", "черный", "black"],
-      "Бежевый": ["бежевый", "beige"],
-      "Молочный": ["молочный", "milky"],
-      "Антрацит": ["антрацит", "anthracite"],
-      "Деним": ["деним", "denim"],
-      "Айвори": ["айвори", "ivory"],
-      "Мелон": ["мелон", "melon"],
-      "Опал": ["опал", "opal"],
-      "Сатинато": ["сатинато", "satinato"],
-      "Перламутровый": ["перламутровый", "pearlescent", "жемчужно-перламутровый"],
-      "Аляска": ["аляска", "alaska"],
-      "Праймер": ["праймер", "primer"],
-      "Natural Oak": ["natural oak"],
-      "Alpik Oak": ["alpik oak"],
-    };
-    for (const [colorName, keywords] of Object.entries(colorMap)) {
-      for (const kw of keywords) {
-        if (lower.includes(kw)) return colorName;
-      }
-    }
-    return null;
-  };
-
-  const productColor = extractColor(title);
-
-  const getColorStyle = (color: string) => {
-    const map: Record<string, string> = {
-      "Белый": "#ffffff", "Серый": "#6b7280", "Кремовый": "#f5f5dc",
-      "Графит": "#374151", "Орех": "#8b5a2b", "Дуб": "#a0522d",
-      "Бетон": "#9ca3af", "Нордик": "#d1d5db", "Сканди": "#e5e7eb",
-      "Бренди": "#b45309", "Чёрный": "#000000", "Бежевый": "#d2b48c",
-      "Молочный": "#fffdd0", "Антрацит": "#1f2937", "Деним": "#1560bd",
-      "Айвори": "#fffff0", "Мелон": "#fdbcb4", "Опал": "#f0f8ff",
-      "Сатинато": "#e2e8f0", "Перламутровый": "#f0f0f0", "Аляска": "#f8fafc",
-      "Праймер": "#e2e2e2", "Natural Oak": "#c4a35a", "Alpik Oak": "#b8956a",
-    };
-    return map[color] || "#cbd5e1";
+  const getProductSize = (name: string) => {
+    const m = name.match(/(?:\b|^)(\d+(?:\.\d+)?\s*[xх\*×]\s*\d+(?:\.\d+)?)/i);
+    if (!m) return "";
+    return m[1].replace(/\s+/g, "").replace(/[х\*×]/g, "x");
   };
 
   // Dynamic specifications builder
   const specs = [];
-  if (brand && brand.trim() !== "" && !/^[0-9a-f-]{36}$/.test(brand)) {
+  if (brand && brand.trim() !== "" && brand.trim() !== "MAFF" && !/^[0-9a-f-]{36}$/.test(brand)) {
     specs.push({ label: "Бренд", value: brand });
   }
-  if (country && country.trim() !== "") {
+
+  const size = getProductSize(title);
+  if (size) {
+    specs.push({ label: "Размер", value: `${size} мм` });
+  }
+
+  if (country && country.trim() !== "" && country.trim() !== "Европа") {
     specs.push({ label: "Страна", value: country });
   }
-  if (grade && grade.trim() !== "") {
-    specs.push({ label: "Класс", value: grade });
-  }
-  if (thickness && thickness.trim() !== "") {
-    specs.push({ label: "Толщина", value: thickness });
+  if (!isDoor) {
+    if (grade && grade.trim() !== "" && grade.trim() !== "Premium" && grade.trim() !== "Premium класс") {
+      specs.push({ label: "Класс", value: grade });
+    }
+    if (thickness && thickness.trim() !== "" && thickness.trim() !== "8мм") {
+      specs.push({ label: "Толщина", value: thickness });
+    }
   }
 
   const getNumericPrice = (p: string | number) => {
@@ -142,7 +126,7 @@ export function ProductCard({
     if (isFavorite) {
       removeFromFavorites(id);
     } else {
-      addToFavorites({ id, name: title, price: getNumericPrice(price), image, variant: brand });
+      addToFavorites({ id, name: title, price: getNumericPrice(price), image: cleanImage, variant: brand });
     }
   };
 
@@ -152,7 +136,7 @@ export function ProductCard({
     if (isCompared) {
       removeFromCompare(id);
     } else {
-      addToCompare({ id, title, price: String(price), image, brand, country, grade, thickness, name: title });
+      addToCompare({ id, title, price: String(price), image: cleanImage, brand, country, grade, thickness, name: title });
     }
   };
 
@@ -160,7 +144,7 @@ export function ProductCard({
     e.preventDefault();
     e.stopPropagation();
     if (inStock) {
-      addToCart({ id, name: title, price: getNumericPrice(price), image, variant: brand });
+      addToCart({ id, name: title, price: getNumericPrice(price), image: cleanImage, variant: brand });
     }
   };
 
@@ -173,25 +157,23 @@ export function ProductCard({
   return (
     <Link 
       href={`/product/${id}`}
-      className="group bg-white dark:bg-[#161d2f] rounded-2xl lg:rounded-[2.5rem] border border-slate-100 dark:border-white/5 p-2 lg:p-3 hover:border-[#2c3b6e] dark:hover:border-blue-500 transition-all duration-500 flex flex-col h-full relative overflow-hidden shadow-none"
+      className="group bg-[#2c3b6e]/[0.03] dark:bg-slate-900/40 backdrop-blur-xl rounded-xl lg:rounded-2xl border border-slate-200/60 dark:border-white/5 p-2 lg:p-2.5 hover:border-[#2c3b6e] dark:hover:border-blue-500 hover:bg-[#2c3b6e]/[0.06] dark:hover:bg-slate-800/60 transition-all duration-300 flex flex-col h-full relative overflow-hidden"
     >
       {/* Image Area */}
-      <div className="relative aspect-square rounded-xl lg:rounded-[2rem] overflow-hidden bg-slate-50 dark:bg-slate-900/50 mb-3 lg:mb-4 group-hover:bg-slate-100 dark:group-hover:bg-slate-800 transition-colors duration-500">
+      <div className="relative aspect-square rounded-lg lg:rounded-xl overflow-hidden bg-white dark:bg-slate-900 mb-2.5 lg:mb-3 transition-colors duration-500">
         <div className="absolute top-3 left-3 lg:top-4 lg:left-4 flex flex-col items-start gap-1.5 z-10">
           {isPreorder && (
-            <>
-              <div className="px-2 py-1 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md text-[#2c3b6e] dark:text-blue-400 rounded-md border border-slate-100 dark:border-slate-800 text-[8px] lg:text-[9px] font-black uppercase tracking-widest">
-                 Под заказ
-              </div>
-              <div className="px-2 py-1 bg-white/95 dark:bg-slate-900/95 text-slate-900 dark:text-slate-100 backdrop-blur-md rounded-md border border-slate-200/80 dark:border-slate-800/80 text-[8px] lg:text-[10px] font-black tracking-wider">
-                 {(priceOutlet || getNumericPrice(price)) > 0 ? `От ${Math.round(priceOutlet || getNumericPrice(price)).toLocaleString('ru-RU')} сум` : "Цена по запросу"}
-              </div>
-            </>
+            <div className="px-2 py-1 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md text-[#2c3b6e] dark:text-blue-400 rounded-md border border-slate-100 dark:border-slate-800 text-[8px] lg:text-[9px] font-black uppercase tracking-widest">
+               Под заказ
+            </div>
           )}
+          <div className="px-2 py-1 bg-white/95 dark:bg-slate-900/95 text-slate-900 dark:text-slate-100 backdrop-blur-md rounded-md border border-slate-200/80 dark:border-slate-800/80 text-[8px] lg:text-[10px] font-black tracking-wider">
+             {Math.round(priceOutlet || getNumericPrice(price)).toLocaleString('ru-RU')} сум
+          </div>
         </div>
-        {image ? (
+        {cleanImage ? (
           <img
-            src={image}
+            src={cleanImage}
             alt={title}
             onError={(e) => {
               (e.target as HTMLImageElement).style.display = 'none';
@@ -243,37 +225,21 @@ export function ProductCard({
       </div>
 
       {/* Content Area */}
-      <div className="px-1 lg:px-2 pb-1 lg:pb-2 flex flex-col flex-grow">
-        <div className="mb-1 lg:mb-2">
-          {productColor && (
-            <div className="inline-flex items-center gap-1 mb-1">
-              <span 
-                className="w-2.5 h-2.5 rounded-sm border border-slate-300 dark:border-slate-600 inline-block"
-                style={{ backgroundColor: getColorStyle(productColor) }}
-              />
-              <span className="text-[7px] lg:text-[8px] font-black text-violet-600 dark:text-violet-400 uppercase tracking-widest">{productColor}</span>
-            </div>
-          )}
-          <h3 className="text-[11px] lg:text-sm font-black text-slate-900 dark:text-white leading-tight truncate">{title}</h3>
-        </div>
+      <div className="px-1 flex flex-col flex-grow">
+        <h3 
+          className="text-[11px] lg:text-sm font-black text-slate-900 dark:text-white mb-2 leading-tight line-clamp-2 min-h-[32px] lg:min-h-[40px]" 
+          title={title}
+        >
+          {cleanNameFromDimensions(title)}
+        </h3>
         
-        {specs.length > 0 ? (
-          <div className="space-y-1 lg:space-y-1.5 mb-3 lg:mb-6">
-            {specs.slice(0, 4).map((spec, idx) => (
-              <div key={idx} className="flex items-center justify-between text-[8px] lg:text-[10px]">
+        {specs.length > 0 && (
+          <div className="space-y-1 mb-3">
+            {specs.slice(0, 3).map((spec, idx) => (
+              <div key={idx} className="flex items-center justify-between text-[9px] lg:text-[10px]">
                 <span className="text-slate-400 dark:text-slate-500 font-medium tracking-tight">{spec.label}:</span>
                 <span className="text-slate-900 dark:text-slate-300 font-black truncate max-w-[125px]" title={spec.value}>{spec.value}</span>
               </div>
-            ))}
-            {/* Filler lines to keep card heights visually aligned when specs are fewer than 4 */}
-            {specs.length < 4 && Array.from({ length: 4 - specs.length }).map((_, i) => (
-              <div key={`filler-${i}`} className="h-3 lg:h-3.5 opacity-0 select-none pointer-events-none" />
-            ))}
-          </div>
-        ) : (
-          <div className="space-y-1 lg:space-y-1.5 mb-3 lg:mb-6">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={`filler-${i}`} className="h-3 lg:h-3.5 opacity-0 select-none pointer-events-none" />
             ))}
           </div>
         )}
@@ -283,43 +249,43 @@ export function ProductCard({
             <div 
               onClick={handleOrderClick}
               className={cn(
-                "w-full py-1.5 lg:py-2.5 rounded-xl lg:rounded-full text-[8px] lg:text-[10px] font-black uppercase tracking-widest text-center transition-all cursor-pointer flex items-center justify-center gap-2",
+                "w-full py-1.5 lg:py-2 rounded-lg lg:rounded-xl text-[9px] lg:text-[10px] font-black uppercase tracking-widest text-center transition-all cursor-pointer flex items-center justify-center gap-2",
                 "bg-[#1a1a1a] dark:bg-white text-white dark:text-slate-900 hover:bg-[#2c3b6e] dark:hover:bg-blue-50"
               )}
             >
-               <Zap className="w-3 lg:w-3.5 h-3 lg:h-3.5 text-current" />
+               <Zap className="w-3 h-3 text-current" />
                {isPreorder ? "Под заказ" : "Заказать"}
             </div>
           ) : (
             <div 
               onClick={handleAddToCart}
               className={cn(
-                "w-full py-1.5 lg:py-2.5 rounded-xl lg:rounded-full text-[8px] lg:text-[10px] font-black uppercase tracking-widest text-center transition-all cursor-pointer flex items-center justify-center gap-2",
+                "w-full py-1.5 lg:py-2 rounded-lg lg:rounded-xl text-[9px] lg:text-[10px] font-black uppercase tracking-widest text-center transition-all cursor-pointer flex items-center justify-center gap-2",
                 inStock 
-                  ? "bg-[#f1f5f9] dark:bg-slate-800 text-[#2c3b6e] dark:text-white hover:bg-[#2c3b6e] dark:hover:bg-blue-600 hover:text-white" 
-                  : "bg-slate-50 dark:bg-slate-900/50 text-slate-400 dark:text-white/60 cursor-not-allowed"
+                  ? "bg-white dark:bg-slate-700 text-[#2c3b6e] dark:text-white border border-[#2c3b6e]/20 hover:bg-[#2c3b6e] dark:hover:bg-blue-600 hover:text-white" 
+                  : "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-white/60 cursor-not-allowed"
               )}
             >
               {inStock ? (
                 <>
-                  <ShoppingBag className="w-3 lg:w-3.5 h-3 lg:h-3.5" />
+                  <ShoppingBag className="w-3 h-3" />
                   В корзину
                 </>
               ) : "Нет в наличии"}
             </div>
           )}
 
-          <div className="w-full py-1.5 lg:py-3.5 rounded-xl lg:rounded-full bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-white/5 transition-all flex flex-col items-center justify-center">
+          <div className="w-full py-1.5 lg:py-2.5 rounded-lg lg:rounded-xl bg-white/80 dark:bg-slate-900/60 backdrop-blur-md border border-slate-200/50 dark:border-white/5 transition-all flex flex-col items-center justify-center">
             {priceOutlet ? (
               <div className="flex flex-col items-center justify-center">
-                <div className="flex items-center gap-1.5 justify-center leading-none">
-                  <span className="text-[11px] lg:text-[13px] font-black text-[#e11d48] dark:text-rose-400 leading-none">{getDisplayPrice(priceOutlet)} сум</span>
-                  <span className="text-[7px] lg:text-[9px] font-bold text-slate-400 line-through leading-none">{getDisplayPrice(price)} сум</span>
+                <div className="flex flex-wrap items-center gap-1.5 justify-center leading-none">
+                  <span className="text-xs lg:text-[14px] font-black text-[#e11d48] dark:text-rose-400 leading-none">{getDisplayPrice(priceOutlet)} сум</span>
+                  <span className="text-[9px] lg:text-[11px] font-bold text-slate-400 line-through leading-none">{getDisplayPrice(price)} сум</span>
                 </div>
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center">
-                <span className="text-[11px] lg:text-[13px] font-black text-slate-900 dark:text-white leading-none">
+                <span className="text-xs lg:text-[14px] font-black text-slate-900 dark:text-white leading-none text-center">
                   {getNumericPrice(price) > 0 ? `${getDisplayPrice(price)} сум` : "Цена по запросу"}
                 </span>
               </div>
