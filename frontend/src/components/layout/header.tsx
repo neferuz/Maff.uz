@@ -105,7 +105,7 @@ const socialLinks = [
 ];
 
 const navLinks = [
-  { label: "3D Визуализатор", href: "/3d", icon: Sparkles },
+  { label: "3D Визуализатор", href: "/generation", icon: Sparkles },
   { label: "Каталог", href: "/catalog", icon: Layers },
   { label: "Шоурумы", href: "/showrooms", icon: Store },
   { 
