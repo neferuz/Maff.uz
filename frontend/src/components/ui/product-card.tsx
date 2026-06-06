@@ -70,7 +70,7 @@ export function ProductCard({
   const mainImage = (isAgtWallPanel && Array.isArray(parsedImages) && parsedImages.length > 1) ? parsedImages[1] : image;
 
   // Normalize image URL path to prevent protocol-relative (//) URL interpretation by browsers
-  const cleanImage = mainImage ? (mainImage.startsWith('http') ? mainImage : `/${mainImage.replace(/^\/+/, "")}`) : "";
+  const cleanImage = mainImage ? (/^\d{4}\.png$/.test(mainImage) ? `/static/uploads/sargo/${mainImage}` : (mainImage.startsWith('http') ? mainImage : `/${mainImage.replace(/^\/+/, "")}`)) : "";
 
   const isDoorBrands = ['portika', 'zadoor', 'profildoors', 'волховец', 'volkhovets', 'filomuro'];
   const isDoorKeywords = ['двер', 'door', 'классико', 'порта', 'centro', 'неоклассико'];
