@@ -174,7 +174,7 @@ const languages = [
 ];
 
 export function Header() {
-  const { cart, favorites, compare } = useShop();
+  const { cart, favorites, compare, notification } = useShop();
   const [isScrolled, setIsScrolled] = useState(false);
   const [hoveredLink, setHoveredLink] = useState<string | null>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -188,7 +188,6 @@ export function Header() {
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [catalogData, setCatalogData] = useState<any[]>([]);
-  const [notification, setNotification] = useState<{message: string} | null>(null);
   
   const headerRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
@@ -342,7 +341,7 @@ export function Header() {
       if (searchQuery.length >= 2) {
         setIsSearching(true);
         try {
-          const res = await fetch(`/api/v1/products/?q=${encodeURIComponent(searchQuery)}&limit=6`);
+          const res = await fetch(`/api/v1/products/?q=${encodeURIComponent(searchQuery)}&limit=6&group=true`);
           if (res.ok) {
             const data = await res.json();
             setSearchResults(data);
@@ -383,10 +382,14 @@ export function Header() {
   return (
     <>
       <header className="w-full sticky top-0 z-[9999] bg-white dark:bg-[#0f172a] shadow-none transition-colors">
-        <div className={cn("fixed top-4 left-1/2 -translate-x-1/2 z-[10000] transition-all duration-300 pointer-events-none", notification ? "translate-y-0 opacity-100" : "-translate-y-4 opacity-0")}>
-          <div className="bg-slate-900 text-white px-4 py-2.5 rounded-xl flex items-center gap-3 border border-white/10 shadow-none">
-            <div className="flex items-center justify-center text-amber-400"><CheckCircle2 className="w-3.5 h-3.5" strokeWidth={3} /></div>
-            <p className="text-[10px] font-black uppercase tracking-widest leading-none">{notification?.message}</p>
+        <div className={cn("fixed top-4 sm:top-6 left-1/2 -translate-x-1/2 z-[10000] transition-all duration-500 pointer-events-none w-[90%] max-w-sm sm:max-w-md", notification ? "translate-y-0 opacity-100 scale-100" : "-translate-y-8 opacity-0 scale-95")}>
+          <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl text-slate-900 dark:text-white p-3 pr-4 rounded-[2rem] flex items-center gap-3.5 border border-white/40 dark:border-white/10 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)] dark:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.5)] overflow-hidden relative">
+            <div className="absolute inset-0 bg-gradient-to-r from-white/40 to-transparent dark:from-white/5 dark:to-transparent opacity-50 pointer-events-none"></div>
+            <div className="w-9 h-9 rounded-full bg-[#2c3b6e] text-white flex items-center justify-center flex-shrink-0 relative z-10 shadow-inner">
+              {/* @ts-ignore - type exists on ShopContext notification but not properly typed in local destructuring yet */}
+              {notification?.type === "error" ? <X className="w-4.5 h-4.5" strokeWidth={2.5} /> : <CheckCircle2 className="w-4.5 h-4.5" strokeWidth={2.5} />}
+            </div>
+            <p className="text-[12px] sm:text-[13px] font-bold tracking-tight leading-tight relative z-10 flex-grow">{notification?.message}</p>
           </div>
         </div>
 
@@ -476,15 +479,17 @@ export function Header() {
                    <button className="w-10 h-10 rounded-full bg-[#2c3b6e] text-white flex items-center justify-center shadow-none"><Search className="w-4 h-4" /></button>
                 </div>
 
-                {searchFocused && (searchQuery.length >= 2 || searchResults.length > 0) && (
-                  <div className="absolute top-full left-0 right-0 mt-3 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[2rem] overflow-hidden shadow-2xl z-[10001]">
+                <div className={cn(
+                  "absolute top-full left-0 right-0 mt-3 bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-white/50 dark:border-white/10 rounded-[2rem] shadow-[0_20px_40px_-15px_rgba(0,0,0,0.15)] dark:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.5)] z-[10001] transition-all duration-500 origin-top overflow-hidden",
+                  searchFocused && (searchQuery.length >= 2 || searchResults.length > 0) ? "opacity-100 scale-y-100 translate-y-0" : "opacity-0 scale-y-95 -translate-y-4 pointer-events-none"
+                )}>
                     <div className="p-2">
                        {searchResults.length > 0 ? (
-                          <div className="grid grid-cols-1 gap-1">
+                          <div className="grid grid-cols-1 gap-1 max-h-[60vh] overflow-y-auto no-scrollbar">
                              {searchResults.map((item) => (
-                               <Link key={item.id} href={`/product/${item.id}`} className="flex items-center gap-3 p-2 hover:bg-slate-50 dark:hover:bg-white/5 rounded-xl transition-all group border border-transparent hover:border-slate-100 dark:hover:border-white/5">
-                                 <div className="w-10 h-10 rounded-lg bg-slate-50 dark:bg-slate-800 overflow-hidden flex-shrink-0 border border-slate-100 dark:border-slate-700">
-                                    {item.image_url ? <img src={item.image_url} alt={item.name} className="w-full h-full object-cover transition-transform group-hover:scale-110" /> : <div className="w-full h-full flex items-center justify-center opacity-20"><ImageIcon className="w-4 h-4" /></div>}
+                               <Link key={item.id} href={`/product/${item.id}`} className="flex items-center gap-3 p-2 hover:bg-white/60 dark:hover:bg-white/5 rounded-xl transition-all duration-300 group border border-transparent hover:border-slate-200/50 dark:hover:border-white/10">
+                                 <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800/80 overflow-hidden flex-shrink-0 border border-slate-200 dark:border-slate-700/50 relative">
+                                    {item.image_url ? <img src={item.image_url} alt={item.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" /> : <div className="w-full h-full flex items-center justify-center opacity-30"><ImageIcon className="w-4 h-4" /></div>}
                                  </div>
                                  <div className="flex-grow flex flex-col justify-center min-w-0">
                                     <span className="text-[12px] font-bold text-slate-900 dark:text-white group-hover:text-[#2c3b6e] dark:group-hover:text-blue-400 transition-colors truncate">{cleanNameFromDimensions(item.name)}</span>
@@ -492,25 +497,28 @@ export function Header() {
                                        <span className="notranslate" translate="no">{item.brand ? item.brand : ""}</span> {item.brand ? "• " : ""}<span className="notranslate" translate="no">{item.price?.toLocaleString()} сум</span>
                                     </span>
                                  </div>
-                                 <div className="flex-shrink-0 w-6 h-6 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center group-hover:bg-[#2c3b6e] dark:group-hover:bg-blue-600 transition-all">
-                                   <ChevronRight className="w-3 h-3 text-slate-400 group-hover:text-white transition-colors" />
+                                 <div className="flex-shrink-0 w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-800/80 flex items-center justify-center group-hover:bg-[#2c3b6e] dark:group-hover:bg-blue-600 transition-all duration-300">
+                                   <ChevronRight className="w-3 h-3 text-slate-400 dark:text-slate-500 group-hover:text-white transition-colors" />
                                  </div>
                                </Link>
                              ))}
                           </div>
                        ) : searchQuery.length >= 2 && !isSearching ? (
-                          <div className="p-8 text-center">
-                             <Search className="w-8 h-8 text-slate-200 mx-auto mb-3" />
-                             <p className="text-[11px] font-black uppercase text-slate-400 tracking-widest">Ничего не найдено</p>
+                          <div className="p-8 text-center flex flex-col items-center justify-center">
+                             <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800/50 flex items-center justify-center mb-3">
+                                <Search className="w-5 h-5 text-slate-400 dark:text-slate-500" />
+                             </div>
+                             <p className="text-[11px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-widest">Ничего не найдено</p>
                           </div>
                        ) : null}
                     </div>
-                    <div className="bg-slate-50 dark:bg-slate-800/50 p-3 px-6 border-t border-slate-100 dark:border-white/5 flex items-center justify-between">
-                        <span className="text-[10px] font-bold text-slate-400">Найдено результатов: {searchResults.length}</span>
-                        <Link href="/catalog" className="text-[10px] font-black text-[#2c3b6e] dark:text-blue-400 uppercase tracking-widest hover:underline">Смотреть всё</Link>
-                    </div>
-                  </div>
-                )}
+                    {(searchResults.length > 0 || (searchQuery.length >= 2 && !isSearching)) && (
+                      <div className="bg-slate-50/50 dark:bg-slate-900/50 backdrop-blur-md p-3 px-6 border-t border-slate-200/50 dark:border-white/5 flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">Найдено результатов: {searchResults.length}</span>
+                          <Link href={`/catalog?search=${searchQuery}`} className="text-[10px] font-black text-[#2c3b6e] dark:text-blue-400 uppercase tracking-widest hover:underline transition-all">Смотреть всё</Link>
+                      </div>
+                    )}
+                </div>
               </div>
             </div>
 

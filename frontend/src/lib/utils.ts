@@ -71,3 +71,57 @@ export function cleanNameFromDimensions(name: string): string {
   return cleaned;
 }
 
+
+/** 
+ * Clean door names to strictly display only the core model number 
+ * (removes collections, colors, materials, dimensions)
+ */
+export function getShortDoorName(name: string): string {
+    if (!name) return "";
+    let cleaned = name;
+
+    // 1. Remove dimensions
+    cleaned = cleaned.replace(/\b\d+(?:\.\d+)?\s*[xх\*×]\s*\d+(?:\.\d+)?\s*[xх\*×]\s*\d+(?:\.\d+)?(?:\s*(?:мм|mm|м|m))?/gi, "");
+    cleaned = cleaned.replace(/\b\d+(?:\.\d+)?\s*[xх\*×]\s*\d+(?:\.\d+)?(?:\s*(?:мм|mm|м|m))?/gi, "");
+    cleaned = cleaned.replace(/\b(400|600|700|800|900)\b/g, "");
+
+    // 2. Remove parens
+    cleaned = cleaned.replace(/\([^)]*\)/g, "");
+
+    // 3. Remove known colors
+    const knownColors = [
+        "Белый матовый", "Серый матовый", "Матовый графит", "Матовый кремовый",
+        "Нордик", "Орех карамель", "Жемчужно-перламутровый", "Беленый дуб",
+        "Дуб темный", "Дуб натуральный", "Alaska", "Grey Oak", "Natural Oak",
+        "White Oak", "Молочный матовый", "Графит премьер мат", "Тёмный лён",
+        "Бетон светлый", "Светлый лён", "Сканди", "Бетон тёмный", "Бренди",
+        "Светло-серый", "Оливковый", "Белая эмаль", "Бежевый", "Мелон",
+        "Милано", "Венге", "Итальянский орех", "Жасмин белый", "Белый шелк",
+        "Тёмно-серый", "Кофе", "Антрацит", "Хром", "Черный", "Черный лакобель",
+        "Keramik Beige", "Keramik Brown", "Keramik Valse", "Ice", "Милквуд", "Опал",
+        "Айвори", "Стоун", "Дэним", "Шэдоу", "Белый", "Серый", "Кремовый", "Меланж",
+        "Светлый кунжут", "Темный кунжут", "Песочный матовый", "Дарквуд",
+        "Shellac Cream", "Shellac White", "Shellac Graphite", "Thermo Oak", "Alpik Oak",
+        "Black Star", "Light Sonoma", "Cappuccino Veralinga", "Wenge Veralinga",
+        "Rocks Beige", "Rocks Pearl", "Nardo Grey", "Праймер White", "Праймер"
+    ];
+    const sortedColors = knownColors.sort((a,b) => b.length - a.length);
+    for (const c of sortedColors) {
+        const escaped = c.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&");
+        const reg = new RegExp("(?:^|[^а-яa-z0-9])" + escaped + "(?:$|[^а-яa-z0-9])", "ig");
+        cleaned = cleaned.replace(reg, " ");
+    }
+
+    // 4. Remove materials
+    const materials = ["ПП", "ЭКО", "Флекс Эмаль", "Эксимер", "Эмаль", "ПВХ", "шпон", "Milling White I", "Milling White II", "Magic Fog", "Reverse", "PRO"];
+    for (const m of materials) {
+        const escaped = m.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&");
+        const reg = new RegExp("(?:^|[^а-яa-z0-9])" + escaped + "(?:$|[^а-яa-z0-9])", "ig");
+        cleaned = cleaned.replace(reg, " ");
+    }
+
+    
+    // Clean extra spaces and punctuation
+    cleaned = cleaned.replace(/\s+/g, " ").replace(/^[,\-\s]+|[,\-\s]+$/g, "").trim();
+    return cleaned;
+}

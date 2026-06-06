@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { cn, cleanNameFromDimensions } from "@/lib/utils";
+import { cn, cleanNameFromDimensions, getShortDoorName } from "@/lib/utils";
 import { Heart, BarChart2, ShoppingBag, Image as ImageIcon, Zap } from "lucide-react";
 import { useShop } from "@/context/shop-context";
 import { getProductUnit } from "@/lib/units";
@@ -230,7 +230,7 @@ export function ProductCard({
           className="text-[11px] lg:text-sm font-black text-slate-900 dark:text-white mb-2 leading-tight line-clamp-2 min-h-[32px] lg:min-h-[40px]" 
           title={title}
         >
-          {cleanNameFromDimensions(title)}
+          {isDoor ? getShortDoorName(title) : cleanNameFromDimensions(title)}
         </h3>
         
         {specs.length > 0 && (
@@ -286,7 +286,7 @@ export function ProductCard({
             ) : (
               <div className="flex flex-col items-center justify-center">
                 <span className="text-xs lg:text-[14px] font-black text-slate-900 dark:text-white leading-none text-center">
-                  {getNumericPrice(price) > 0 ? `${getDisplayPrice(price)} сум` : "Цена по запросу"}
+                  {getNumericPrice(price) > 0 ? `${getDisplayPrice(price)} сум` : "Уточнить у администрации"}
                 </span>
               </div>
             )}

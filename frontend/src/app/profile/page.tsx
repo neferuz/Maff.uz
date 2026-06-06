@@ -26,6 +26,7 @@ export default function ProfilePage() {
     
     if (method === "cod") {
       setUpdatingPayment(true);
+      const token = localStorage.getItem("token");
       if (token === "fake-mock-token-for-now") {
         const email = localStorage.getItem("user_email") || "user@maff.uz";
         const name = localStorage.getItem("user_name") || "Новый Пользователь";
@@ -126,7 +127,8 @@ export default function ProfilePage() {
           image: item.image_url || "/images/placeholder.jpg",
           category: item.category || "Одежда",
           size: item.size || "M",
-          color: item.color || "Темно-синий"
+          color: item.color || "Темно-синий",
+          variant: ""
         };
         // Add item as many times as its quantity
         const quantityToAdd = item.quantity || 1;
@@ -168,6 +170,25 @@ export default function ProfilePage() {
         return;
       }
 
+      // Mock user for registration flow without real backend user
+      if (token === "fake-mock-token-for-now") {
+        const email = localStorage.getItem("user_email") || "user@maff.uz";
+        const name = localStorage.getItem("user_name") || "Новый Пользователь";
+        const mockUser = {
+          id: 999,
+          email: email,
+          full_name: name,
+          phone: "+998 00 000 00 00"
+        };
+        setUser(mockUser);
+        setFullNameInput(mockUser.full_name);
+        setPhoneInput(mockUser.phone);
+        setOrders([]);
+        setLoading(false);
+        setOrdersLoading(false);
+        return;
+      }
+
       try {
         // 1. Fetch profile
         const res = await fetch("/api/v1/users/me", {
@@ -188,12 +209,14 @@ export default function ProfilePage() {
               console.error("Error parsing addresses:", e);
             }
           }
-        } else {
+        } else if (res.status === 401 || res.status === 403) {
           // Token invalid or expired
           localStorage.removeItem("token");
           localStorage.removeItem("user_email");
           window.location.href = "/login";
           return;
+        } else {
+          console.error("Failed to fetch profile. Status:", res.status);
         }
 
         // 2. Fetch orders
@@ -393,7 +416,7 @@ export default function ProfilePage() {
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 30 }}
-              className="relative w-full h-full sm:h-auto sm:max-w-md bg-white dark:bg-[#0f172a] p-6 sm:p-8 shadow-2xl overflow-y-auto sm:overflow-hidden flex flex-col justify-between sm:justify-start rounded-none sm:rounded-3xl"
+              className="relative w-full h-full sm:h-auto sm:max-w-md bg-white/95 dark:bg-[#0f172a]/95 backdrop-blur-md p-5 sm:p-6 border border-slate-200 dark:border-slate-800 shadow-none overflow-y-auto sm:overflow-hidden flex flex-col justify-between sm:justify-start rounded-none sm:rounded-2xl"
             >
               <div className="absolute inset-0 bg-grid-pattern opacity-5 pointer-events-none" />
               <div className="relative z-10 space-y-6 flex-1 flex flex-col justify-between sm:block">
@@ -481,7 +504,7 @@ export default function ProfilePage() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-sm bg-white dark:bg-[#0f172a] p-8 shadow-2xl rounded-3xl overflow-hidden text-center z-10"
+              className="relative w-full max-w-sm bg-white/95 dark:bg-[#0f172a]/95 backdrop-blur-md p-6 border border-slate-200 dark:border-slate-800 shadow-none rounded-2xl overflow-hidden text-center z-10"
             >
               <div className="absolute inset-0 bg-grid-pattern opacity-5 pointer-events-none" />
               <div className="relative z-10 space-y-6">
@@ -525,7 +548,7 @@ export default function ProfilePage() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-sm bg-white dark:bg-[#0f172a] p-8 shadow-2xl border border-slate-100 dark:border-slate-800 overflow-hidden text-center z-10 rounded-none"
+              className="relative w-full max-w-sm bg-white/95 dark:bg-[#0f172a]/95 backdrop-blur-md p-6 border border-slate-200 dark:border-slate-800 shadow-none overflow-hidden text-center z-10 rounded-2xl"
             >
               <div className="absolute inset-0 bg-grid-pattern opacity-5 pointer-events-none" />
               <div className="relative z-10 space-y-6">
@@ -568,20 +591,20 @@ export default function ProfilePage() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setActivePaymentOrder(null)}
-              className="fixed inset-0 bg-[#2c3b6e]/40 backdrop-blur-sm z-[9990] cursor-pointer"
+              className="fixed inset-0 bg-[#2c3b6e]/40 backdrop-blur-sm z-[10005] cursor-pointer"
             />
             <motion.div
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed top-0 right-0 h-full w-full max-w-full sm:max-w-sm bg-white dark:bg-[#0f172a] z-[9999] shadow-2xl flex flex-col border-l border-slate-100 dark:border-slate-800 rounded-none font-sans"
+              className="fixed top-0 right-0 h-full w-full max-w-full sm:max-w-sm bg-white/95 dark:bg-[#0f172a]/95 backdrop-blur-md z-[10010] shadow-none flex flex-col border-l border-slate-200 dark:border-slate-800 rounded-none"
             >
               <div className="absolute inset-0 bg-grid-pattern opacity-5 pointer-events-none" />
               <div className="relative z-10 flex flex-col h-full justify-between">
                 
                 {/* Header */}
-                <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-white dark:bg-[#0f172a]">
+                <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-transparent">
                   <div className="flex items-center gap-3">
                     <span className="w-1.5 h-1.5 bg-[#f59e0b] rounded-full animate-pulse" />
                     <h2 className="text-[11px] font-black uppercase tracking-wider text-[#2c3b6e] dark:text-white">Оплата заказа {activePaymentOrder.id}</h2>
@@ -692,95 +715,105 @@ export default function ProfilePage() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setSelectedOrder(null)}
-              className="fixed inset-0 bg-[#2c3b6e]/40 backdrop-blur-sm z-[9990] cursor-pointer"
+              className="fixed inset-0 bg-[#2c3b6e]/40 backdrop-blur-sm z-[10005] cursor-pointer"
             />
             <motion.div
-              initial={{ opacity: 0, y: 20, x: "-50%", scale: 0.95 }}
-              animate={{ opacity: 1, y: "-50%", x: "-50%", scale: 1 }}
-              exit={{ opacity: 0, y: 20, x: "-50%", scale: 0.95 }}
-              transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="fixed top-1/2 left-1/2 w-[90%] max-w-md max-h-[85vh] bg-white dark:bg-[#0f172a] z-[9999] shadow-2xl flex flex-col rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-800"
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="fixed top-0 right-0 h-full w-full max-w-full sm:max-w-md bg-white/95 dark:bg-[#0f172a]/95 backdrop-blur-md z-[10010] shadow-none flex flex-col border-l border-slate-200 dark:border-slate-800 rounded-none"
             >
-              <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-white dark:bg-[#0f172a]">
-                <div className="flex items-center gap-3">
-                  <Package className="w-4 h-4 text-[#2c3b6e] dark:text-white" />
-                  <h2 className="text-[12px] font-black uppercase tracking-wider text-[#2c3b6e] dark:text-white">Детали заказа {selectedOrder.id}</h2>
+              <div className="absolute inset-0 bg-grid-pattern opacity-5 pointer-events-none" />
+              <div className="relative z-10 flex flex-col h-full justify-between">
+                <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-transparent">
+                  <div className="flex items-center gap-3">
+                    <Package className="w-5 h-5 text-[#2c3b6e] dark:text-white" />
+                    <h2 className="text-xl md:text-2xl font-black uppercase tracking-tight text-[#2c3b6e] dark:text-white leading-tight">Заказ {selectedOrder.id}</h2>
+                  </div>
+                  <button onClick={() => setSelectedOrder(null)} className="w-8 h-8 flex items-center justify-center hover:bg-slate-50 dark:bg-slate-800/50 transition-colors cursor-pointer border border-transparent rounded-none">
+                    <X className="w-4 h-4 text-[#2c3b6e] dark:text-white" />
+                  </button>
                 </div>
-                <button onClick={() => setSelectedOrder(null)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-50 dark:bg-slate-800/50 transition-colors cursor-pointer">
-                  <X className="w-4 h-4 text-[#2c3b6e] dark:text-white" />
-                </button>
-              </div>
 
-              <div className="flex-1 overflow-y-auto px-5 py-4 space-y-6">
-                <div className="space-y-3">
-                   <h3 className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Товары</h3>
-                   <div className="space-y-2">
-                     {(selectedOrder.items_list || []).map((item: any, idx: number) => (
-                       <div key={idx} className="flex gap-3 items-center border border-slate-100 dark:border-slate-800 rounded-xl p-3 bg-white dark:bg-[#0f172a] hover:border-[#2c3b6e]/30 transition-all">
-                          <div className="w-10 h-13 bg-slate-50 dark:bg-slate-800/50 shrink-0 relative overflow-hidden flex items-center justify-center rounded-lg border border-slate-100 dark:border-slate-800/50">
-                             {item.image_url ? (
-                               <Image 
-                                 src={item.image_url} 
-                                 alt={item.name} 
-                                 fill 
-                                 className="object-cover"
-                                 unoptimized
-                               />
-                             ) : (
-                               <div className="text-[8px] font-black tracking-widest text-[#2c3b6e] dark:text-white/30 select-none">LW</div>
-                             )}
-                          </div>
-                          <div className="flex-1 min-w-0 space-y-0.5">
-                             <p className="text-[11px] font-extrabold text-[#2c3b6e] dark:text-white truncate">{item.name}</p>
-                             <p className="text-[9px] text-slate-400 dark:text-slate-500 font-medium">
-                               {item.quantity} шт. • {item.size || "M"} • {item.color || "Темно-синий"}
-                             </p>
-                          </div>
-                          <p className="text-[11px] font-black text-[#2c3b6e] dark:text-white shrink-0">{item.price}</p>
-                       </div>
-                     ))}
+                <div className="flex-1 overflow-y-auto px-6 py-6 space-y-8 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-700">
+                  
+                  {/* Items */}
+                  <div className="space-y-4">
+                     <h3 className="text-sm font-black uppercase tracking-tight text-[#2c3b6e] dark:text-white border-b border-slate-100 dark:border-slate-800 pb-2">Товары</h3>
+                     <div className="space-y-3">
+                       {(selectedOrder.items_list || []).map((item: any, idx: number) => (
+                         <div key={idx} className="flex gap-4 items-center">
+                            <div className="w-14 h-14 bg-slate-50 dark:bg-slate-800 shrink-0 relative overflow-hidden flex items-center justify-center rounded-xl border border-slate-100 dark:border-slate-800">
+                               {item.image || item.image_url ? (
+                                 <Image 
+                                   src={item.image || item.image_url} 
+                                   alt={item.name} 
+                                   fill 
+                                   className="object-cover"
+                                   unoptimized
+                                 />
+                               ) : (
+                                 <div className="text-[10px] font-black text-slate-300">IMG</div>
+                               )}
+                            </div>
+                            <div className="flex-1 min-w-0 space-y-1">
+                               <p className="text-[13px] font-bold text-[#2c3b6e] dark:text-white truncate">{item.name}</p>
+                               <p className="text-[11px] text-slate-500 font-medium">
+                                 {item.quantity} шт. • {item.size || "M"} • {item.color || "Стандарт"}
+                               </p>
+                            </div>
+                            <p className="text-[13px] font-bold text-[#2c3b6e] dark:text-white shrink-0">{item.price}</p>
+                         </div>
+                       ))}
+                     </div>
+                  </div>
+
+                  {/* Delivery Info */}
+                  <div className="space-y-4">
+                     <h3 className="text-sm font-black uppercase tracking-tight text-[#2c3b6e] dark:text-white border-b border-slate-100 dark:border-slate-800 pb-2">Информация о доставке</h3>
+                     <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-5 space-y-3">
+                         <div className="flex justify-between items-center text-[11px] uppercase tracking-wider">
+                            <span className="text-slate-500 font-bold">Статус</span>
+                            <span className={`font-black px-2.5 py-1 rounded-full ${
+                              selectedOrder.status === 'Оплачен' || selectedOrder.status === 'Доставлено' || selectedOrder.status === 'Paid'
+                              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400'
+                              : selectedOrder.status === 'Отправлен'
+                              ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
+                              : selectedOrder.status === 'Отменен' || selectedOrder.status === 'Cancelled'
+                              ? 'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-400'
+                              : 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
+                            }`}>{selectedOrder.status}</span>
+                         </div>
+                        <div className="flex justify-between items-center text-[11px] uppercase tracking-wider">
+                           <span className="text-slate-500 font-bold">Способ</span>
+                           <span className="text-[#2c3b6e] dark:text-white font-black">{selectedOrder.method || "Курьер"}</span>
+                        </div>
+                        <div className="flex justify-between items-start text-[11px] uppercase tracking-wider gap-4">
+                           <span className="text-slate-500 font-bold shrink-0">Адрес</span>
+                           <span className="text-[#2c3b6e] dark:text-white font-bold text-right normal-case leading-snug">{selectedOrder.address || "Не указан"}</span>
+                        </div>
+                     </div>
+                  </div>
+                </div>
+
+                <div className="px-6 py-5 border-t border-slate-100 dark:border-slate-800 space-y-4 bg-transparent">
+                   <div className="flex justify-between items-end">
+                      <span className="text-sm font-bold text-slate-500 uppercase tracking-wider">Итого</span>
+                      <span className="text-2xl font-black text-[#2c3b6e] dark:text-white uppercase tracking-tight leading-none">{selectedOrder.total}</span>
                    </div>
+                   <button 
+                     onClick={() => handleRepeatOrder(selectedOrder)}
+                     disabled={repeatingId === selectedOrder.id}
+                     className="w-full h-12 bg-[#2c3b6e] dark:bg-white text-white dark:text-[#2c3b6e] uppercase text-[10px] tracking-widest font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-[#2c3b6e]/90 dark:hover:bg-slate-100 transition-all disabled:opacity-70 disabled:scale-100 active:scale-[0.98]"
+                   >
+                     {repeatingId === selectedOrder.id ? (
+                       <div className="w-5 h-5 border-2 border-white/20 dark:border-[#2c3b6e]/20 border-t-white dark:border-t-[#2c3b6e] rounded-full animate-spin" />
+                     ) : (
+                       <>Повторить заказ</>
+                     )}
+                   </button>
                 </div>
-
-                <div className="space-y-3">
-                   <h3 className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Информация о доставке</h3>
-                   <div className="bg-[#f8fafc] border border-[#e3e8ee] rounded-xl p-4 space-y-2.5">
-                       <div className="flex justify-between items-center text-[10px] uppercase tracking-wider">
-                          <span className="text-slate-400 dark:text-slate-500 font-bold">Статус</span>
-                          <span className={`font-black px-2 py-0.5 border text-[9px] rounded-none ${
-                            selectedOrder.status === 'Оплачен' || selectedOrder.status === 'Доставлено'
-                            ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
-                            : selectedOrder.status === 'Отправлен'
-                            ? 'bg-blue-50 border-blue-200 text-blue-700'
-                            : selectedOrder.status === 'Отменен'
-                            ? 'bg-rose-50 border-rose-200 text-rose-700'
-                            : 'bg-amber-50 border-amber-200 text-amber-700' // 'В ожидании'
-                          }`}>{selectedOrder.status}</span>
-                       </div>
-                      <div className="flex justify-between items-center text-[10px] uppercase tracking-wider">
-                         <span className="text-slate-400 dark:text-slate-500 font-medium">Способ</span>
-                         <span className="text-[#2c3b6e] dark:text-white font-extrabold">{selectedOrder.method || "Курьерская доставка"}</span>
-                      </div>
-                      <div className="flex justify-between items-start text-[10px] uppercase tracking-wider gap-4">
-                         <span className="text-slate-400 dark:text-slate-500 font-medium shrink-0">Адрес</span>
-                         <span className="text-[#2c3b6e] dark:text-white font-bold text-right normal-case line-clamp-2">{selectedOrder.address || "Адрес не указан"}</span>
-                      </div>
-                   </div>
-                </div>
-              </div>
-
-              <div className="px-5 py-4 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-[#0f172a] space-y-3">
-                 <div className="flex justify-between items-end">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Итого к оплате</span>
-                    <span className="text-lg font-black text-[#2c3b6e] dark:text-white uppercase tracking-tighter">{selectedOrder.total}</span>
-                 </div>
-                 <button 
-                   disabled={repeatingId === selectedOrder.id}
-                   onClick={() => handleRepeatOrder(selectedOrder)}
-                   className="w-full h-11 bg-[#2c3b6e] text-white uppercase text-[9px] tracking-widest font-black rounded-xl hover:bg-slate-800 transition-colors disabled:opacity-50 cursor-pointer shadow-lg shadow-[#2c3b6e]/10 flex items-center justify-center gap-2"
-                 >
-                   {repeatingId === selectedOrder.id ? "Добавление..." : "Повторить заказ"}
-                 </button>
               </div>
             </motion.div>
           </>
@@ -799,7 +832,7 @@ export default function ProfilePage() {
               className="flex flex-row items-center justify-between gap-6 pb-4 border-b border-slate-100 dark:border-slate-800 max-w-4xl mx-auto w-full"
             >
               <div className="flex items-center gap-6">
-                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 flex items-center justify-center">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-slate-50/50 dark:bg-slate-800/30 border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-center backdrop-blur-sm">
                   <User className="w-8 h-8 sm:w-10 sm:h-10 text-[#2c3b6e] dark:text-white" strokeWidth={1} />
                 </div>
                 <div className="space-y-1.5">
@@ -815,7 +848,7 @@ export default function ProfilePage() {
               {/* Logout button placed on the right of the user name */}
               <button 
                 onClick={() => setIsLogoutConfirmOpen(true)}
-                className="p-3 sm:px-5 sm:py-2.5 border border-red-100 hover:border-red-600 text-red-400 hover:text-red-600 transition-all shrink-0 flex items-center justify-center gap-2"
+                className="p-3 sm:px-5 sm:py-2.5 border border-red-100 dark:border-red-900/50 hover:border-red-600 text-red-400 hover:text-red-600 transition-all shrink-0 flex items-center justify-center gap-2 rounded-xl backdrop-blur-sm"
                 title="Выйти из аккаунта"
               >
                 <LogOut className="w-3.5 h-3.5" strokeWidth={2} />
@@ -899,7 +932,7 @@ export default function ProfilePage() {
 
                     <div className="space-y-6">
                       {orders.map((order, i) => (
-                        <div key={i} className="group border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0f172a] hover:border-[#2c3b6e] transition-all relative overflow-hidden">
+                        <div key={i} className="group border border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-[#0f172a]/50 backdrop-blur-sm hover:border-[#2c3b6e] transition-all relative overflow-hidden rounded-2xl">
                           {/* Pattern Overlay for Card */}
                           <div className="absolute inset-0 bg-grid-pattern opacity-[0.03] pointer-events-none" />
                           
@@ -1002,9 +1035,9 @@ export default function ProfilePage() {
                         + Добавить
                       </button>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                        {addresses.map((addr) => (
-                         <div key={addr.id} className="border border-slate-200 dark:border-slate-700 p-6 space-y-4 hover:border-[#2c3b6e] transition-colors relative">
+                         <div key={addr.id} className="border border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-[#0f172a]/50 backdrop-blur-sm p-6 space-y-4 hover:border-[#2c3b6e] transition-colors relative rounded-2xl">
                             <div className="flex justify-between items-start">
                                <h3 className="text-[10px] font-bold uppercase tracking-wide text-[#2c3b6e] dark:text-white">{addr.type}</h3>
                                <MapPin className="w-4 h-4 text-[#2c3b6e] dark:text-white" />

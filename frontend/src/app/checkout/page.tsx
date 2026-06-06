@@ -513,7 +513,7 @@ export default function CheckoutPage() {
                         >
                           <button
                             type="button"
-                            className="w-full py-2.5 px-4 bg-[#00bfa5] hover:bg-[#00a892] text-white font-extrabold text-[9.5px] uppercase tracking-widest transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-[0.98] rounded-2xl border-none shadow-sm"
+                            className="w-full py-2.5 px-4 bg-[#00bfa5] hover:bg-[#00a892] text-white font-extrabold text-[9.5px] uppercase tracking-widest transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-[0.98] rounded-2xl border-none "
                           >
                             <img 
                               src="https://cdn.payme.uz/logo/payme_color.svg" 
@@ -717,33 +717,35 @@ export default function CheckoutPage() {
                     Продолжить покупки
                   </Link>
                   <div>
-                    <h1 className="text-xl md:text-2xl font-black uppercase tracking-tighter text-[#2c3b6e] dark:text-white mb-1 tracking-tight">Оформление заказа</h1>
-                    <p className="text-[10px] text-slate-400 dark:text-slate-500">Пожалуйста, укажите контактную информацию и адрес доставки</p>
+                    <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-[#2c3b6e] dark:text-white mb-2 leading-tight">Оформление заказа</h1>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-bold">Укажите контактную информацию и адрес доставки</p>
                   </div>
                 </div>
 
                 {/* Authentication Status Alert / Callout */}
                 {!isLoggedIn ? (
-                  <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800/50 p-6 text-left rounded-[20px] shadow-[0_4px_20px_rgb(0,0,0,0.02)] flex gap-4 items-start">
-                    <AlertCircle className="w-5 h-5 text-slate-400 dark:text-slate-500 shrink-0 mt-0.5" />
-                    <div>
-                      <h4 className="text-xs font-bold text-[#2c3b6e] dark:text-white">Оформление как гость</h4>
-                      <p className="text-[10px] text-slate-500 dark:text-slate-400 dark:text-slate-500 leading-relaxed mt-1 mb-4">
-                        Вы можете продолжить оформление без входа, но авторизованные пользователи могут использовать свои сохраненные адреса и просматривать историю заказов.
+                  <div className="flex gap-4 items-start pb-4 border-b border-slate-100 dark:border-slate-800">
+                    <AlertCircle className="w-5 h-5 text-[#2c3b6e] dark:text-white shrink-0 mt-0.5" />
+                    <div className="flex-grow">
+                      <h4 className="text-[11px] font-bold uppercase tracking-widest text-[#2c3b6e] dark:text-white">Оформление как гость</h4>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed mt-1 mb-4">
+                        Вы можете продолжить оформление без входа, но авторизованные пользователи могут использовать свои сохраненные адреса.
                       </p>
-                      <Link href={`/auth?redirect=/checkout`}>
-                        <button type="button" className="h-8 px-4 bg-[#2c3b6e] rounded-xl text-white text-[9px] font-bold uppercase tracking-widest hover:bg-[#2c3b6e]/90 active:scale-95 transition-all">
-                          Войти в аккаунт
+                      <Link href={`/login?redirect=/checkout`}>
+                        <button type="button" className="text-[9px] font-bold uppercase tracking-widest text-[#2c3b6e] dark:text-white hover:underline transition-colors flex items-center gap-1">
+                          Войти в аккаунт <ChevronRight className="w-3 h-3" />
                         </button>
                       </Link>
                     </div>
                   </div>
                 ) : (
-                  <div className="bg-[#2c3b6e]/5 dark:bg-blue-900/20 p-4 flex justify-between items-center border border-[#2c3b6e]/10 dark:border-blue-500/20 rounded-2xl">
-                    <span className="text-[9px] uppercase tracking-widest font-bold text-[#2c3b6e] dark:text-white flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      Вы вошли как {user?.full_name || user?.email}
-                    </span>
+                  <div className="flex justify-between items-center pb-4 border-b border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#2c3b6e] animate-pulse" />
+                      <span className="text-[10px] uppercase tracking-widest font-bold text-slate-500 dark:text-slate-400">
+                        Авторизован: <span className="text-[#2c3b6e] dark:text-white">{user?.full_name || user?.email}</span>
+                      </span>
+                    </div>
                     <button 
                       type="button" 
                       onClick={() => {
@@ -752,62 +754,64 @@ export default function CheckoutPage() {
                         setIsLoggedIn(false);
                         setUser(null);
                         setSavedAddresses([]);
+                        window.dispatchEvent(new Event("storage"));
+                        window.location.reload();
                       }}
-                      className="text-[9px] font-bold uppercase tracking-widest text-red-500 hover:text-red-700 transition-colors"
+                      className="text-[9px] font-bold uppercase tracking-widest text-[#2c3b6e] dark:text-white hover:underline transition-colors"
                     >
-                      Выйти
+                      Сменить аккаунт
                     </button>
                   </div>
                 )}
 
                 {/* Contact Information Fields */}
-                <div className="space-y-3">
-                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#2c3b6e] dark:text-white border-b border-slate-100 dark:border-slate-800 pb-1.5">Контактные данные</h3>
+                <div className="space-y-6">
+                  <h3 className="text-sm font-black uppercase tracking-tight text-[#2c3b6e] dark:text-white border-b border-slate-100 dark:border-slate-800 pb-2">Контактные данные</h3>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-[9px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-bold">Имя и фамилия *</label>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-widest font-bold">Имя и фамилия *</label>
                       <input 
                         type="text" 
                         required
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
                         placeholder="Иван Иванов"
-                        className="w-full h-10 px-3 border border-slate-100/70 dark:border-slate-700 text-xs text-[#2c3b6e] dark:text-white font-medium focus:outline-none focus:border-[#2c3b6e]/30 focus:shadow-[0_0_0_3px_rgba(44,59,110,0.1)] transition-all bg-white dark:bg-[#0f172a] rounded-[16px]"
+                        className="w-full bg-transparent border-b border-slate-200 dark:border-slate-800 py-3 text-xs text-[#2c3b6e] dark:text-white focus:border-[#2c3b6e] outline-none font-medium transition-colors"
                       />
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[9px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-bold">Номер телефона *</label>
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-widest font-bold">Номер телефона *</label>
                       <input 
                         type="tel" 
                         required
                         value={phone}
                         onChange={handlePhoneChange}
                         placeholder="+998 90 123 45 67"
-                        className="w-full h-10 px-3 border border-slate-100/70 dark:border-slate-700 text-xs text-[#2c3b6e] dark:text-white font-medium focus:outline-none focus:border-[#2c3b6e]/30 focus:shadow-[0_0_0_3px_rgba(44,59,110,0.1)] transition-all bg-white dark:bg-[#0f172a] rounded-[16px]"
+                        className="w-full bg-transparent border-b border-slate-200 dark:border-slate-800 py-3 text-xs text-[#2c3b6e] dark:text-white focus:border-[#2c3b6e] outline-none font-medium transition-colors"
                       />
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[9px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-bold">Email-адрес *</label>
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-widest font-bold">Email-адрес *</label>
                       <input 
                         type="email" 
                         required
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="example@mail.com"
-                        className="w-full h-10 px-3 border border-slate-100/70 dark:border-slate-700 text-xs text-[#2c3b6e] dark:text-white font-medium focus:outline-none focus:border-[#2c3b6e]/30 focus:shadow-[0_0_0_3px_rgba(44,59,110,0.1)] transition-all bg-white dark:bg-[#0f172a] rounded-[16px]"
+                        className="w-full bg-transparent border-b border-slate-200 dark:border-slate-800 py-3 text-xs text-[#2c3b6e] dark:text-white focus:border-[#2c3b6e] outline-none font-medium transition-colors"
                       />
                     </div>
                   </div>
                 </div>
 
                 {/* Shipping Addresses Section */}
-                <div className="space-y-3 pt-1">
-                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#2c3b6e] dark:text-white border-b border-slate-100 dark:border-slate-800 pb-1.5">Адрес доставки</h3>
+                <div className="space-y-6 pt-4">
+                  <h3 className="text-sm font-black uppercase tracking-tight text-[#2c3b6e] dark:text-white border-b border-slate-100 dark:border-slate-800 pb-2">Адрес доставки</h3>
 
                   {/* Saved Addresses (Only if logged in and has addresses) */}
                   {isLoggedIn && savedAddresses.length > 0 && (
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {savedAddresses.map((addr) => (
                           <div 
@@ -816,10 +820,10 @@ export default function CheckoutPage() {
                               setSelectedAddressId(addr.id);
                               setUseCustomAddress(false);
                             }}
-                            className={`border p-4 space-y-2 cursor-pointer transition-all relative ${
+                            className={`border p-4 space-y-2 cursor-pointer transition-all relative rounded-2xl ${
                               selectedAddressId === addr.id && !useCustomAddress
                                 ? "border-[#2c3b6e] bg-[#2c3b6e]/[0.02]"
-                                : "border-slate-100/70 dark:border-slate-700 hover:border-slate-300 bg-white dark:bg-[#0f172a]"
+                                : "border-slate-200 dark:border-slate-800 hover:border-[#2c3b6e]/50 bg-white/50 dark:bg-[#0f172a]/50 backdrop-blur-sm"
                             }`}
                           >
                             <div className="flex justify-between items-center">
@@ -858,9 +862,9 @@ export default function CheckoutPage() {
 
                   {/* Manual Address Input Form (If guest or wants customization) */}
                   {(!isLoggedIn || savedAddresses.length === 0 || useCustomAddress) && (
-                    <div className="space-y-3 bg-slate-50 dark:bg-slate-800/50 p-3.5 border border-slate-100 dark:border-slate-800 rounded-2xl">
+                    <div className="space-y-6">
                       {isLoggedIn && savedAddresses.length > 0 && (
-                        <div className="flex justify-between items-center pb-1.5 border-b border-slate-100 dark:border-slate-800 mb-1.5">
+                        <div className="flex justify-between items-center pb-2 border-b border-slate-100 dark:border-slate-800">
                           <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Новый адрес доставки</span>
                           <button 
                             type="button" 
@@ -868,65 +872,65 @@ export default function CheckoutPage() {
                               setUseCustomAddress(false);
                               if (savedAddresses.length > 0) setSelectedAddressId(savedAddresses[0].id);
                             }}
-                            className="text-[9px] font-bold uppercase tracking-wider text-[#2c3b6e] dark:text-white"
+                            className="text-[9px] font-bold uppercase tracking-wider text-[#2c3b6e] dark:text-white hover:underline"
                           >
                             Вернуться к сохраненным
                           </button>
                         </div>
                       )}
 
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="md:col-span-2 space-y-1">
-                          <label className="text-[9px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-bold">Город / Регион *</label>
-                          <div className="relative w-full">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="md:col-span-2 space-y-1.5 relative">
+                          <label className="text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-widest font-bold">Город / Регион *</label>
+                          <div className="relative">
                             <select 
                               required={!isLoggedIn || savedAddresses.length === 0 || useCustomAddress}
                               value={region}
                               onChange={(e) => setRegion(e.target.value)}
-                              className="w-full h-10 pl-3 pr-10 border border-slate-100/70 dark:border-slate-700 text-xs text-[#2c3b6e] dark:text-white font-medium focus:outline-none focus:border-[#2c3b6e]/30 focus:shadow-[0_0_0_3px_rgba(44,59,110,0.1)] transition-all bg-white dark:bg-[#0f172a] cursor-pointer appearance-none rounded-2xl"
+                              className="w-full bg-transparent border-b border-slate-200 dark:border-slate-800 py-3 pr-8 text-xs text-[#2c3b6e] dark:text-white focus:border-[#2c3b6e] outline-none cursor-pointer appearance-none transition-colors"
                             >
                               <option value="">Выберите регион</option>
                               {UZBEKISTAN_REGIONS.map(r => (
                                 <option key={r} value={r}>{r}</option>
                               ))}
                             </select>
-                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#2c3b6e] dark:text-white/50 flex items-center">
+                            <div className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-[#2c3b6e] dark:text-white/50">
                               <ChevronRight className="w-3.5 h-3.5 rotate-90" />
                             </div>
                           </div>
                         </div>
-                        <div className="space-y-1">
-                          <label className="text-[9px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-bold">Почтовый индекс</label>
+                        <div className="space-y-1.5">
+                          <label className="text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-widest font-bold">Почтовый индекс</label>
                           <input 
                             type="text" 
                             value={zip}
                             onChange={(e) => setZip(e.target.value)}
                             placeholder="100000"
-                            className="w-full h-10 px-3 border border-slate-100/70 dark:border-slate-700 text-xs text-[#2c3b6e] dark:text-white font-medium focus:outline-none focus:border-[#2c3b6e]/30 focus:shadow-[0_0_0_3px_rgba(44,59,110,0.1)] transition-all bg-white dark:bg-[#0f172a] rounded-[16px]"
+                            className="w-full bg-transparent border-b border-slate-200 dark:border-slate-800 py-3 text-xs text-[#2c3b6e] dark:text-white focus:border-[#2c3b6e] outline-none font-medium transition-colors"
                           />
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="md:col-span-2 space-y-1">
-                          <label className="text-[9px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-bold">Улица, дом *</label>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="md:col-span-2 space-y-1.5">
+                          <label className="text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-widest font-bold">Улица, дом *</label>
                           <input 
                             type="text" 
                             required={!isLoggedIn || savedAddresses.length === 0 || useCustomAddress}
                             value={street}
                             onChange={(e) => setStreet(e.target.value)}
                             placeholder="ул. Амира Темура, д. 45"
-                            className="w-full h-10 px-3 border border-slate-100/70 dark:border-slate-700 text-xs text-[#2c3b6e] dark:text-white font-medium focus:outline-none focus:border-[#2c3b6e]/30 focus:shadow-[0_0_0_3px_rgba(44,59,110,0.1)] transition-all bg-white dark:bg-[#0f172a] rounded-[16px]"
+                            className="w-full bg-transparent border-b border-slate-200 dark:border-slate-800 py-3 text-xs text-[#2c3b6e] dark:text-white focus:border-[#2c3b6e] outline-none font-medium transition-colors"
                           />
                         </div>
-                        <div className="space-y-1">
-                          <label className="text-[9px] text-slate-400 dark:text-slate-500 uppercase tracking-widest font-bold">Квартира / Офис</label>
+                        <div className="space-y-1.5">
+                          <label className="text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-widest font-bold">Квартира / Офис</label>
                           <input 
                             type="text" 
                             value={flat}
                             onChange={(e) => setFlat(e.target.value)}
                             placeholder="кв. 12"
-                            className="w-full h-10 px-3 border border-slate-100/70 dark:border-slate-700 text-xs text-[#2c3b6e] dark:text-white font-medium focus:outline-none focus:border-[#2c3b6e]/30 focus:shadow-[0_0_0_3px_rgba(44,59,110,0.1)] transition-all bg-white dark:bg-[#0f172a] rounded-[16px]"
+                            className="w-full bg-transparent border-b border-slate-200 dark:border-slate-800 py-3 text-xs text-[#2c3b6e] dark:text-white focus:border-[#2c3b6e] outline-none font-medium transition-colors"
                           />
                         </div>
                       </div>
@@ -944,95 +948,97 @@ export default function CheckoutPage() {
               </div>
 
               {/* Right Column: Checkout Sidebar (Products list & Price Totals) */}
-              <div className="lg:col-span-5 bg-slate-50 dark:bg-slate-800/50 p-6 md:p-8 border border-slate-100 dark:border-slate-800/50 space-y-5 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none">
+              {/* Right Column: Checkout Sidebar (Products list & Price Totals) */}
+              <div className="lg:col-span-5 space-y-6 pt-4 lg:pt-0">
                 <div>
-                  <h3 className="hidden lg:block text-xs font-bold text-[#2c3b6e] dark:text-white border-b border-slate-100 dark:border-slate-800 pb-3 mb-4 tracking-tight">
+                  <h3 className="hidden lg:block text-sm font-black uppercase tracking-tight text-[#2c3b6e] dark:text-white border-b border-slate-100 dark:border-slate-800 pb-2 mb-4">
                     Ваш заказ ({items.length})
                   </h3>
                   
-                  {/* Compact Product List */}
-                  <div className="hidden lg:block space-y-4 max-h-[300px] overflow-y-auto pr-2">
-                    {items.map((item) => (
-                      <div key={item.id} className="flex gap-3">
-                        <div className="relative w-12 aspect-[3/4] bg-slate-100 dark:bg-slate-800 overflow-hidden flex-shrink-0">
-                          <Image src={item.image} alt={item.name} fill className="object-cover" />
-                        </div>
-                        
-                        <div className="flex-grow flex flex-col justify-between py-0.5 min-w-0">
-                          <div>
-                            <h4 className="text-[10px] font-medium text-[#2c3b6e] dark:text-white leading-snug truncate">{item.name}</h4>
-                            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
-                              {item.category && item.category !== item.name && (<span className="text-[8px] uppercase tracking-widest text-slate-400 dark:text-slate-500">{item.category}</span>)}
-                              {item.size && (
-                                <span className="text-[8px] text-slate-400 dark:text-slate-500 font-medium">/ РАЗМЕР: {item.size}</span>
-                              )}
-                              {item.color && (
-                                <span className="text-[8px] text-[#2c3b6e] dark:text-white font-medium">/ ЦВЕТ: {item.color}</span>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex justify-between items-center text-[10px]">
-                            <span className="text-slate-400 dark:text-slate-500">Кол-во: <span className="font-bold text-[#2c3b6e] dark:text-white">{item.quantity}</span></span>
-                            <span className="font-bold text-[#2c3b6e] dark:text-white">{typeof item.price === 'number' ? item.price.toLocaleString() + ' сум' : item.price}</span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                  {/* Table-like Product List */}
+                  <div className="hidden lg:block w-full">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-slate-100 dark:border-slate-800">
+                          <th className="pb-2 text-[9px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 text-left">Товар</th>
+                          <th className="pb-2 text-[9px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 text-center w-16">Кол-во</th>
+                          <th className="pb-2 text-[9px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 text-right w-24">Сумма</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100/50 dark:divide-slate-800/50">
+                        {items.map((item) => (
+                          <tr key={item.id}>
+                            <td className="py-3 pr-2">
+                              <div className="flex gap-3 items-center">
+                                <div className="relative w-10 h-10 bg-slate-50 dark:bg-slate-800/50 overflow-hidden flex-shrink-0 border border-slate-100 dark:border-slate-800">
+                                  <Image src={item.image} alt={item.name} fill className="object-cover" />
+                                </div>
+                                <div className="min-w-0">
+                                  <h4 className="text-[10px] font-bold text-[#2c3b6e] dark:text-white leading-snug truncate">{item.name}</h4>
+                                  <div className="text-[8px] text-slate-400 dark:text-slate-500 mt-0.5 space-x-1 flex flex-wrap gap-y-0.5">
+                                    {item.category && item.category !== item.name && (<span className="uppercase tracking-widest">{item.category}</span>)}
+                                    {item.size && <span>РАЗМЕР: {item.size}</span>}
+                                    {item.color && <span>ЦВЕТ: {item.color}</span>}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-3 text-center align-middle">
+                              <span className="text-[10px] font-bold text-[#2c3b6e] dark:text-white">{item.quantity}</span>
+                            </td>
+                            <td className="py-3 text-right align-middle">
+                              <span className="text-[10px] font-bold text-[#2c3b6e] dark:text-white whitespace-nowrap">
+                                {typeof item.price === 'number' ? item.price.toLocaleString() + ' сум' : item.price}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
 
                 {/* Subtotals & Total Summary */}
-                <div className="border-t border-slate-100 dark:border-slate-800 pt-3 space-y-1.5">
-                  <div className="flex justify-between text-[10px]">
-                    <span className="uppercase tracking-widest text-slate-400 dark:text-slate-500">Стоимость товаров</span>
-                    <span className="font-bold text-[#2c3b6e] dark:text-white">{total.toLocaleString()} сум</span>
+                <div className="border-y border-slate-100 dark:border-slate-800 py-4 space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-500 font-bold">Стоимость товаров</span>
+                    <span className="text-[10px] font-bold text-[#2c3b6e] dark:text-white">{total.toLocaleString()} сум</span>
                   </div>
-                  <div className="flex justify-between text-[10px] items-center">
-                    <span className="uppercase tracking-widest text-slate-400 dark:text-slate-500">Доставка</span>
-                    <Link href="/delivery" target="_blank" className="text-[10px] font-bold text-[#2c3b6e] dark:text-white hover:text-[#2c3b6e] dark:text-white/80 underline">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-500 font-bold">Доставка</span>
+                    <Link href="/delivery" target="_blank" className="text-[10px] font-bold text-[#2c3b6e] dark:text-white hover:text-[#2c3b6e]/80 hover:underline">
                       Условия доставки
                     </Link>
                   </div>
                   
-                  <div className="border-t border-slate-100 dark:border-slate-800 pt-3 flex justify-between items-center">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-[#2c3b6e] dark:text-white">Итого к оплате</span>
-                    <span className="text-base font-bold text-[#2c3b6e] dark:text-white uppercase tracking-tighter">
+                  <div className="pt-2 flex justify-between items-end">
+                    <span className="text-[11px] font-black uppercase tracking-widest text-[#2c3b6e] dark:text-white">Итого</span>
+                    <span className="text-xl font-black text-[#2c3b6e] dark:text-white uppercase tracking-tighter leading-none">
                       {total.toLocaleString()} сум
                     </span>
                   </div>
                 </div>
 
                 {/* Delivery Information Note */}
-                <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800/50 p-3 text-[10px] text-slate-500 dark:text-slate-400 dark:text-slate-500 leading-relaxed space-y-1">
-                  <p className="font-bold text-[#2c3b6e] dark:text-white flex items-center gap-1.5">
-                    <span className="w-1 h-1 rounded-full bg-[#2c3b6e]" />
+                <div className="text-[9px] text-slate-500 dark:text-slate-400 leading-relaxed space-y-1.5 pt-2">
+                  <p className="font-bold text-[#2c3b6e] dark:text-white flex items-center gap-1.5 uppercase tracking-widest">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#2c3b6e] animate-pulse" />
                     О доставке
                   </p>
-                  <p>
+                  <p className="font-medium">
                     После оформления заказа наши сотрудники свяжутся с вами для подтверждения адреса и согласования удобного времени доставки.
                   </p>
-                  <div className="pt-2 mt-2">
-                    <p className="text-[10px] text-slate-400 dark:text-slate-500 mb-1">
-                      Возникли вопросы? Вы можете найти номера телефонов и контакты в разделе{" "}
-                      <Link href="/contact" target="_blank" className="text-[#2c3b6e] dark:text-white underline hover:text-[#2c3b6e]/80 font-bold">
-                        Контакты
-                      </Link>
-                    </p>
-                    <a href="tel:+998712055454" className="text-[#2c3b6e] dark:text-white text-sm font-black tracking-widest hover:underline">
-                      +998 (71) 205-54-54
-                    </a>
-                  </div>
                 </div>
 
                 {/* Checkout Submit CTA Button */}
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full h-12 bg-[#2c3b6e] text-white flex items-center justify-center gap-2 rounded-2xl font-bold text-xs md:text-sm hover:bg-[#2c3b6e]/90 disabled:bg-slate-300 transition-all active:scale-[0.98] tracking-tight"
+                  className="w-full h-12 bg-[#2c3b6e] text-white flex items-center justify-center gap-2 font-bold text-[11px] uppercase tracking-widest hover:bg-[#2c3b6e]/90 disabled:bg-slate-300 transition-all active:scale-[0.98]"
                 >
                   {loading ? (
                     <>
-                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <RefreshCw className="w-4 h-4 animate-spin" />
                       Оформление...
                     </>
                   ) : (

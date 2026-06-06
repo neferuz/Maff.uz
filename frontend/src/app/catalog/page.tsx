@@ -48,6 +48,7 @@ function CatalogContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const categoryParam = searchParams.get("category");
+  const brandParam = searchParams.get("brand");
   
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
@@ -55,7 +56,7 @@ function CatalogContent() {
     categoryParam ? parseInt(categoryParam) : null
   );
   
-  const [activeFilters, setActiveFilters] = useState<string[]>([]);
+  const [activeFilters, setActiveFilters] = useState<string[]>(brandParam ? [brandParam] : []);
   const [sortBy, setSortBy] = useState("Популярные");
   const [availableBrands, setAvailableBrands] = useState<string[]>([]);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -115,10 +116,18 @@ function CatalogContent() {
     } else {
       setSelectedCategoryId(null);
     }
+    
+    const currentBrandParam = searchParams.get("brand");
+    if (currentBrandParam) {
+      setActiveFilters([currentBrandParam]);
+    } else {
+      setActiveFilters([]);
+    }
+    
     setSelectedThicknesses([]);
     setSelectedSizes([]);
     setCurrentPage(1);
-  }, [categoryParam]);
+  }, [categoryParam, searchParams]);
 
   // Scroll to catalog workspace start when filters change and user is scrolled down
   useEffect(() => {
@@ -232,7 +241,7 @@ function CatalogContent() {
         setLoading(true);
         const url = selectedCategoryId
           ? `/api/v1/products/?category_id=${selectedCategoryId}&group=true&t=${Date.now()}`
-          : `/api/v1/products/?limit=300&group=true&t=${Date.now()}`;
+          : `/api/v1/products/?limit=2000&group=true&t=${Date.now()}`;
         
         const prodRes = await fetch(url, { 
           cache: "no-store", 
@@ -284,16 +293,44 @@ function CatalogContent() {
       c && c.name && (
         c.id === 8 || c.id === 359 || c.id === 174 || c.id === 13 ||
         c.name.toLowerCase().includes('двер') || 
+        c.name.toLowerCase().includes('порта') || 
+        c.name.toLowerCase().includes('baguette') || 
+        c.name.toLowerCase().includes('classic') || 
+        c.name.toLowerCase().includes('zadoor') || 
         c.name.toLowerCase().includes('паркет') || 
         c.name.toLowerCase().includes('подложк') ||
         c.name.toLowerCase().includes('coswick') ||
+        c.name.toLowerCase().includes('sag') ||
+        c.name.toLowerCase().includes('ковров') ||
+        c.name.toLowerCase().includes('tarwood') ||
+        c.name.toLowerCase().includes('spc') ||
+        c.name.toLowerCase().includes('rocko') ||
+        c.name.toLowerCase().includes('kronofloor') ||
+        c.name.toLowerCase().includes('ламинат') ||
+        c.name.toLowerCase().includes('egger') ||
+        c.name.toLowerCase().includes('krono') ||
+        c.name.toLowerCase().includes('agt') ||
+        c.name.toLowerCase().includes('joss') ||
+        c.name.toLowerCase().includes('ultradecor') ||
         c.name.toLowerCase().includes('tarkett') ||
         c.name.toLowerCase().includes('salsa') ||
         c.name.toLowerCase().includes('s.classic') ||
         c.name.toLowerCase().includes('silkwood') ||
         c.name.toLowerCase().includes('stimul') ||
         c.name.toLowerCase().includes('ручк') ||
-        c.name.toLowerCase().includes('петл')
+        c.name.toLowerCase().includes('петл') ||
+        c.name.toLowerCase().includes('плинтус') ||
+        c.name.toLowerCase().includes('декор') ||
+        c.name.toLowerCase().includes('панел') ||
+        c.name.toLowerCase().includes('frente') ||
+        c.name.toLowerCase().includes('порог') ||
+        c.name.toLowerCase().includes('стык') ||
+        c.name.toLowerCase().includes('кант') ||
+        c.name.toLowerCase().includes('ковродержател') ||
+        c.name.toLowerCase().includes('крепеж') ||
+        c.name.toLowerCase().includes('профил') ||
+        c.name.toLowerCase().includes('wpc') ||
+        c.name.toLowerCase().includes('decopro')
       )
     );
     let ids: number[] = [];
@@ -622,29 +659,16 @@ function CatalogContent() {
   }, [selectedCategoryId, categories]);
 
   const categoryProductCounts = useMemo(() => {
-    const activeCategoryIds = new Set(categories.map(c => c.id));
-    const validProducts = products.filter(p => {
-      if (!p.category_id || !activeCategoryIds.has(p.category_id)) return false;
-      const isFreePriceCategory = allFreePriceCategoryIds.includes(p.category_id);
-      return p.price >= 1000 || isFreePriceCategory;
-    });
-
     const counts: Record<number, number> = {};
     categories.forEach(cat => {
-      const allRelatedIds = getAllChildIds(cat.id, categories);
-      counts[cat.id] = validProducts.filter(p => p.category_id && allRelatedIds.includes(p.category_id)).length;
+      counts[cat.id] = cat.product_count || 0;
     });
     return counts;
-  }, [products, categories, allFreePriceCategoryIds]);
+  }, [categories]);
 
   const totalValidCount = useMemo(() => {
-    const activeCategoryIds = new Set(categories.map(c => c.id));
-    return products.filter(p => {
-      if (!p.category_id || !activeCategoryIds.has(p.category_id)) return false;
-      const isFreePriceCategory = allFreePriceCategoryIds.includes(p.category_id);
-      return p.price >= 1000 || isFreePriceCategory;
-    }).length;
-  }, [products, categories, allFreePriceCategoryIds]);
+    return categories.filter(c => !c.parent_id).reduce((sum, c) => sum + (c.product_count || 0), 0);
+  }, [categories]);
 
   const currentCategoryDescription = useMemo(() => {
     if (!selectedCategoryId || categories.length === 0) {
@@ -717,7 +741,9 @@ function CatalogContent() {
           </button>
         </div>
 
-        {mainCategories.map(cat => {
+        <div className="h-px w-[90%] mx-auto bg-gradient-to-r from-transparent via-slate-200 dark:via-white/10 to-transparent my-2 opacity-70"></div>
+
+        {mainCategories.map((cat, index) => {
           const childCats = categories.filter(c => c.parent_id === cat.id);
           const hasChildren = childCats.length > 0;
           const isActive = selectedCategoryId === cat.id;
@@ -727,7 +753,9 @@ function CatalogContent() {
           const isExpanded = expandedCategoryIds.includes(cat.id);
 
           return (
-            <div key={cat.id} className="py-2.5">
+            <React.Fragment key={cat.id}>
+              {index > 0 && <div className="h-px w-[90%] mx-auto bg-gradient-to-r from-transparent via-slate-200 dark:via-white/10 to-transparent my-1 opacity-70"></div>}
+              <div className="py-2.5">
               <button
                 onClick={() => {
                   router.replace(`/catalog?category=${cat.id}`, { scroll: false });
@@ -888,6 +916,7 @@ function CatalogContent() {
                 )}
               </AnimatePresence>
             </div>
+            </React.Fragment>
           );
         })}
       </div>

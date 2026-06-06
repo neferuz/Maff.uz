@@ -61,12 +61,25 @@ const nextConfig: NextConfig = {
         destination: 'http://127.0.0.1:8000/static/uploads/tarkett/:path*',
       },
       {
+        source: '/static/uploads/coswick/:path*',
+        destination: 'http://127.0.0.1:8000/static/uploads/coswick/:path*',
+      },
+      {
         source: '/static/uploads/jossbeaumont/:path*',
         destination: 'http://127.0.0.1:8000/static/uploads/jossbeaumont/:path*',
       },
       {
+        source: '/static/uploads/egger/:path*',
+        destination: 'http://127.0.0.1:8000/static/uploads/egger/:path*',
+        basePath: false,
+      },
+      {
         source: '/static/uploads/kronospan/:path*',
         destination: 'http://127.0.0.1:8000/static/uploads/kronospan/:path*',
+      },
+      {
+        source: '/static/uploads/sargo/:path*',
+        destination: 'http://127.0.0.1:8000/static/uploads/sargo/:path*',
       },
       {
         source: '/static/uploads/:path*',

@@ -21,7 +21,7 @@ import {
   Image as ImageIcon,
   Heart,
 } from "lucide-react";
-import { cn, cleanNameFromDimensions } from "@/lib/utils";
+import { cn, cleanNameFromDimensions, getShortDoorName } from "@/lib/utils";
 import { useShop } from "@/context/shop-context";
 import { ScrollReveal } from "@/components/ui/scroll-reveal";
 import { ProductCard } from "@/components/ui/product-card";
@@ -139,6 +139,12 @@ const parseProductName = (name: string) => {
     "Ламинатин Белый",
     "Keramik Beige",
     "Keramik Brown",
+    "Keramik Valse",
+    "Rocks Beige",
+    "Rocks Pearl",
+    "Nardo Grey",
+    "Alpik Oak",
+    "Black Star",
     "Ice",
     "Милквуд",
     "Опал",
@@ -194,16 +200,22 @@ const parseProductName = (name: string) => {
     }
   }
 
+  let colorScanText = normYo(cleaned);
   for (const c of sortedColors) {
     const escapedC = normYo(c).replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&");
     const reg = new RegExp(
       "(?:^|[^а-яa-z0-9])" + escapedC + "(?:$|[^а-яa-z0-9])",
       "i"
     );
-    if (reg.test(normYo(cleaned))) {
+    if (reg.test(colorScanText)) {
       if (!parsedColorsList.includes(c)) {
         parsedColorsList.push(c);
       }
+      const replaceReg = new RegExp(
+        "(^|[^а-яa-z0-9])" + escapedC + "(?=$|[^а-яa-z0-9])",
+        "gi"
+      );
+      colorScanText = colorScanText.replace(replaceReg, "$1 ");
     }
   }
 
@@ -509,7 +521,7 @@ export default function ProductPageClient({
   const { addToCart } = useShop();
 
   // ── Pre-process initialProduct if needed
-  const cleanedInitImages = initialProduct?.images?.map((img: string) => cleanUrl(img)).filter(Boolean) || [];
+  const cleanedInitImages = Array.from(new Set(initialProduct?.images?.map((img: string) => cleanUrl(img)).filter(Boolean) || []));
   const enrichedInitProduct = initialProduct ? {
     ...initialProduct,
     packSize: initialProduct.pack_size || 1.0,
@@ -655,9 +667,9 @@ export default function ProductPageClient({
 
         // Clean images array
         const rawImages = data.images || [];
-        const cleanedImages = rawImages
+        const cleanedImages = Array.from(new Set(rawImages
           .map((img: string) => cleanUrl(img))
-          .filter(Boolean) as string[];
+          .filter(Boolean))) as string[];
 
         // Enrich data with defaults/calculated if missing
         const enrichedProduct = {
@@ -1085,7 +1097,7 @@ export default function ProductPageClient({
       setCurrentVariantInfo(parseVariant(bestMatch.name));
       setProduct((prev: any) => ({ ...prev, ...bestMatch }));
 
-      window.history.pushState({}, "", `/product/${bestMatch.id}`);
+      window.history.replaceState({}, "", `/product/${bestMatch.id}`);
       setActiveSlug(String(bestMatch.id));
     }
   };
@@ -1372,26 +1384,41 @@ const totalPrice = isDoor
             </div>
 
             <h1 className="text-2xl lg:text-3xl font-extrabold leading-tight tracking-tight text-slate-950 dark:text-white uppercase">
-              {cleanNameFromDimensions(product.name)}
+              {isDoor ? getShortDoorName(product.name) : cleanNameFromDimensions(product.name)}
             </h1>
 
             {/* Price & Fast Installment Box */}
             <div className="rounded-xl border border-slate-100/80 bg-slate-50/50 dark:border-slate-800/60 dark:bg-slate-900/30 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
-                <span className="text-[10px] font-black tracking-widest text-slate-400 uppercase block mb-1">
-                  Цена за {unit}
-                </span>
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-3xl font-extrabold tracking-tight text-slate-950 tabular-nums lg:text-4xl dark:text-white">
-                    {isOrderOnly && pricePrefix ? (
-                      <span className="mr-1 text-xl font-bold">{pricePrefix}</span>
-                    ) : null}
-                    {formatPrice(product.price_outlet || product.price)}
-                  </span>
-                  <span className="text-sm font-semibold text-slate-400 uppercase">
-                    сум
-                  </span>
-                </div>
+                {(product.price_outlet || product.price) > 0 ? (
+                  <>
+                    <span className="text-[10px] font-black tracking-widest text-slate-400 uppercase block mb-1">
+                      Цена за {unit}
+                    </span>
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="text-3xl font-extrabold tracking-tight text-slate-950 tabular-nums lg:text-4xl dark:text-white">
+                        {isOrderOnly && pricePrefix ? (
+                          <span className="mr-1 text-xl font-bold">{pricePrefix}</span>
+                        ) : null}
+                        {formatPrice(product.price_outlet || product.price)}
+                      </span>
+                      <span className="text-sm font-semibold text-slate-400 uppercase">
+                        сум
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex flex-col gap-1.5 mt-2 mb-2">
+                    <span className="text-xl lg:text-2xl font-extrabold tracking-tight text-slate-950 dark:text-white">
+                      {isDoor && product.brand === "Волховец" ? "Под заказ" : "Уточнить у администрации"}
+                    </span>
+                    {isDoor && product.brand === "Волховец" && (
+                      <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                        Индивидуальный расчет стоимости
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
               
 
@@ -1814,7 +1841,7 @@ const totalPrice = isDoor
               </div>
 
               {/* ── Installment Card (Collapsible/Sleek) ── */}
-              {totalPrice > 0 && (
+              {((product.price_outlet || product.price) > 0 || isDoor) && (
                 <div className="rounded-xl border border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/40 p-3 flex flex-col gap-2.5">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-black tracking-widest text-slate-500 dark:text-slate-400 uppercase">
@@ -1870,10 +1897,16 @@ const totalPrice = isDoor
                         Ежемесячный платеж
                       </span>
                       <div className="flex items-baseline gap-1.5">
-                        <span className="text-lg font-extrabold text-[#2c3b6e] dark:text-blue-400 tabular-nums">
-                          {formatPrice(monthlyPayment)}
-                        </span>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase">сум / мес</span>
+                        {totalPrice > 0 ? (
+                          <>
+                            <span className="text-lg font-extrabold text-[#2c3b6e] dark:text-blue-400 tabular-nums">
+                              {formatPrice(monthlyPayment)}
+                            </span>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase">сум / мес</span>
+                          </>
+                        ) : (
+                          <span className="text-sm font-bold text-slate-500 uppercase italic">Рассчитает менеджер</span>
+                        )}
                       </div>
                     </div>
 
@@ -1882,10 +1915,16 @@ const totalPrice = isDoor
                         Общая сумма
                       </span>
                       <div className="flex items-baseline gap-1">
-                        <span className="text-sm font-bold text-slate-600 dark:text-slate-300 tabular-nums">
-                          {formatPrice(monthlyPayment * installmentMonths)}
-                        </span>
-                        <span className="text-[9px] font-bold text-slate-400 uppercase">сум</span>
+                        {totalPrice > 0 ? (
+                          <>
+                            <span className="text-sm font-bold text-slate-600 dark:text-slate-300 tabular-nums">
+                              {formatPrice(monthlyPayment * installmentMonths)}
+                            </span>
+                            <span className="text-[9px] font-bold text-slate-400 uppercase">сум</span>
+                          </>
+                        ) : (
+                          <span className="text-[10px] font-bold text-slate-400 uppercase italic">Индивидуальный расчет</span>
+                        )}
                       </div>
                     </div>
                   </div>

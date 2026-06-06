@@ -265,19 +265,31 @@ export default function AuthPage() {
     setLoading(true);
 
     try {
-      // Mocking registration for now as requested
       const cleanInput = inputValue.trim();
       const emailToSend = method === "email" 
         ? cleanInput 
         : cleanInput.replace(/[^0-9+]/g, "") + "@maff.uz";
 
-      // Just set fake token and redirect to profile immediately
-      localStorage.setItem("token", "fake-mock-token-for-now");
-      localStorage.setItem("user_email", emailToSend);
-      localStorage.setItem("user_name", firstName || "Пользователь");
+      const res = await fetch("/api/v1/users/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          phone: cleanInput.replace(/[^0-9]/g, ""),
+          email: emailToSend,
+          password: password,
+          full_name: `${firstName} ${lastName}`.trim(),
+        }),
+      });
 
-      setStep("success");
-      setTimeout(() => router.push("/profile"), 1000);
+      if (res.ok) {
+        // Automatically login
+        await executeLogin();
+      } else {
+        const errData = await res.json();
+        setValidationError(errData.detail || "Не удалось создать аккаунт. Возможно, пользователь уже существует.");
+      }
     } catch (err) {
       console.error("Register error:", err);
       setValidationError("Не удалось создать аккаунт. Попробуйте позже.");
