@@ -46,8 +46,12 @@ async def get_order(db: AsyncSession, order_id: int) -> Optional[Order]:
     result = await db.execute(query)
     return result.scalar_one_or_none()
 
-async def get_orders_by_user(db: AsyncSession, user_id: int) -> List[Order]:
-    query = select(Order).options(selectinload(Order.items)).filter(Order.user_id == user_id).order_by(Order.created_at.desc())
+async def get_orders_by_user(db: AsyncSession, user_id: int, user_phone: Optional[str] = None) -> List[Order]:
+    from sqlalchemy import or_
+    conditions = [Order.user_id == user_id]
+    if user_phone:
+        conditions.append(Order.phone == user_phone)
+    query = select(Order).options(selectinload(Order.items)).filter(or_(*conditions)).order_by(Order.created_at.desc())
     result = await db.execute(query)
     return result.scalars().all()
 

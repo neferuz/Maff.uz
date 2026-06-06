@@ -94,6 +94,55 @@ export default function ProductsPage() {
     }
   };
 
+  const isLoadedFromUrl = useRef(false);
+
+  // Load initial filters from URL params on mount
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const catId = params.get("category");
+    const status = params.get("status");
+    const search = params.get("q");
+
+    if (catId) {
+      setSelectedCategoryId(Number(catId));
+    }
+    if (status && ["all", "active", "archived", "outlet"].includes(status)) {
+      setStatusFilter(status as any);
+    }
+    if (search) {
+      setSearchQuery(search);
+    }
+    isLoadedFromUrl.current = true;
+  }, []);
+
+  // Update URL params when filters change
+  useEffect(() => {
+    if (typeof window === "undefined" || !isLoadedFromUrl.current) return;
+    const params = new URLSearchParams(window.location.search);
+    
+    if (selectedCategoryId) {
+      params.set("category", String(selectedCategoryId));
+    } else {
+      params.delete("category");
+    }
+
+    if (statusFilter && statusFilter !== "all") {
+      params.set("status", statusFilter);
+    } else {
+      params.delete("status");
+    }
+
+    if (searchQuery) {
+      params.set("q", searchQuery);
+    } else {
+      params.delete("q");
+    }
+
+    const newUrl = `${window.location.pathname}?${params.toString()}`;
+    window.history.replaceState(null, "", newUrl);
+  }, [selectedCategoryId, statusFilter, searchQuery]);
+
   useEffect(() => {
     fetchProducts();
     fetchCategories();
@@ -319,6 +368,8 @@ export default function ProductsPage() {
     return ids;
   };
 
+  const allRelatedIds = selectedCategoryId ? getAllChildIds(selectedCategoryId) : [];
+
   const filteredProducts = products.filter(product => {
     const searchTerms = searchQuery.toLowerCase().split(' ').filter(term => term.length > 0);
     const productName = product.name.toLowerCase();
@@ -336,8 +387,6 @@ export default function ProductsPage() {
 
     if (!selectedCategoryId) return matchesSearch && matchesStatus;
     
-    // Get all nested child IDs to show all products in sub-categories
-    const allRelatedIds = getAllChildIds(selectedCategoryId);
     const matchesCategory = product.category_id && allRelatedIds.includes(product.category_id);
     
     return matchesSearch && matchesStatus && matchesCategory;

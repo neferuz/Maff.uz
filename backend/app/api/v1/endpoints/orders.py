@@ -25,7 +25,7 @@ async def get_my_orders(
     db: AsyncSession = Depends(deps.get_db),
     current_user: User = Depends(deps.get_current_user),
 ) -> Any:
-    return await crud_order.get_orders_by_user(db=db, user_id=current_user.id)
+    return await crud_order.get_orders_by_user(db=db, user_id=current_user.id, user_phone=current_user.phone)
 
 @router.get("", response_model=List[OrderResponse])
 async def get_orders(

@@ -154,13 +154,6 @@ export function CartDrawer({
                   Оформить заказ
                   <ArrowRight className="w-3 h-3" />
                 </Link>
-                <Link 
-                  href="/cart"
-                  onClick={onClose}
-                  className="w-full h-10 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-full text-[9px] font-black uppercase tracking-widest flex items-center justify-center hover:bg-slate-50 dark:hover:bg-slate-700 transition-all"
-                >
-                  Перейти в корзину
-                </Link>
             </div>
           </div>
         )}

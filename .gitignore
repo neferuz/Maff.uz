@@ -41,3 +41,4 @@ Thumbs.db
 backend/backend.log
 frontend/tsconfig.tsbuildinfo
 page_827.html
+backend/static/uploads.zip

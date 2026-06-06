@@ -39,7 +39,7 @@ async def send_otp(phone: str, code: str) -> bool:
         print("Warning: Skipping SMS sending because Eskiz is not configured or auth failed.")
         return True # Return true so flow doesn't block in dev
 
-    message = f"Ваш код подтверждения: {code}"
+    message = f"Код подтверждения для регистрации на сайте Maff.uz: {code}"
     # Remove '+' or spaces from phone for Eskiz API
     clean_phone = "".join(filter(str.isdigit, phone))
     

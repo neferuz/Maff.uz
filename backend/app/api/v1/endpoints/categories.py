@@ -31,14 +31,8 @@ async def read_categories(
     categories_result = await db.execute(query.offset(skip).limit(limit))
     categories = categories_result.scalars().all()
     
-    # 2. Fetch product counts per category
-    product_counts_result = await db.execute(
-        select(Product.category_id, func.count(Product.id))
-        .group_by(Product.category_id)
-    )
-    direct_counts = {row[0]: row[1] for row in product_counts_result.all() if row[0] is not None}
-    
-    # 3. Build a map of category_id -> children_ids
+    # 2. Fetch active products to calculate count with the same filters as frontend
+    # Build a map of category_id -> children_ids first
     category_map = {c.id: c for c in categories}
     children_map = {}
     for c in categories:
@@ -46,8 +40,126 @@ async def read_categories(
             if c.parent_id not in children_map:
                 children_map[c.parent_id] = []
             children_map[c.parent_id].append(c.id)
+
+    # Recursive function to get all descendants of a category ID
+    def get_descendant_ids(cat_id):
+        desc = [cat_id]
+        for child_id in children_map.get(cat_id, []):
+            desc.extend(get_descendant_ids(child_id))
+        return desc
+
+    # Free price categories logic to match frontend page.tsx
+    free_names_keywords = [
+        'двер', 'порта', 'baguette', 'classic', 'zadoor', 'паркет', 'подложк',
+        'coswick', 'sag', 'ковров', 'tarwood', 'spc', 'rocko', 'kronofloor',
+        'ламинат', 'egger', 'krono', 'agt', 'joss', 'ultradecor', 'tarkett',
+        'salsa', 's.classic', 'silkwood', 'stimul', 'ручк', 'петл', 'плинтус',
+        'декор', 'панел', 'frente', 'порог', 'стык', 'кант', 'ковродержател',
+        'крепеж', 'профил', 'wpc', 'decopro'
+    ]
+    free_ids = {8, 359, 174, 13}
+    
+    main_free_cats = []
+    for c in categories:
+        c_name_lower = c.name.lower()
+        if c.id in free_ids or any(kw in c_name_lower for kw in free_names_keywords):
+            main_free_cats.append(c.id)
             
-    # 4. Recursive function to get total count
+    free_price_cat_ids = set()
+    for cat_id in main_free_cats:
+        free_price_cat_ids.update(get_descendant_ids(cat_id))
+
+    # Fetch all active products
+    products_result = await db.execute(
+        select(Product.id, Product.name, Product.brand, Product.price, Product.category_id, Product.image_url)
+        .filter(Product.is_active == True)
+    )
+    all_products = products_result.all()
+    
+    NON_PRODUCT_KEYWORDS = [
+        "образец", "образцы",
+        "коробка", "короб", "добор", "наличник",
+        "стенд", "вывеска", "каталог", "буклет", "щит рекл",
+        "футболка", "стойка",
+        "герметик", "защелка", "замок", "agb",
+        "ключ", "связка",
+        "соединение", "соединитель", "петля",
+        "ноутбук", "эмблема", "шуруп", "тяга",
+        "сумка", "стреч", "пленка",
+        "повербанк", "планшет", "подставка",
+        "табличка", "рейка", "флаг", "холдер",
+        "установка", "станок",
+        "жидкий",
+        "router", "роутер", "cpe",
+        "оперативная", "память", "мышь",
+    ]
+    
+    # 2. Group products to get accurate counts (matching products.py logic)
+    from app.api.v1.endpoints.products import get_base_model_name
+    
+    def is_placeholder_url(url: str) -> bool:
+        if not url:
+            return True
+        url_lower = url.lower()
+        return "placeholder" in url_lower or "порта-51" in url_lower
+
+    category_grouped_products = {} # category_id -> set(group_keys)
+    
+    for p in all_products:
+        p_id, p_name, p_brand, p_price, p_category_id, p_image_url = p
+        if p_category_id is None:
+            continue
+            
+        name_lower = (p_name or "").lower()
+        
+        # 1. Non-product keywords check
+        is_real = True
+        for kw in NON_PRODUCT_KEYWORDS:
+            if kw in name_lower:
+                is_real = False
+                break
+        if not is_real:
+            continue
+            
+        # 2. Polotno check
+        if "полотно" in name_lower:
+            brand_lower = (p_brand or "").lower()
+            is_door_brand = any(b in brand_lower for b in ["волховец", "volkhovets", "zadoor", "portika", "profildoors", "filomuro"])
+            if not is_door_brand:
+                continue
+                
+        # 3. Price check
+        price_val = float(p_price or 0)
+        if price_val < 1000 and p_category_id not in free_price_cat_ids:
+            continue
+            
+        # 4. Grouping Logic
+        if p_category_id not in category_grouped_products:
+            category_grouped_products[p_category_id] = set()
+            
+        if p_category_id in free_price_cat_ids:
+            # For doors and handles, use the grouping key
+            base_name = get_base_model_name(p_name).lower().strip()
+            if not base_name:
+                base_name = name_lower.strip()
+            
+            has_real_img = p_image_url and not is_placeholder_url(p_image_url)
+            # Simplified key for counting: if same image, it's one product. 
+            # If no image, base_name is the key.
+            if has_real_img:
+                group_key = f"img_{p_image_url}"
+            else:
+                group_key = f"name_{base_name}"
+            
+            category_grouped_products[p_category_id].add(group_key)
+        else:
+            # For other categories, every product is unique
+            category_grouped_products[p_category_id].add(p_id)
+            
+    direct_counts = {cid: len(keys) for cid, keys in category_grouped_products.items()}
+
+        
+    # 4. Recursive function to get total count for category hierarchy
     def get_total_count(cat_id):
         count = direct_counts.get(cat_id, 0)
         children = children_map.get(cat_id, [])

@@ -55,15 +55,19 @@ def get_base_model_name(name: str) -> str:
     # 2. General/Door products path
     cleaned = name
     
+    # Pre-clean known technical prefixes that shouldn't be part of the base name
+    cleaned = re.sub(r'^(?:Полотно дв\.|Полотно)\s+', '', cleaned, flags=re.IGNORECASE)
+    
     # 1. Normalize brand names and helper tags first
-    for tag in ["Zadoor-S Classic", "S Classic", "Zadoor", "Portika", "Volkhovets", "Волховец", "Filomuro", "Art-Lite", "ArtКлассик", "АртКлассик"]:
+    for tag in ["Zadoor-S Classic", "S Classic", "Zadoor", "Portika", "Volkhovets", "Волховец", "Filomuro", "Art-Lite", "ArtКлассик", "АртКлассик", "Antique"]:
         cleaned = re.sub(re.escape(tag), "", cleaned, flags=re.IGNORECASE)
         
     # Clean showroom / stand / sample tags
     tags_to_remove = [
         r"\(Образец\)", r"Образец", r"СТЕНД", r"Стенд", r"ДРУЖБА", 
         r"ПАРКЕНТ ДВЕРИ", r"ПАРКЕНТ", r"Стенд слева", r"Стенд справа", 
-        r"слева", r"справа", r"Дверное полотно", r"Стоевая", r"\(для полотна\)"
+        r"слева", r"справа", r"Дверное полотно", r"Стоевая", r"\(для полотна\)",
+        r"Полотно дв\.", r"Полотно"
     ]
     for tag in tags_to_remove:
         cleaned = re.sub(tag, "", cleaned, flags=re.IGNORECASE)
@@ -80,8 +84,6 @@ def get_base_model_name(name: str) -> str:
     # 2. Truncate at variant/color/size/technical details
     triggers = [
         r'\b\d+A[A-Z]\b',
-        r'\b[B-Z]\s+ПП\b',
-        r'\b[B-Z]\b',
         r'\b\d+(?:\.\d+)?\s*[xх\*×]\s*\d+(?:\.\d+)?\s*[xх\*×]\s*\d+\b', # 3D dimensions
         r'\b\d+(?:\.\d+)?\s*[xх\*×]\s*\d+(?:\.\d+)?\b',                 # 2D dimensions
         r'\b(400|600|700|800|900)\b',
@@ -105,7 +107,20 @@ def get_base_model_name(name: str) -> str:
         r'сатинато|прозрач',
         r'RAL\s+\d+',
         r'\bTopan\b',
-        r'\bToppan\b'
+        r'\bToppan\b',
+        r'\bБук\b',
+        r'\bДуб\b',
+        r'\bнестд\b',
+        r'\bуни\b',
+        r'\bвр\b',
+        r'\bти[пn]\b',
+        r'\bпетл[иья]?\b',
+        r'\bответ\b',
+        r'\bуниверсальное\b',
+        r'\bврезка\b',
+        r'\bСтекло\b',
+        r'\bмат\b',
+        r'\bпшен\b'
     ]
     
     earliest_idx = len(cleaned)
@@ -197,7 +212,11 @@ async def read_products(
         
     if not include_inactive:
         query = query.filter(ProductModel.is_active != False)
-        
+        if q:
+            query = query.filter(ProductModel.price > 0)
+            query = query.filter(ProductModel.image_url.is_not(None))
+            query = query.filter(ProductModel.image_url != '')
+            
     result = await db.execute(query.offset(skip).limit(limit))
     products = result.scalars().all()
     
@@ -223,20 +242,20 @@ async def read_products(
             cat_result = await db.execute(select(CategoryModel))
             all_cats = cat_result.scalars().all()
             
+        # Pre-calculate all door and handle category IDs for fast lookup
+        door_root_ids = [174, 356, 335]
+        all_groupable_ids = set()
+        for root_id in door_root_ids:
+            def get_recursive_ids(cid):
+                res = [cid]
+                children = [c.id for c in all_cats if c.parent_id == cid]
+                for ch in children:
+                    res.extend(get_recursive_ids(ch))
+                return res
+            all_groupable_ids.update(get_recursive_ids(root_id))
+
         def is_under_doors_or_handles(cid: int) -> bool:
-            visited = set()
-            current_id = cid
-            while current_id and current_id not in visited:
-                if current_id in (174, 356):
-                    return True
-                visited.add(current_id)
-                parent = next((c for c in all_cats if c.id == current_id), None)
-                if not parent:
-                    return False
-                if parent.parent_id in (174, 356):
-                    return True
-                current_id = parent.parent_id
-            return False
+            return cid in all_groupable_ids
 
         def is_placeholder_url(url: str) -> bool:
             if not url:
@@ -244,31 +263,59 @@ async def read_products(
             url_lower = url.lower()
             return "placeholder" in url_lower or "порта-51" in url_lower
 
-        grouped = {}
+        from app.utils.sanitizer import clean_door_name
+
+        grouped = {} # group_key -> product
+        image_to_key = {} # image_url -> group_key (to merge different names with same photo)
         non_grouped = []
         
         for p in products:
-            if is_under_doors_or_handles(p.category_id):
+            is_door = is_under_doors_or_handles(p.category_id)
+            if is_door:
+                # 1. Clean the display name
+                p.name = clean_door_name(p.name)
+                
+                # 2. Determine a robust base_name for grouping
+                # For Volkhovets, try to use the model number as the primary identifier
                 base_name = get_base_model_name(p.name).lower().strip()
                 if not base_name:
                     base_name = p.name.lower().strip()
-                if base_name not in grouped:
-                    grouped[base_name] = p
+                
+                # 3. Handle image-based merging
+                has_real_img = p.image_url and not is_placeholder_url(p.image_url)
+                
+                # If we've seen this EXACT image before, use the same group key
+                if has_real_img and p.image_url in image_to_key:
+                    group_key = image_to_key[p.image_url]
                 else:
-                    existing = grouped[base_name]
-                    existing_has_real = bool(existing.image_url) and not is_placeholder_url(existing.image_url)
-                    current_has_real = bool(p.image_url) and not is_placeholder_url(p.image_url)
+                    group_key = base_name
+                    if has_real_img:
+                        image_to_key[p.image_url] = group_key
+                
+                if group_key not in grouped:
+                    grouped[group_key] = p
+                else:
+                    existing = grouped[group_key]
+                    # Merge Logic:
+                    # - Prefer product with a real price
+                    # - Prefer product with a real image
+                    # - Prefer product in stock
+                    existing_has_real_img = existing.image_url and not is_placeholder_url(existing.image_url)
                     
-                    if not existing_has_real and current_has_real:
-                        grouped[base_name] = p
-                    elif existing_has_real == current_has_real:
-                        existing_has_any = bool(existing.image_url)
-                        current_has_any = bool(p.image_url)
-                        if not existing_has_any and current_has_any:
-                            grouped[base_name] = p
-                        elif existing_has_any == current_has_any:
+                    replace = False
+                    if not existing_has_real_img and has_real_img:
+                        replace = True
+                    elif existing_has_real_img == has_real_img:
+                        if (existing.price <= 1000) and p.price > 1000:
+                            replace = True
+                        elif (existing.price > 1000 and p.price > 1000) or (existing.price <= 1000 and p.price <= 1000):
                             if p.stock > 0 and existing.stock <= 0:
-                                grouped[base_name] = p
+                                replace = True
+                    
+                    if replace:
+                        grouped[group_key] = p
+                        if has_real_img:
+                            image_to_key[p.image_url] = group_key
             else:
                 non_grouped.append(p)
                 
@@ -442,6 +489,33 @@ async def read_product(
             curr_id = cat.parent_id if cat else None
     # Attach dynamically so Pydantic picks it up
     product.category_attributes = category_attributes
+
+    # Add Volkhovets kit info to description if applicable
+    from app.utils.sanitizer import get_volkhovets_kit_description, clean_door_name
+    
+    # Check if it's a door/handle to apply name cleaning
+    is_door_category = False
+    if product.category_id:
+        door_root_ids = [174, 356, 335]
+        curr_id = product.category_id
+        visited = set()
+        while curr_id and curr_id not in visited:
+            if curr_id in door_root_ids:
+                is_door_category = True
+                break
+            visited.add(curr_id)
+            c = cat_map.get(curr_id)
+            curr_id = c.parent_id if c else None
+            
+    if is_door_category:
+        product.name = clean_door_name(product.name)
+
+    kit_info = get_volkhovets_kit_description(product.name)
+    if kit_info:
+        if product.description:
+            product.description = f"{product.description}\n\n{kit_info}"
+        else:
+            product.description = kit_info
 
     # Detach instance and remap excluded category IDs to their bypassed ancestors
     from sqlalchemy.orm import make_transient
@@ -852,10 +926,11 @@ async def perform_sync(db: AsyncSession):
         is_volkhovets = is_door and (
             "ВОЛХОВЕЦ" in name_upper or 
             "VOLKHOVETS" in name_upper or 
-            (category_id and category_id in [329, 330, 331, 332, 333, 334, 335, 336, 337, 338, 339, 340, 341, 342, 343, 344, 345, 346, 347, 349, 350, 353])
+            (category_id and category_id in [328, 329, 330, 331, 332, 333, 334, 335, 336, 337, 338, 339, 340, 341, 342, 343, 344, 345, 346, 347, 349, 350, 353, 464])
         )
 
-        if is_door and (not category_id or category_id in (174, 176, 323, 328, 357)):
+        # Volkhovets category reassignment based on model numbers
+        if is_volkhovets:
             import re
             # Extract any 3 or 4 digit model number from the name, excluding common dimensions
             model_match = re.search(r'(?:ПОЛОТНО ДВ\.|ПОЛОТНО)\s+(\d{3,4})', name_upper)
@@ -872,101 +947,78 @@ async def perform_sync(db: AsyncSession):
             
             if "PLANUM PRO" in name_upper:
                 v_cat_id = 330
-                is_volkhovets = True
             elif "WALL DOOR" in name_upper or "WALL-DOOR" in name_upper:
                 v_cat_id = 353
-                is_volkhovets = True
             elif "PLANUM" in name_upper and model_num in ("0010", "0015", "0020"):
                 v_cat_id = 346
-                is_volkhovets = True
+            # Esse (ID 332) - Check this BEFORE Mascot to avoid 85xx falling into Mascot
+            elif "ESSE" in name_upper or (model_num and model_num.startswith("85")):
+                v_cat_id = 332
             # Rocca (ID 337)
             elif "ROCCA" in name_upper or (model_num and model_num.startswith("83")):
                 v_cat_id = 337
-                is_volkhovets = True
             # Antique (ID 335)
             elif "ANTIQUE" in name_upper or (model_num and (model_num.startswith("73") or model_num.startswith("71"))):
                 v_cat_id = 335
-                is_volkhovets = True
             # Mascot (ID 334)
             elif "MASCOT" in name_upper or (model_num and model_num.startswith("84")):
                 v_cat_id = 334
-                is_volkhovets = True
-            # Esse (ID 332)
-            elif "ESSE" in name_upper or (model_num and model_num.startswith("85")):
-                v_cat_id = 332
-                is_volkhovets = True
             # Neo Classic (ID 344)
             elif "NEO CLASSIC" in name_upper or "NEOCLASSICO" in name_upper or model_num == "8003":
                 v_cat_id = 344
-                is_volkhovets = True
             # Linea (ID 342)
             elif "LINEA" in name_upper or model_num == "8059":
                 v_cat_id = 342
-                is_volkhovets = True
             # Charm (ID 350)
             elif "CHARM" in name_upper or (model_num and model_num.startswith("80")) or model_num == "6711":
                 v_cat_id = 350
-                is_volkhovets = True
             # Ego (ID 341)
             elif "EGO" in name_upper or model_num == "6123":
                 v_cat_id = 341
-                is_volkhovets = True
             # Toscana (ID 329)
             elif "TOSCANA" in name_upper or "PALAZZO" in name_upper or "PLANO" in name_upper or "GRIGLIATO" in name_upper or "LITERA" in name_upper or (model_num and (model_num.startswith("63") or model_num.startswith("68"))):
                 v_cat_id = 329
-                is_volkhovets = True
             # Imperial (ID 338)
             elif "IMPERIAL" in name_upper or model_num == "6503":
                 v_cat_id = 338
-                is_volkhovets = True
             # Formato (ID 333)
             elif "FORMATO" in name_upper or (model_num and model_num.startswith("040")):
                 v_cat_id = 333
-                is_volkhovets = True
             # Freedom (ID 336)
             elif "FREEDOM" in name_upper or (model_num and (model_num.startswith("42") or model_num.startswith("77"))):
                 v_cat_id = 336
-                is_volkhovets = True
             # Lignum (ID 339)
             elif "LIGNUM" in name_upper or (model_num and model_num.startswith("07")):
                 v_cat_id = 339
-                is_volkhovets = True
             # Velvet (ID 347)
             elif "VELVET" in name_upper or (model_num and model_num.startswith("82")):
                 v_cat_id = 347
-                is_volkhovets = True
             # Rift (ID 343)
             elif "RIFT" in name_upper or (model_num and model_num.startswith("02")):
                 v_cat_id = 343
-                is_volkhovets = True
             # Paris (ID 331)
             elif "PARIS" in name_upper or (model_num and model_num.startswith("81")):
                 v_cat_id = 331
-                is_volkhovets = True
             # Galant (ID 345)
             elif "GALANT" in name_upper or (model_num and model_num.startswith("14")):
                 v_cat_id = 345
-                is_volkhovets = True
             # Neo (ID 340)
             elif "NEO" in name_upper or (model_num and model_num.startswith("21")):
                 v_cat_id = 340
-                is_volkhovets = True
             # Centro (ID 349)
             elif "CENTRO" in name_upper or (model_num and model_num.startswith("25")):
                 v_cat_id = 349
-                is_volkhovets = True
             # Planum (ID 346)
             elif "PLANUM" in name_upper or model_num in ("0010", "0015", "0020"):
                 v_cat_id = 346
-                is_volkhovets = True
             # Generic/Fallback Волховец
             elif "ВОЛХОВЕЦ" in name_upper or "VOLKHOVETS" in name_upper:
                 v_cat_id = 464
-                is_volkhovets = True
                 
-            if is_volkhovets:
+            if v_cat_id:
                 category_id = v_cat_id
-            else:
+
+        if is_door and not is_volkhovets and (not category_id or category_id in (174, 176, 323, 328, 357)):
                 # Zadoor / Portika / other doors rules
                 zadoor_fallback_id = cat_map.get("14b504b0-4609-11ed-aa23-505dac4282cc") or cat_map.get("906172ca-5fd0-11ec-a9fd-505dac4282cc") or 449
                 portika_fallback_id = cat_map.get("b779d45d-727f-11ef-8c32-c42dcda0bdba") or cat_map.get("a9fac7e2-727f-11ef-8c32-c42dcda0bdba") or 426
