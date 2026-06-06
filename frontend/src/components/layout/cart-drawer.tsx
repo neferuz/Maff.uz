@@ -102,7 +102,7 @@ export function CartDrawer({
 
                   <div className={cn("flex gap-3 transition-all duration-300", deletingId === item.id ? "opacity-20 blur-[1px]" : "opacity-100")}>
                     <div className="w-14 h-14 bg-[#f8f9fa] dark:bg-slate-800 rounded-xl overflow-hidden flex-shrink-0 border border-slate-100 dark:border-slate-700 relative">
-                        <Image src={item.image} alt={item.name} fill className="object-contain p-1.5" />
+                        <Image src={/^\d{4}\.png$/.test(item.image) ? `/static/uploads/sargo/${item.image}` : (item.image.startsWith('/') || item.image.startsWith('http') ? item.image : `/${item.image}`)} alt={item.name} fill className="object-contain p-1.5" />
                     </div>
                     <div className="flex-grow flex flex-col justify-between py-0.5">
                         <div>
